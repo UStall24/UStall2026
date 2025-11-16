@@ -1,0 +1,45 @@
+﻿<UserControl x:Class="UStallGUI.View.ControlParameterHandlerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:UStallGUI.View"
+             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" d:DataContext="{d:DesignInstance Type=viewmodel:ControlParameterHandlerViewModel}"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="400" Background="White">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <ComboBox Margin="10" SelectedIndex="{Binding DirectionSelectedIndex}">
+            <ComboBoxItem>JoystickL-VH</ComboBoxItem>
+            <ComboBoxItem>JoystickL-LR</ComboBoxItem>
+            <ComboBoxItem>LT/RT</ComboBoxItem>
+            <ComboBoxItem>Rotation: Z-Axis</ComboBoxItem>
+            <ComboBoxItem>Rotation: X-Axis</ComboBoxItem>
+            <ComboBoxItem>LB/RB</ComboBoxItem>
+        </ComboBox>
+        <Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Width="400" Height="400">
+            <Viewbox Stretch="Uniform">
+                <Image Source="/ROV_Model.png" />
+            </Viewbox>
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="175,42,175,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM1}" />
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="60,142,290,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM2}" />
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="165,306,185,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM3}" />
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="314,250,36,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM1}" />
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="35,275,315,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM2}" />
+            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="289,127,61,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM3}" />
+        </Grid>
+        <Button Grid.Row="1" Grid.Column="0" Margin="10" Content="Pull Direction Values From LCE" Command="{Binding PullDirectionValuesFromLCE_Command}" />
+        <Button Grid.Row="1" Grid.Column="1" Margin="10" Content="Apply Direction Values To LCE"  Command="{Binding ApplyDirectionValuesToLCE_Command}" />
+        <Button Grid.Row="2" Grid.Column="0" Margin="10" Content="Load Current Direction Values From PC" Command="{Binding LoadDirectionValuesFromPC_Command}" />
+        <Button Grid.Row="2" Grid.Column="1" Margin="10" Content="Save Current Direction Values to PC" Command="{Binding SaveDirectionValuesToPC_Command}" />
+    </Grid>
+</UserControl>
