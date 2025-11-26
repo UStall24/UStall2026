@@ -11,7 +11,7 @@ namespace UStallGUI.View
         public CameraStreamView()
         {
             InitializeComponent();
-            DataContext = new CameraStreamViewModel();
+            DataContext = App.Instance.CameraStreamViewModelGetter;
         }
     }
 }

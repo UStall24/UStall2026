@@ -22,10 +22,12 @@ namespace UStallGUI.ViewModel
         // Properties for binding
         public ControllerModel CurrentControllerModel { get; set; } = new();
 
-        public ControllerHandlerViewModel()
+        private readonly UsbCANWrapper can;
+
+        public ControllerHandlerViewModel(UsbCANWrapper can)
         {
-            Instance = this;
-            ConnectToController = new RelayCommand(() => SetController(0)); // Default to controller index 0
+            this.can = can;
+            ConnectToController = new RelayCommand(() => SetController(0));
         }
 
         private void SetController(int index)
@@ -36,7 +38,7 @@ namespace UStallGUI.ViewModel
             // Run the polling task in the background
             _ = Task.Run(ControllerTimerCallback);
 
-            MainWindowViewModel.Instance.ControlBoxConsoleText = "Controller with Index 0 is connected";
+            MainWindowViewModel.Instance.LogToControlBox("Controller with Index 0 is connected");
             MainWindowViewModel.Instance.ConnectionStatusController = "Connected";
         }
 
@@ -55,11 +57,11 @@ namespace UStallGUI.ViewModel
                     if (dividorCounter == 0)
                     {
                         var command = UseDynamicThrottle
-                            ? LCE_CommandAddresses.ApplyControllerValues_DynamicThrottle
-                            : LCE_CommandAddresses.ApplyControllerValues;
+                            ? SendAddressesControlUnit.ApplyControllerValues_DynamicThrottle
+                            : SendAddressesControlUnit.ApplyControllerValues;
 
                         if (SendControllerValues)
-                            SetupHandlerViewModel.can?.WriteBytes((ushort)command, CurrentControllerModel.GetMovementBytes());
+                            can.SendFrame((ushort)command, CurrentControllerModel.GetMovementBytes());
 
                         Console.WriteLine($"Sending: {SendControllerValues} Dynamic Throttle: {UseDynamicThrottle}: {CurrentControllerModel.GetMovementBytesAsString()}");
                         dividorCounter = sendingDividor;
@@ -75,7 +77,7 @@ namespace UStallGUI.ViewModel
             }
             catch (Exception ex)
             {
-                MainWindowViewModel.Instance.ControlBoxConsoleText = $"Controller Exception: {ex}";
+                MainWindowViewModel.Instance.LogToControlBox($"Controller Exception: {ex}");
             }
         }
 

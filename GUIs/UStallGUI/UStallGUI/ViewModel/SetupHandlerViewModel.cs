@@ -1,10 +1,13 @@
 ﻿using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
+using Timer = System.Timers.Timer;
 
 namespace UStallGUI.ViewModel
 {
@@ -13,6 +16,11 @@ namespace UStallGUI.ViewModel
         #region LCE Setup
 
         private byte _updateInterval;
+        private int _controlType = 2;
+
+        private ConfigGUI currentConfig;
+
+        private UsbCANWrapper can;
 
         public byte UpdateInterval // in ms
         {
@@ -20,14 +28,17 @@ namespace UStallGUI.ViewModel
             set => Set(ref _updateInterval, value);
         }
 
-        private int _controlType = 2;
-
+        /// <summary>
+        /// 1 = Manual control, 2 = Controller, others = off
+        /// </summary>
         public int ControlType
         {
             get => _controlType;
             set
             {
-                Set(ref _controlType, value);
+                if (!Set(ref _controlType, value))
+                    return;
+
                 switch (_controlType)
                 {
                     case 1:
@@ -37,21 +48,22 @@ namespace UStallGUI.ViewModel
 
                     case 2:
                         ControllerHandlerViewModel.SendControllerValues = true;
+                        StopManualControl();
                         break;
 
                     default:
                         ControllerHandlerViewModel.SendControllerValues = false;
-                        _manualControlTimer?.Stop();
+                        StopManualControl();
                         break;
                 }
             }
         }
 
-        public RelayCommand ConnectToLCE_Command { get; set; }
-        public RelayCommand InitThrusters_Command { get; set; }
-        public RelayCommand DeinitThrusters_Command { get; set; }
-        public RelayCommand ApplyUpdateInterval_Command { get; set; }
-        public RelayCommand ResetErrorLCE_Command { get; set; }
+        public RelayCommand ConnectToLCE_Command { get; }
+        public RelayCommand InitThrusters_Command { get; }
+        public RelayCommand DeinitThrusters_Command { get; }
+        public RelayCommand ApplyUpdateInterval_Command { get; }
+        public RelayCommand ResetErrorLCE_Command { get; }
 
         #endregion LCE Setup
 
@@ -73,10 +85,16 @@ namespace UStallGUI.ViewModel
             get => _manualControlAllVertical;
             set
             {
-                Set(ref _manualControlAllVertical, Math.Clamp(value, -1f, 1f));
-                ManualControlValues.VM1 = value;
-                ManualControlValues.VM2 = value;
-                ManualControlValues.VM3 = value;
+                var clamped = Math.Clamp(value, -1f, 1f);
+                if (!Set(ref _manualControlAllVertical, clamped))
+                    return;
+
+                if (ManualControlValues != null)
+                {
+                    ManualControlValues.VM1 = clamped;
+                    ManualControlValues.VM2 = clamped;
+                    ManualControlValues.VM3 = clamped;
+                }
             }
         }
 
@@ -87,10 +105,16 @@ namespace UStallGUI.ViewModel
             get => _manualControlAllHorizontal;
             set
             {
-                Set(ref _manualControlAllHorizontal, Math.Clamp(value, -1f, 1f));
-                ManualControlValues.HM1 = value;
-                ManualControlValues.HM2 = value;
-                ManualControlValues.HM3 = value;
+                var clamped = Math.Clamp(value, -1f, 1f);
+                if (!Set(ref _manualControlAllHorizontal, clamped))
+                    return;
+
+                if (ManualControlValues != null)
+                {
+                    ManualControlValues.HM1 = clamped;
+                    ManualControlValues.HM2 = clamped;
+                    ManualControlValues.HM3 = clamped;
+                }
             }
         }
 
@@ -101,19 +125,24 @@ namespace UStallGUI.ViewModel
             get => _manualControlAll;
             set
             {
-                Set(ref _manualControlAll, Math.Clamp(value, -1f, 1f));
-                ManualControlAllVertical = value;
-                ManualControlAllHorizontal = value;
+                var clamped = Math.Clamp(value, -1f, 1f);
+                if (!Set(ref _manualControlAll, clamped))
+                    return;
+
+                ManualControlAllVertical = clamped;
+                ManualControlAllHorizontal = clamped;
             }
         }
 
-        public RelayCommand ManualControlReset_Command { get; set; }
+        public RelayCommand ManualControlReset_Command { get; }
 
         #endregion Manual Control
 
         #region Gyro
 
         private bool _gyroEnabled;
+        private float _gyroPValue;
+        private float _gyroDValue;
 
         public bool GyroEnabled
         {
@@ -128,15 +157,11 @@ namespace UStallGUI.ViewModel
             }
         }
 
-        private float _gyroPValue;
-
         public float GyroPValue
         {
             get => _gyroPValue;
             set => Set(ref _gyroPValue, Clamp255Float(value));
         }
-
-        private float _gyroDValue;
 
         public float GyroDValue
         {
@@ -147,39 +172,34 @@ namespace UStallGUI.ViewModel
         // Method to clamp the value between 0 and 2.55
         private static float Clamp255Float(float value)
         {
-            if (value < 0)
-                return 0;
-            if (value > 2.55)
-                return 2.55f;
+            if (value < 0f) return 0f;
+            if (value > 2.55f) return 2.55f;
             return value;
         }
 
-        public RelayCommand PullGyroValues_Command { get; set; }
-        public RelayCommand ApplyGyroValues_Command { get; set; }
+        public RelayCommand PullGyroValues_Command { get; }
+        public RelayCommand ApplyGyroValues_Command { get; }
 
         #endregion Gyro
 
         #region Options
 
         private bool _dynamicThrottleEnabled;
+        private byte _maxCurrent;
 
         public bool DynamicThrottleEnabled
         {
-            get
-            {
-                _dynamicThrottleEnabled = currentConfig.DynamicThrottleEnabled;
-                return _dynamicThrottleEnabled;
-            }
+            get => currentConfig.DynamicThrottleEnabled;
             set
             {
-                Set(ref _dynamicThrottleEnabled, value);
+                if (!Set(ref _dynamicThrottleEnabled, value))
+                    return;
+
                 currentConfig.DynamicThrottleEnabled = value;
                 ControllerHandlerViewModel.UseDynamicThrottle = value;
                 UpdateConfig();
             }
         }
-
-        private byte _maxCurrent;
 
         public byte MaxCurrent
         {
@@ -189,238 +209,310 @@ namespace UStallGUI.ViewModel
 
         #endregion Options
 
-        private ConfigGUI currentConfig;
-
-        public static UsbCANWrapper can;
-
         public SetupHandlerViewModel()
         {
+            can = new UsbCANWrapper();
+
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
-            ControlType = 2;
-            ConnectToLCE_Command = new(ConnectToLCE);
-            InitThrusters_Command = new(InitThrusters);
-            DeinitThrusters_Command = new(DeinitThrusters);
-            ApplyUpdateInterval_Command = new(ApplyUpdateInterval);
-            ResetErrorLCE_Command = new(ResetErrorLCE);
-            PullGyroValues_Command = new(PullGyroValues);
-            ApplyGyroValues_Command = new(ApplyGyroValues);
-            ManualControlReset_Command = new(ManualControlReset);
+
+            ControlType = 2; // default to controller
+
+            //InitThrusters_Command = new RelayCommand(() => _ = InitThrustersAsync());
+            //DeinitThrusters_Command = new RelayCommand(() => _ = DeinitThrustersAsync());
+            //ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
+            //ResetErrorLCE_Command = new RelayCommand(() => _ = ResetErrorLCEAsync());
+            //PullGyroValues_Command = new RelayCommand(() => _ = PullGyroValuesAsync());
+            //ApplyGyroValues_Command = new RelayCommand(() => _ = ApplyGyroValuesAsync());
+            ManualControlReset_Command = new RelayCommand(ManualControlReset);
+
+            ConnectToLCE_Command = new RelayCommand(ConnectToControlUnit);
         }
+
+        #region Config helpers
 
         private void UpdateConfig() => ConfigLoader.UpdateConfigGUI(currentConfig);
 
-        /// <summary>
-        /// Helper: wait for a CAN response with a given ID (with timeout).
-        /// Returns empty byte[] on timeout.
-        /// </summary>
-        private async Task<byte[]> WaitForResponseAsync(ushort responseId, int timeoutMs = 100)
+        #endregion Config helpers
+
+        #region Connection / CAN
+
+        private void ConnectToControlUnit()
         {
-            if (can == null)
-                return Array.Empty<byte>();
+            can.ConnectToCanAdapter();
+            MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
+            can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
 
-            var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            //byte[] response = await WaitForResponseAsync(
+            //    (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
+            //    300
+            //).ConfigureAwait(false);
 
-            Action<ushort, byte[]> handler = null;
-            var timeoutTimer = new System.Timers.Timer(timeoutMs)
-            {
-                AutoReset = false
-            };
+            //if (response.Length != 0)
+            //{
+            //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
 
-            timeoutTimer.Elapsed += (s, e) =>
-            {
-                can.UnregisterCallback(responseId, handler);
-                tcs.TrySetResult(Array.Empty<byte>());
-                timeoutTimer.Dispose();
-            };
+            //    // Display first status byte as human-readable message, if mapping exists
+            //    if (response.Length > 0 &&
+            //        LCECommunicationHelper.LCE_MessageAddresses.TryGetValue(response[0], out var msg))
+            //    {
+            //        MainWindowViewModel.Instance.LogToControlBox(msg);
+            //    }
 
-            handler = (id, data) =>
-            {
-                timeoutTimer.Stop();
-                timeoutTimer.Dispose();
-                can.UnregisterCallback(responseId, handler);
-                tcs.TrySetResult(data ?? Array.Empty<byte>());
-            };
-
-            can.RegisterCallback(responseId, handler);
-            timeoutTimer.Start();
-
-            return await tcs.Task;
-        }
-
-        private async void ConnectToLCE()
-        {
-            DisconnectFromLCE();
-
-            can = new UsbCANWrapper();
-
-            // NOTE: ideally UsbCANWrapper.IsOpen should be "sp != null && sp.IsOpen"
-            if (can == null || !can.IsOpen)
-            {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(3);
-                await Task.Delay(3000);
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(0);
-                return;
-            }
-
-            MainWindowViewModel.Instance.UpdateConnectionStatusLCE(1);
-
-            // Send init command
-            can.WriteBytes((ushort)LCE_CommandAddresses.InitThrusters);
-
-            // Wait for init response
-            byte[] response = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.InitThrusters_Response, 250);
-
-            if (response.Length != 0)
-            {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(2);
-                MainWindowViewModel.Instance.ControlBoxConsoleText =
-                    LCECommunicationHelper.LCE_MessageAddresses[response[0]];
-
-                UpdateInterval = await PullUpdateInterval();
-            }
-            else
-            {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(3);
-            }
+            //    UpdateInterval = await PullUpdateInterval().ConfigureAwait(false);
+            //}
+            //else
+            //{
+            //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+            //}
         }
 
         public void DisconnectFromLCE()
         {
+            StopManualControl();
+
             if (can != null && can.IsOpen)
             {
                 bool closingSuccessful = can.Close();
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(closingSuccessful ? 4 : 5);
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(
+                    closingSuccessful ? LceConnectionStatus.ClosingSuccessful : LceConnectionStatus.ClosingFailed
+                );
             }
             else
             {
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "CAN interface is currently closed";
+                MainWindowViewModel.Instance.LogToControlBox("CAN interface is currently closed");
             }
+
+            can = null;
         }
 
-        private async void InitThrusters()
+        public UsbCANWrapper GetCANWrapper()
         {
-            // TODO: implement if needed (similar pattern: send command, await response)
+            return can;
         }
 
-        private async void DeinitThrusters()
-        {
-            // TODO: implement if needed
-        }
+        #endregion Connection / CAN
+
+        #region Thruster Init/Deinit (stubs – fill in your protocol)
+
+        //private async Task InitThrustersAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
+
+        //    // Example pattern – change IDs to your real protocol
+        //    can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
+
+        //    var response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
+        //        200
+        //    ).ConfigureAwait(false);
+
+        //    if (response.Length > 0)
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters init successful.");
+        //    }
+        //    else
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters init failed.");
+        //    }
+        //}
+
+        //private async Task DeinitThrustersAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
+
+        //    // Example pattern – adjust IDs
+        //    can.SendFrame((ushort)SendAddressesControlUnit.DeinitThrusters);
+
+        //    var response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.DeinitThrusters_Response,
+        //        200
+        //    ).ConfigureAwait(false);
+
+        //    if (response.Length > 0)
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters deinit successful.");
+        //    }
+        //    else
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters deinit failed.");
+        //    }
+        //}
+
+        #endregion Thruster Init/Deinit (stubs – fill in your protocol)
+
+        #region Manual Control Timer
 
         private void InitManualControl()
         {
+            StopManualControl();
+
+            if (UpdateInterval == 0)
+                UpdateInterval = 10; // fallback
+
             _manualControlTimer = new Timer(UpdateInterval * 2); // interval in ms
             _manualControlTimer.Elapsed += ApplyManualControl;
             _manualControlTimer.AutoReset = true;
             _manualControlTimer.Enabled = true;
         }
 
+        private void StopManualControl()
+        {
+            if (_manualControlTimer != null)
+            {
+                _manualControlTimer.Elapsed -= ApplyManualControl;
+                _manualControlTimer.Stop();
+                _manualControlTimer.Dispose();
+                _manualControlTimer = null;
+            }
+        }
+
         private void ApplyManualControl(object sender, ElapsedEventArgs e)
         {
-            if (can != null && can.IsOpen)
+            if (can != null && can.IsOpen && ManualControlValues != null)
             {
-                can.WriteBytes((ushort)LCE_CommandAddresses.ApplyManualControl, ManualControlValues.GetAsByte());
+                can.SendFrame((ushort)SendAddressesControlUnit.ApplyManualControl, ManualControlValues.GetAsByte());
             }
         }
 
-        private async void ApplyUpdateInterval()
+        private void ManualControlReset()
         {
-            if (can == null || !can.IsOpen)
-                return;
-
-            byte oldCycleInterval = await PullUpdateInterval();
-            if (oldCycleInterval == 0)
-                return;
-
-            can.WriteBytes((ushort)LCE_CommandAddresses.UpdateCylceTime, new byte[] { UpdateInterval });
-
-            byte[] resp = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.UpdateCycleTime_Response, 100);
-            if (resp.Length > 0)
-            {
-                MainWindowViewModel.Instance.ControlBoxConsoleText =
-                    $"Updating Cycle Time from {oldCycleInterval} to {resp[0]} {(oldCycleInterval == resp[0] ? "Failed!" : "was Successful!")}";
-            }
+            ManualControlValues?.UpdateAsArray([0, 0, 0, 0, 0, 0]);
+            ManualControlAll = 0f;
         }
 
-        private async Task<byte> PullUpdateInterval()
-        {
-            if (can == null || !can.IsOpen)
-                return 0x00;
+        #endregion Manual Control Timer
 
-            can.WriteBytes((ushort)LCE_CommandAddresses.UpdateCylceTime, new byte[] { 0x00 });
+        #region Update Interval
 
-            byte[] response = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.UpdateCycleTime_Response, 100);
-            if (response.Length > 0)
-                return response[0];
+        //private async Task ApplyUpdateIntervalAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
 
-            return 0x00;
-        }
+        //    byte oldCycleInterval = await PullUpdateInterval().ConfigureAwait(false);
+        //    if (oldCycleInterval == 0)
+        //        return;
 
-        private async void ResetErrorLCE()
-        {
-            if (can == null || !can.IsOpen)
-                return;
+        //    can.SendFrame((ushort)SendAddressesControlUnit.UpdateCylceTime, new byte[] { UpdateInterval });
 
-            can.WriteBytes((ushort)LCE_CommandAddresses.ResetError);
+        //    byte[] resp = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.UpdateCycleTime_Response,
+        //        100
+        //    ).ConfigureAwait(false);
 
-            byte[] response = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.ResetError_Response, 100);
-            if (response.Length != 0 && response[0] == 0x01)
-            {
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Resetting Error was successful";
-            }
-        }
+        //    if (resp.Length > 0)
+        //    {
+        //        string result = oldCycleInterval == resp[0] ? "Failed!" : "was Successful!";
+        //        MainWindowViewModel.Instance.LogToControlBox($"Updating Cycle Time from {oldCycleInterval} to {resp[0]} {result}");
+        //    }
+        //}
 
-        private async void PullGyroValues()
-        {
-            if (can == null || !can.IsOpen)
-                return;
+        //private async Task<byte> PullUpdateInterval()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return 0x00;
 
-            can.WriteBytes((ushort)LCE_CommandAddresses.PullPidValues);
+        //    can.SendFrame((ushort)SendAddressesControlUnit.UpdateCylceTime, new byte[] { 0x00 });
 
-            byte[] response = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.PullPidValues_Response, 100);
-            if (response.Length > 0)
-            {
-                if (response.Length >= 2)
-                {
-                    GyroPValue = LCECommunicationHelper.ConvertByteTo255Float(response[0]);
-                    GyroDValue = LCECommunicationHelper.ConvertByteTo255Float(response[1]);
-                }
+        //    byte[] response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.UpdateCycleTime_Response,
+        //        100
+        //    ).ConfigureAwait(false);
 
-                if (response.Length >= 3)
-                {
-                    GyroEnabled = (response[2] == 1);
-                }
+        //    return response.Length > 0 ? response[0] : (byte)0x00;
+        //}
 
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Pulling PID values was Successful!";
-            }
-            else
-            {
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Pulling PID values failed!";
-            }
-        }
+        #endregion Update Interval
 
-        private async void ApplyGyroValues()
-        {
-            if (can == null || !can.IsOpen)
-                return;
+        #region Error Reset
 
-            byte[] payload =
-            {
-                LCECommunicationHelper.Convert255FloatToByte(GyroPValue),
-                LCECommunicationHelper.Convert255FloatToByte(GyroDValue),
-                (byte)(GyroEnabled ? 0x01 : 0x00)
-            };
+        //private async Task ResetErrorLCEAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
 
-            can.WriteBytes((ushort)LCE_CommandAddresses.ApplyPidValues, payload);
+        //    can.SendFrame((ushort)SendAddressesControlUnit.ResetError);
 
-            byte[] response = await WaitForResponseAsync((ushort)LCE_ResponseAddresses.ApplyPidValues_Response, 100);
-            if (response.Length > 0)
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Applying PID values was Successful!";
-            else
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Applying PID values failed!";
-        }
+        //    byte[] response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.ResetError_Response,
+        //        100
+        //    ).ConfigureAwait(false);
 
-        private void ManualControlReset() => ManualControlValues.UpdateAsArray([0, 0, 0, 0, 0, 0]);
+        //    if (response.Length != 0 && response[0] == 0x01)
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Resetting Error was successful");
+        //    }
+        //    else
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Resetting Error failed");
+        //    }
+        //}
+
+        #endregion Error Reset
+
+        #region Gyro Commands
+
+        //private async Task PullGyroValuesAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
+
+        //    can.SendFrame((ushort)SendAddressesControlUnit.PullPidValues);
+
+        //    byte[] response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.PullPidValues_Response,
+        //        100
+        //    ).ConfigureAwait(false);
+
+        //    if (response.Length > 0)
+        //    {
+        //        if (response.Length >= 2)
+        //        {
+        //            GyroPValue = LCECommunicationHelper.ConvertByteTo255Float(response[0]);
+        //            GyroDValue = LCECommunicationHelper.ConvertByteTo255Float(response[1]);
+        //        }
+
+        //        if (response.Length >= 3)
+        //        {
+        //            GyroEnabled = response[2] == 1;
+        //        }
+
+        //        MainWindowViewModel.Instance.LogToControlBox("Pulling PID values was Successful!");
+        //    }
+        //    else
+        //    {
+        //        MainWindowViewModel.Instance.LogToControlBox("Pulling PID values failed!");
+        //    }
+        //}
+
+        //private async Task ApplyGyroValuesAsync()
+        //{
+        //    if (can == null || !can.IsOpen)
+        //        return;
+
+        //    byte[] payload =
+        //    {
+        //        LCECommunicationHelper.Convert255FloatToByte(GyroPValue),
+        //        LCECommunicationHelper.Convert255FloatToByte(GyroDValue),
+        //        (byte)(GyroEnabled ? 0x01 : 0x00)
+        //    };
+
+        //    can.SendFrame((ushort)SendAddressesControlUnit.ApplyPidValues, payload);
+
+        //    byte[] response = await WaitForResponseAsync(
+        //        (ushort)RecieveAddressesControlUnit.ApplyPidValues_Response,
+        //        100
+        //    ).ConfigureAwait(false);
+
+        //    MainWindowViewModel.Instance.LogToControlBox(
+        //        response.Length > 0
+        //            ? "Applying PID values was Successful!"
+        //            : "Applying PID values failed!");
+        //}
+
+        #endregion Gyro Commands
     }
 }

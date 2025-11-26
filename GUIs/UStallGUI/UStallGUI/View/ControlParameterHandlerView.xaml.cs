@@ -11,12 +11,11 @@ namespace UStallGUI.View
         public ControlParameterHandlerView()
         {
             InitializeComponent();
-            DataContext = new ControlParameterHandlerViewModel();
+            DataContext = App.Instance.ControlParamterHandlerViewModelGetter;
         }
 
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-
         }
     }
 }

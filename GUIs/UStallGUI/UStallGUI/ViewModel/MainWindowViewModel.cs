@@ -1,76 +1,79 @@
 ﻿using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
+using System.Collections.Generic;
 using UStallGUI.Helpers;
 
 namespace UStallGUI.ViewModel
 {
+    public enum LceConnectionStatus
+    {
+        None = 0,
+        Connecting = 1,
+        Connected = 2,
+        ErrorConnecting = 3,
+        ClosingSuccessful = 4,
+        ClosingFailed = 5
+    }
+
     public class MainWindowViewModel : ObservableObject
     {
-        public static MainWindowViewModel Instance;
+        public static MainWindowViewModel Instance { get; private set; }
+
+        private readonly ConsoleLog controlBoxLog = new();
 
         private string connectionStatusLCE;
         private string connectionStatusController = "Not Connected";
+        private string controlBoxConsoleText;
+        private string selectedGripper = "0";
+        private string rpiTemperature;
+
+        private LceConnectionStatus lceConnectionStatus = LceConnectionStatus.None;
+
+        // Keyboard mapping: key -> gripper command
+        private readonly IReadOnlyDictionary<string, GripperAssignment> keyToGripperMap =
+            new Dictionary<string, GripperAssignment>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["T"] = GripperAssignment.Gripper2_Servo1Plus,
+                ["G"] = GripperAssignment.Gripper2_Servo1Minus,
+                ["Z"] = GripperAssignment.Gripper2_Servo2Plus,
+                ["H"] = GripperAssignment.Gripper2_Servo2Minus,
+                ["B"] = GripperAssignment.Gripper2_PumpOn,
+
+                ["U"] = GripperAssignment.Gripper1_Servo1Plus,
+                ["J"] = GripperAssignment.Gripper1_Servo1Minus,
+                ["I"] = GripperAssignment.Gripper1_Servo2Plus,
+                ["K"] = GripperAssignment.Gripper1_Servo2Minus,
+                ["O"] = GripperAssignment.Gripper1_Servo3Plus,
+                ["L"] = GripperAssignment.Gripper1_Servo3Minus,
+            };
+
+        private static readonly IReadOnlyDictionary<LceConnectionStatus, string> LceStatusMessages =
+            new Dictionary<LceConnectionStatus, string>
+            {
+                [LceConnectionStatus.None] = "No active connection",
+                [LceConnectionStatus.Connecting] = "Connecting...",
+                [LceConnectionStatus.Connected] = "Connected",
+                [LceConnectionStatus.ErrorConnecting] = "Error Connecting",
+                [LceConnectionStatus.ClosingSuccessful] = "Closing Successful",
+                [LceConnectionStatus.ClosingFailed] = "Closing Failed"
+            };
 
         public MainWindowViewModel()
         {
             Instance = this;
-            UpdateConnectionStatusLCE(0);
-            _InitKeyboardInputHandling();
+
+            // Initial state
+            UpdateConnectionStatusLCE(LceConnectionStatus.None);
+            InitKeyboardInputHandling();
         }
 
-        private readonly string[] lce_connection_messages = { "No active connection", "Connecting...", "Connected", "Error Connecting", "Closing Successful", "Closing Failed" };
+        #region Public Properties
 
-        private int lce_connection_index = 0;
-
-        public void UpdateConnectionStatusLCE(int status)
-        {
-            if (status >= 0 && status < lce_connection_messages.Length && status != lce_connection_index)
-            {
-                lce_connection_index = status;
-                ConnectionStatusLCE = lce_connection_messages[lce_connection_index];
-                ControlBoxConsoleText = $"LCE Connection Status: {lce_connection_messages[lce_connection_index]}";
-            }
-        }
-
-        private readonly ConsoleLog controlBoxLog = new();
-        private readonly ConsoleLog accessoryBoxLog = new();
-
-        private string controlBoxConsoleText;
-
-        public string ControlBoxConsoleText
-        {
-            get => controlBoxConsoleText;
-            set
-            {
-                controlBoxLog.Add(value);
-                Set(ref controlBoxConsoleText, controlBoxLog.CurrentText);
-            }
-        }
-
-        private string accessoryBoxConsoleText;
-
-        public string AccessoryBoxConsoleText
-        {
-            //get => accessoryBoxConsoleText;
-            set
-            {
-                //accessoryBoxLog.Add(value);
-                //Set(ref accessoryBoxConsoleText, accessoryBoxLog.CurrentText);
-                ControlBoxConsoleText = value; // To be changed cause i removed the 2nd Console
-            }
-        }
-
-        private string _selectedGripper = "0";
-        public string SelectedGripper { get => _selectedGripper; set => Set(ref _selectedGripper, value); }
-        private string _rpiTemperature;
-        public string RPiTemperature { get => _rpiTemperature; set => Set(ref _rpiTemperature, value); }
-
-        // Textfield for the Statusbar Bindings
         public string ConnectionStatusLCE
         {
             get => connectionStatusLCE;
-            set => Set(ref connectionStatusLCE, value);
+            private set => Set(ref connectionStatusLCE, value);
         }
 
         public string ConnectionStatusController
@@ -79,65 +82,86 @@ namespace UStallGUI.ViewModel
             set => Set(ref connectionStatusController, value);
         }
 
+        public string ControlBoxConsoleText
+        {
+            get => controlBoxConsoleText;
+            private set => Set(ref controlBoxConsoleText, value);
+        }
+
+        public string SelectedGripper
+        {
+            get => selectedGripper;
+            set => Set(ref selectedGripper, value);
+        }
+
+        public string RPiTemperature
+        {
+            get => rpiTemperature;
+            set => Set(ref rpiTemperature, value);
+        }
+
+        #endregion Public Properties
+
+        #region LCE Connection Status
+
+        public void UpdateConnectionStatusLCE(LceConnectionStatus status)
+        {
+            if (status == lceConnectionStatus)
+                return;
+
+            lceConnectionStatus = status;
+
+            if (LceStatusMessages.TryGetValue(status, out var message))
+            {
+                ConnectionStatusLCE = message;
+                LogToControlBox($"LCE Connection Status: {message}");
+            }
+        }
+
+        #endregion LCE Connection Status
+
+        #region Logging
+
+        public void LogToControlBox(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return;
+
+            controlBoxLog.Add(message);
+            ControlBoxConsoleText = controlBoxLog.CurrentText;
+        }
+
+        #endregion Logging
+
         #region Keyboard Input Handling
 
         public RelayCommand<string> KeyPressedCommand { get; private set; }
 
-        private void _InitKeyboardInputHandling()
+        private void InitKeyboardInputHandling()
         {
             KeyPressedCommand = new RelayCommand<string>(OnKeyPressed);
         }
 
         public void OnKeyPressed(string key)
         {
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
             Console.WriteLine($"{key} pressed!");
 
-            switch (key)
+            if (!keyToGripperMap.TryGetValue(key, out var assignment))
             {
-                case "T":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper2_Servo1Plus);
-                    break;
-
-                case "G":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper2_Servo1Minus);
-                    break;
-
-                case "Z":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper2_Servo2Plus);
-                    break;
-
-                case "H":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper2_Servo2Minus);
-                    break;
-
-                case "B":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper2_PumpOn);
-                    break;
-
-                case "U":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo1Plus);
-                    break;
-
-                case "J":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo1Minus);
-                    break;
-
-                case "I":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo2Plus);
-                    break;
-
-                case "K":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo2Minus);
-                    break;
-
-                case "O":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo3Plus);
-                    break;
-
-                case "L":
-                    AccessoryBoxViewModel.Instance.ExecuteGripperCommand(GripperAssignment.Gripper1_Servo3Minus);
-                    break;
+                // Unknown key – silently ignore or log if you want.
+                return;
             }
+
+            if (App.Instance.AccessoryBoxViewModelGetter == null)
+            {
+                LogToControlBox("AccessoryBoxViewModel.Instance is null. Cannot execute gripper command.");
+                return;
+            }
+
+            App.Instance.AccessoryBoxViewModelGetter.ExecuteGripperCommand(assignment);
         }
 
         #endregion Keyboard Input Handling

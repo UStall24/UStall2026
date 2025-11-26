@@ -11,7 +11,7 @@ namespace UStallGUI.View
         public SetupHandlerView()
         {
             InitializeComponent();
-            DataContext = new SetupHandlerViewModel();
+            DataContext = App.Instance.SetupHandlerViewModelGetter;
         }
     }
 }

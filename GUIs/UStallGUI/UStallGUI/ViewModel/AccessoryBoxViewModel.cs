@@ -22,8 +22,6 @@ namespace UStallGUI.ViewModel
 
         private int _mqtt_port;
 
-        public static AccessoryBoxViewModel Instance;
-
         public int MqttPort
         {
             get
@@ -57,12 +55,13 @@ namespace UStallGUI.ViewModel
         }
 
         private MqttGripperSender _mqttSender;
+        private readonly UsbCANWrapper can;
 
-        public AccessoryBoxViewModel()
+        public AccessoryBoxViewModel(UsbCANWrapper can)
         {
-            Instance = this;
             GripperCommand = new RelayCommand<GripperAssignment>(ExecuteGripperCommand);
             ConnectMqtt_Command = new RelayCommand(ConnectMqtt);
+            this.can = can;
         }
 
         public RelayCommand<GripperAssignment> GripperCommand { get; set; }
@@ -108,7 +107,7 @@ namespace UStallGUI.ViewModel
                 if (!mechpro_gripper_execution && !_debug_mode) _ = _mqttSender.SendSimpleGripperValues();
                 if (_debug_mode) Console.WriteLine(GripperModel);
             }
-            else MainWindowViewModel.Instance.AccessoryBoxConsoleText = "Connect to Accessory Box first";
+            else MainWindowViewModel.Instance.LogToControlBox("Connect to Accessory Box first");
         }
 
         public RelayCommand ConnectMqtt_Command { get; set; }
@@ -117,7 +116,7 @@ namespace UStallGUI.ViewModel
         {
             if (ControllerHandlerViewModel.Instance.CurrentControllerModel != null)
             {
-                MainWindowViewModel.Instance.AccessoryBoxConsoleText = "Trying to connect";
+                MainWindowViewModel.Instance.LogToControlBox("Trying to connect");
                 bool connected = await Connect2MqttServer();
 
                 if (connected)
@@ -127,12 +126,12 @@ namespace UStallGUI.ViewModel
                     gripperModel: GripperModel
                     );
 
-                    MainWindowViewModel.Instance.AccessoryBoxConsoleText = "Connected to Accessory Box RPi";
+                    MainWindowViewModel.Instance.LogToControlBox("Connected to Accessory Box RPi");
                     AssignControllerToGripperAction();
                 }
-                else MainWindowViewModel.Instance.AccessoryBoxConsoleText = "Connection to Accessory Box failed";
+                else MainWindowViewModel.Instance.LogToControlBox("Connection to Accessory Box failed");
             }
-            else MainWindowViewModel.Instance.AccessoryBoxConsoleText = "Connect Controller First";
+            else MainWindowViewModel.Instance.LogToControlBox("Connect Controller First");
         }
 
         private int _selectedGripper = 0;

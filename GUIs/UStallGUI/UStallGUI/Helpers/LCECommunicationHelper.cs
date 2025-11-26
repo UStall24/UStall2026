@@ -58,28 +58,52 @@ namespace UStallGUI.Helpers
         };
     }
 
-    public enum LCE_CommandAddresses : ushort
+    public enum SendAddressesControlUnit : ushort
     {
         InitConnection = 0xF0,
         InitThrusters = 0xF2,
         DeinitThrusters = 0xF4,
         ResetError = 0xF6,
+
         ApplyManualControl = 0xE0,
         ApplyControllerValues = 0xD0,
         ApplyControllerValues_DynamicThrottle = 0xC0,
+
         PullDirectionValues = 0x10,
         ApplyDirectionValues = 0x21,
+
         PullPidValues = 0x30,
         ApplyPidValues = 0x32,
+
         UpdateCylceTime = 0xF8
     }
 
-    public enum LCE_ResponseAddresses : ushort
+    public enum RecieveAddressesControlUnit : ushort
     {
-        PullPidValues_Response = 0x31,
-        ApplyPidValues_Response = 0x33,
+        // Connection / init
+        InitConnection_Response = 0xF1,
+
         InitThrusters_Response = 0xF3,
+        DeinitThrusters_Response = 0xF5,
         ResetError_Response = 0xF7,
-        UpdateCycleTime_Response = 0xF9
+
+        // Cycle time
+        UpdateCycleTime_Response = 0xF9,
+
+        // Control / manual
+        ApplyManualControl_Response = 0xE1,  // only if your firmware actually sends one
+
+        ApplyControllerValues_Response = 0xD1,
+        ApplyControllerValues_DynamicThrottle_Response = 0xC1,
+
+        // Direction values
+        PullDirectionValues_Response = 0x11,
+
+        ApplyDirectionValues_Response = 0x22,
+
+        // Gyro / PID
+        PullPidValues_Response = 0x31,
+
+        ApplyPidValues_Response = 0x33
     }
 }

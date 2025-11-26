@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.IO.Ports;
-using System.Linq;
 
 namespace UStallGUI.Helpers
 {
@@ -16,11 +14,13 @@ namespace UStallGUI.Helpers
     {
         private const int CANUSB_TTY_BAUD_RATE_DEFAULT = 2000000;
 
-        private readonly SerialPort sp;
+        private SerialPort sp;
 
         public delegate void OnCanMessageArrival(ushort rxId, byte[] data);
 
         public static Dictionary<ushort, OnCanMessageArrival> canMessageArrivalEvents = new();
+
+        private string comPort;
 
         public bool DebugMode { get; set; } = false;
 
@@ -33,31 +33,52 @@ namespace UStallGUI.Helpers
 
         public UsbCANWrapper()
         {
-            string comPort = UsbCAN.FindComPortByName("USB-SERIAL CH340");
-            CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
-            int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
+            ConnectToCanAdapter();
+        }
 
+        public bool IsOpen
+        {
+            get => sp == null || sp.IsOpen;
+        }
+
+        private readonly object _rxLock = new();
+        private readonly List<byte> _rxBuffer = new();
+
+        public bool FindCanAdapter()
+        {
+            comPort = UsbCAN.FindComPortByName("USB-SERIAL CH340");
             if (string.IsNullOrEmpty(comPort))
             {
                 Log("USB-SERIAL CH340 not found.");
-                return;
+                return false;
             }
 
             Log($"Using port: {comPort}");
 
-            // Graceful exit on Ctrl+C
             Console.CancelKeyPress += (s, e) =>
             {
                 Log("Stopping...");
                 e.Cancel = true;
             };
 
+            return true;
+        }
+
+        public bool ConnectToCanAdapter(bool force = false)
+        {
+            if (!FindCanAdapter())
+                return false;
+            if (sp != null & sp.IsOpen & !force)
+                return true;
+            CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
+            int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
+
             sp = UsbCAN.AdapterInit(comPort, baudrate);
             sp.DataReceived += SerialPortDataRecievedEventHandler;
             if (sp == null)
             {
                 Log("Failed to open serial port.");
-                return;
+                return false;
             }
 
             UsbCAN.CommandSettings(
@@ -66,15 +87,8 @@ namespace UStallGUI.Helpers
                 CanusbMode.CANUSB_MODE_NORMAL,
                 CanusbFrameType.CANUSB_FRAME_STANDARD
             );
+            return true;
         }
-
-        public bool IsOpen
-        {
-            get => sp.IsOpen;
-        }
-
-        private readonly object _rxLock = new();
-        private readonly List<byte> _rxBuffer = new();
 
         private void SerialPortDataRecievedEventHandler(object sender, SerialDataReceivedEventArgs e)
         {
@@ -196,14 +210,8 @@ namespace UStallGUI.Helpers
                 data = Array.Empty<byte>();
             byte idLsb = (byte)(txId & 0xFF);
             byte idMsb = (byte)(txId >> 8 & 0xFF);
+            Console.WriteLine($"Sending TX ID 0x{txId:X3} Data: {BitConverter.ToString(data)}");
             return UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) == 0;
-        }
-
-        // Legacy Code to be removed later
-
-        public bool WriteBytes(ushort id, byte[] data = null)
-        {
-            return SendFrame(id, data);
         }
 
         public bool Close()

@@ -11,8 +11,7 @@ namespace UStallGUI.View
         public AccessoryBoxSetupView()
         {
             InitializeComponent();
-            DataContext = new AccessoryBoxViewModel();
-
+            DataContext = App.Instance.AccessoryBoxViewModelGetter;
         }
     }
 }

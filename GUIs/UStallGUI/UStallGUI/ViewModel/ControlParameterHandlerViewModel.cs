@@ -81,8 +81,11 @@ namespace UStallGUI.ViewModel
             }
         }
 
-        public ControlParameterHandlerViewModel()
+        private readonly UsbCANWrapper can;
+
+        public ControlParameterHandlerViewModel(UsbCANWrapper can)
         {
+            this.can = can;
             CurrentShownMotorValues = MotorValues.GetDefaultMotorValues();
             LoadDirectionValuesFromPC_Command = new RelayCommand(LoadDirectionValuesFromPC);
             SaveDirectionValuesToPC_Command = new RelayCommand(SaveDirectionValuesToPC);
@@ -127,7 +130,7 @@ namespace UStallGUI.ViewModel
 
         private async void PullDirectionValuesFromLCE()
         {
-            if (SetupHandlerViewModel.can != null)
+            if (can != null)
             {
                 byte[] addresses = { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 };
                 List<float[]> directionValues = new();
@@ -140,20 +143,20 @@ namespace UStallGUI.ViewModel
                     }
                     else
                     {
-                        MainWindowViewModel.Instance.ControlBoxConsoleText = "Requesting Direction Values from LCE failed - Invalid Data";
+                        MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Invalid Data");
                         return;
                     }
                 }
 
                 for (int i = 0; i < 6; i++)
                 {
-                    SetupHandlerViewModel.can.RegisterCallback(addresses[i], OnSuccessfulResponse);
+                    can.RegisterCallback(addresses[i], OnSuccessfulResponse);
                 }
-                SetupHandlerViewModel.can.WriteBytes(0x10, []);
+                can.SendFrame(0x10, []);
                 await Task.Delay(250);
                 for (int i = 0; i < 6; i++)
                 {
-                    SetupHandlerViewModel.can.UnregisterCallback(addresses[i], OnSuccessfulResponse);
+                    can.UnregisterCallback(addresses[i], OnSuccessfulResponse);
                 }
                 DirectionValues recievedDirectionValues = DirectionValues.GetDefaultDirectionValues();
                 recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.Z_Axis, directionValues[0]);
@@ -165,14 +168,14 @@ namespace UStallGUI.ViewModel
 
                 LoadedDirectionValue = recievedDirectionValues;
 
-                MainWindowViewModel.Instance.ControlBoxConsoleText = "Requesting Direction Values from LCE successful";
+                MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE successful");
             }
-            else MainWindowViewModel.Instance.ControlBoxConsoleText = "Requesting Direction Values from LCE failed - Serial Port is not open";
+            else MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Serial Port is not open");
         }
 
         private async void ApplyDirectionValuesToLCE()
         {
-            if (SetupHandlerViewModel.can != null)
+            if (can != null)
             {
                 byte[] addresses = { 0x21, 0x22, 0x23, 0x24, 0x25, 0x26 };
                 byte[][] payload = new byte[6][];
@@ -187,23 +190,23 @@ namespace UStallGUI.ViewModel
                 {
                     if (data.Length != 0)
                     {
-                        MainWindowViewModel.Instance.ControlBoxConsoleText = "Writing Direction Values to LCE successful";
+                        MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE successful");
                     }
                     else
                     {
-                        MainWindowViewModel.Instance.ControlBoxConsoleText = "Writing Direction Values to LCE failed - Invalid Data";
+                        MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE failed - Invalid Data");
                         return;
                     }
                 }
-                SetupHandlerViewModel.can.RegisterCallback(0x20, OnSuccessfulResponse);
+                can.RegisterCallback(0x20, OnSuccessfulResponse);
                 for (int i = 0; i < 6; i++)
                 {
-                    SetupHandlerViewModel.can.WriteBytes(addresses[i], payload[i]);
+                    can.SendFrame(addresses[i], payload[i]);
                 }
                 await Task.Delay(100);
-                SetupHandlerViewModel.can.UnregisterCallback(0x20, OnSuccessfulResponse);
+                can.UnregisterCallback(0x20, OnSuccessfulResponse);
             }
-            else MainWindowViewModel.Instance.ControlBoxConsoleText = "Writing Direction Values to LCE failed - Serial Port is not open";
+            else MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE failed - Serial Port is not open");
         }
     }
 }

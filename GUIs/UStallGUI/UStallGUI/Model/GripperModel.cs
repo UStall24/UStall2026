@@ -1,7 +1,5 @@
-﻿using System;
-using System.Data;
-using System.Reflection.Metadata;
-using GalaSoft.MvvmLight;
+﻿using GalaSoft.MvvmLight;
+using System;
 using UStallGUI.ViewModel;
 
 namespace UStallGUI.Model
