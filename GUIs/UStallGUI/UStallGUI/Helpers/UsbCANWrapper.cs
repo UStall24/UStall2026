@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.Ports;
+using Xceed.Wpf.Toolkit.Core.Converters;
 
 namespace UStallGUI.Helpers
 {
@@ -14,7 +15,7 @@ namespace UStallGUI.Helpers
     {
         private const int CANUSB_TTY_BAUD_RATE_DEFAULT = 2000000;
 
-        private SerialPort sp;
+        private SerialPort sp = null;
 
         public delegate void OnCanMessageArrival(ushort rxId, byte[] data);
 
@@ -68,25 +69,26 @@ namespace UStallGUI.Helpers
         {
             if (!FindCanAdapter())
                 return false;
-            if (sp != null & sp.IsOpen & !force)
-                return true;
-            CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
-            int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
-
-            sp = UsbCAN.AdapterInit(comPort, baudrate);
-            sp.DataReceived += SerialPortDataRecievedEventHandler;
-            if (sp == null)
+            if (sp == null || force)
             {
-                Log("Failed to open serial port.");
-                return false;
-            }
+                CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
+                int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
 
-            UsbCAN.CommandSettings(
-                sp,
-                speed,
-                CanusbMode.CANUSB_MODE_NORMAL,
-                CanusbFrameType.CANUSB_FRAME_STANDARD
-            );
+                sp = UsbCAN.AdapterInit(comPort, baudrate);
+                sp.DataReceived += SerialPortDataRecievedEventHandler;
+                if (sp == null)
+                {
+                    Log("Failed to open serial port.");
+                    return false;
+                }
+
+                UsbCAN.CommandSettings(
+                    sp,
+                    speed,
+                    CanusbMode.CANUSB_MODE_NORMAL,
+                    CanusbFrameType.CANUSB_FRAME_STANDARD
+                );
+            }
             return true;
         }
 
