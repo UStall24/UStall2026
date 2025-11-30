@@ -1,7 +1,16 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\SyncthingServiceAcct\\Hochschule_Esslingen\\U.Stall\\2026\\Software\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\",
-  "Documents": [],
+  "WorkspaceRootPath": "C:\\Users\\SpartaPC\\Desktop\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{05043B44-BA08-4974-B2DF-1C474A2A2B14}|usb_can_test\\usb_can_test.csproj|c:\\users\\spartapc\\desktop\\ustall2026\\tests_and_demos\\rp2350-can-demo\\csharp\\usb_can_test\\usb_can_test\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{05043B44-BA08-4974-B2DF-1C474A2A2B14}|usb_can_test\\usb_can_test.csproj|solutionrelative:usb_can_test\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{05043B44-BA08-4974-B2DF-1C474A2A2B14}|usb_can_test\\usb_can_test.csproj|c:\\users\\spartapc\\desktop\\ustall2026\\tests_and_demos\\rp2350-can-demo\\csharp\\usb_can_test\\usb_can_test\\usbcanwrapper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{05043B44-BA08-4974-B2DF-1C474A2A2B14}|usb_can_test\\usb_can_test.csproj|solutionrelative:usb_can_test\\usbcanwrapper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,29 +18,33 @@
       "DocumentGroups": [
         {
           "DockedWidth": 118,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
-              "$type": "Bookmark",
-              "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\SpartaPC\\Desktop\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\usb_can_test\\Program.cs",
+              "RelativeDocumentMoniker": "usb_can_test\\Program.cs",
+              "ToolTip": "C:\\Users\\SpartaPC\\Desktop\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\usb_can_test\\Program.cs",
+              "RelativeToolTip": "usb_can_test\\Program.cs",
+              "ViewState": "AgIAAF8AAAAAAAAAAAAQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-29T21:02:28.433Z",
+              "EditorCaption": ""
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
-            }
-          ]
-        },
-        {
-          "DockedWidth": 282,
-          "SelectedChildIndex": -1,
-          "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{dcc4ea97-1c0c-482b-b205-e541c0df9728}"
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "UsbCANWrapper.cs",
+              "DocumentMoniker": "C:\\Users\\SpartaPC\\Desktop\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\usb_can_test\\UsbCANWrapper.cs",
+              "RelativeDocumentMoniker": "usb_can_test\\UsbCANWrapper.cs",
+              "ToolTip": "C:\\Users\\SpartaPC\\Desktop\\UStall2026\\tests_and_demos\\RP2350-CAN-Demo\\csharp\\usb_can_test\\usb_can_test\\UsbCANWrapper.cs",
+              "RelativeToolTip": "usb_can_test\\UsbCANWrapper.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAgwCsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-29T21:02:24.958Z",
+              "EditorCaption": ""
             }
           ]
         }

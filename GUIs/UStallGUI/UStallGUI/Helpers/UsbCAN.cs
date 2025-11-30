@@ -72,7 +72,25 @@ namespace UStallGUI.Helpers
                 _ => 0,
             };
         }
-
+        public static int CanusbSpeedToInt(CanusbSpeed speed)
+        {
+            return speed switch
+            {
+                CanusbSpeed.CANUSB_SPEED_1000000 => 1000000,
+                CanusbSpeed.CANUSB_SPEED_800000 => 800000,
+                CanusbSpeed.CANUSB_SPEED_500000 => 500000,
+                CanusbSpeed.CANUSB_SPEED_400000 => 400000,
+                CanusbSpeed.CANUSB_SPEED_250000 => 250000,
+                CanusbSpeed.CANUSB_SPEED_200000 => 200000,
+                CanusbSpeed.CANUSB_SPEED_125000 => 125000,
+                CanusbSpeed.CANUSB_SPEED_100000 => 100000,
+                CanusbSpeed.CANUSB_SPEED_50000 => 50000,
+                CanusbSpeed.CANUSB_SPEED_20000 => 20000,
+                CanusbSpeed.CANUSB_SPEED_10000 => 10000,
+                CanusbSpeed.CANUSB_SPEED_5000 => 5000,
+                _ => 0,
+            };
+        }
         public static int GenerateChecksum(byte[] data, int offset, int length)
         {
             int checksum = 0;
@@ -432,11 +450,11 @@ namespace UStallGUI.Helpers
             }
         }
 
-        public static SerialPort AdapterInit(string portName, int baudrate)
+        public static SerialPort AdapterInit(string portName)
         {
             try
             {
-                var sp = new SerialPort(portName, baudrate, Parity.None, 8, StopBits.One)
+                var sp = new SerialPort(portName, CANUSB_TTY_BAUD_RATE_DEFAULT, Parity.None, 8, StopBits.One)
                 {
                     Handshake = Handshake.None,
                     ReadTimeout = SerialPort.InfiniteTimeout,

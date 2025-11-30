@@ -33,7 +33,7 @@ namespace usb_can_test
         public UsbCANWrapper()
         {
             string comPort = UsbCAN.FindComPortByName("USB-SERIAL CH340");
-            CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
+            CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_10000;
             int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
 
             if (string.IsNullOrEmpty(comPort))

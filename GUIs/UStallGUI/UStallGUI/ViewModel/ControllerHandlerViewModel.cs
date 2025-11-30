@@ -16,7 +16,7 @@ namespace UStallGUI.ViewModel
         public static bool UseDynamicThrottle = false;
 
         private readonly int pollingFrequency = 200;
-        private readonly int sendingDividor = 10;
+        private readonly int sendingDividor = 1;
         private bool keepPolling = false;
 
         // Properties for binding

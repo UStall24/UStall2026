@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
+using System.Windows.Input;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
 using Timer = System.Timers.Timer;
@@ -16,7 +17,7 @@ namespace UStallGUI.ViewModel
         #region LCE Setup
 
         private byte _updateInterval;
-        private int _controlType = 2;
+        private int _controlType = 0;
 
         private ConfigGUI currentConfig;
 
@@ -64,6 +65,7 @@ namespace UStallGUI.ViewModel
         public RelayCommand DeinitThrusters_Command { get; }
         public RelayCommand ApplyUpdateInterval_Command { get; }
         public RelayCommand ResetErrorLCE_Command { get; }
+        public RelayCommand HealthCommand { get; }
 
         #endregion LCE Setup
 
@@ -227,6 +229,17 @@ namespace UStallGUI.ViewModel
             ManualControlReset_Command = new RelayCommand(ManualControlReset);
 
             ConnectToLCE_Command = new RelayCommand(ConnectToControlUnit);
+            HealthCommand = new RelayCommand(SendHealthMessage);
+        }
+
+        async void SendHealthMessage()
+        {
+
+            MainWindowViewModel.Instance.LogToControlBox("Checking Health...");
+            bool ok = await can.TestConnectionAsync(100);
+            if (ok)
+                MainWindowViewModel.Instance.LogToControlBox("Health Update ok");
+            else MainWindowViewModel.Instance.LogToControlBox("Health Update not ok");
         }
 
         #region Config helpers
@@ -237,35 +250,37 @@ namespace UStallGUI.ViewModel
 
         #region Connection / CAN
 
-        private void ConnectToControlUnit()
+        async void ConnectToControlUnit()
         {
             can.ConnectToCanAdapter();
             MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
             can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
+            bool ok = await can.TestConnectionAsync(); 
+            if (ok) MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+            else MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                //byte[] response = await WaitForResponseAsync(
+                //    (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
+                //    300
+                //).ConfigureAwait(false);
 
-            //byte[] response = await WaitForResponseAsync(
-            //    (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
-            //    300
-            //).ConfigureAwait(false);
+                //if (response.Length != 0)
+                //{
+                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
 
-            //if (response.Length != 0)
-            //{
-            //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+                //    // Display first status byte as human-readable message, if mapping exists
+                //    if (response.Length > 0 &&
+                //        LCECommunicationHelper.LCE_MessageAddresses.TryGetValue(response[0], out var msg))
+                //    {
+                //        MainWindowViewModel.Instance.LogToControlBox(msg);
+                //    }
 
-            //    // Display first status byte as human-readable message, if mapping exists
-            //    if (response.Length > 0 &&
-            //        LCECommunicationHelper.LCE_MessageAddresses.TryGetValue(response[0], out var msg))
-            //    {
-            //        MainWindowViewModel.Instance.LogToControlBox(msg);
-            //    }
-
-            //    UpdateInterval = await PullUpdateInterval().ConfigureAwait(false);
-            //}
-            //else
-            //{
-            //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-            //}
-        }
+                //    UpdateInterval = await PullUpdateInterval().ConfigureAwait(false);
+                //}
+                //else
+                //{
+                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                //}
+            }
 
         public void DisconnectFromLCE()
         {
@@ -383,6 +398,10 @@ namespace UStallGUI.ViewModel
             ManualControlAll = 0f;
         }
 
+
+        private void Health(object commandParameter)
+        {
+        }
         #endregion Manual Control Timer
 
         #region Update Interval

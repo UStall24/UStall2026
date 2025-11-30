@@ -58,52 +58,65 @@ namespace UStallGUI.Helpers
         };
     }
 
+    /// <summary>
+    /// IDs used when **sending** commands to the control unit.
+    /// Each value is a 16‑bit unsigned integer (ushort).
+    /// </summary>
     public enum SendAddressesControlUnit : ushort
     {
-        InitConnection = 0xF0,
-        InitThrusters = 0xF2,
-        DeinitThrusters = 0xF4,
-        ResetError = 0xF6,
+        Health = 40,
+        // Connection / initialization
+        InitConnection = 50,                     // Establish initial link
+        InitThrusters = 60,                      // Power‑up thrusters
+        DeinitThrusters = 70,                    // Power‑down thrusters
+        ResetError = 80,                         // Clear error flags
 
-        ApplyManualControl = 0xE0,
-        ApplyControllerValues = 0xD0,
-        ApplyControllerValues_DynamicThrottle = 0xC0,
+        // Manual / controller input
+        ApplyManualControl = 90,                 // Direct manual command
+        ApplyControllerValues = 100,            // Standard controller setpoint
+        ApplyControllerValues_DynamicThrottle = 110, // Controller with dynamic throttle
 
-        PullDirectionValues = 0x10,
-        ApplyDirectionValues = 0x21,
+        // Direction data
+        PullDirectionValues = 120,               // Request current direction data
+        ApplyDirectionValues = 130,              // Send new direction setpoints
 
-        PullPidValues = 0x30,
-        ApplyPidValues = 0x32,
+        // PID / gyro data
+        PullPidValues = 140,                     // Request current PID parameters
+        ApplyPidValues = 150,                    // Send updated PID parameters
 
-        UpdateCylceTime = 0xF8
+        // Timing
+        UpdateCylceTime = 160                    // Update the control loop cycle time
     }
 
+    /// <summary>
+    /// IDs used when **receiving** responses from the control unit.
+    /// Each response ID is defined as the corresponding send ID + 1,
+    /// ensuring a simple, predictable mapping.
+    /// </summary>
     public enum RecieveAddressesControlUnit : ushort
     {
-        // Connection / init
-        InitConnection_Response = 0xF1,
+        Health_response = SendAddressesControlUnit.Health + 1,
+        // Connection / init responses
+        InitConnection_Response = SendAddressesControlUnit.InitConnection + 1,          // 51
+        InitThrusters_Response = SendAddressesControlUnit.InitThrusters + 1,           // 61
+        DeinitThrusters_Response = SendAddressesControlUnit.DeinitThrusters + 1,         // 71
+        ResetError_Response = SendAddressesControlUnit.ResetError + 1,              // 81
 
-        InitThrusters_Response = 0xF3,
-        DeinitThrusters_Response = 0xF5,
-        ResetError_Response = 0xF7,
+        // Cycle‑time response
+        UpdateCycleTime_Response = SendAddressesControlUnit.UpdateCylceTime + 1,        // 161
 
-        // Cycle time
-        UpdateCycleTime_Response = 0xF9,
+        // Control / manual responses
+        ApplyManualControl_Response = SendAddressesControlUnit.ApplyManualControl + 1,      // 91
+        ApplyControllerValues_Response = SendAddressesControlUnit.ApplyControllerValues + 1,   // 101
+        ApplyControllerValues_DynamicThrottle_Response = SendAddressesControlUnit.ApplyControllerValues_DynamicThrottle + 1, // 111
 
-        // Control / manual
-        ApplyManualControl_Response = 0xE1,  // only if your firmware actually sends one
+        // Direction values responses
+        PullDirectionValues_Response = SendAddressesControlUnit.PullDirectionValues + 1,    // 121
+        ApplyDirectionValues_Response = SendAddressesControlUnit.ApplyDirectionValues + 1,   // 131
 
-        ApplyControllerValues_Response = 0xD1,
-        ApplyControllerValues_DynamicThrottle_Response = 0xC1,
-
-        // Direction values
-        PullDirectionValues_Response = 0x11,
-
-        ApplyDirectionValues_Response = 0x22,
-
-        // Gyro / PID
-        PullPidValues_Response = 0x31,
-
-        ApplyPidValues_Response = 0x33
+        // Gyro / PID responses
+        PullPidValues_Response = SendAddressesControlUnit.PullPidValues + 1,          // 141
+        ApplyPidValues_Response = SendAddressesControlUnit.ApplyPidValues + 1          // 151
     }
+
 }

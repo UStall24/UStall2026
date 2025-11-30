@@ -1,0 +1,18 @@
+2021-01-01 00:41:45 SYSTEM: Starting initialization
+2021-01-01 00:41:45 SYSTEM: Gyro init failed: [Errno 5] EIO
+2021-01-01 00:41:45 SYSTEM: Program started – waiting for init...
+2021-01-01 00:41:46 SYSTEM: Executed: InitThrusters
+2021-01-01 00:41:46 SYSTEM: Health Request
+2021-01-01 00:41:48 SYSTEM: Health Request
+2021-01-01 00:41:49 SYSTEM: Health Request
+2021-01-01 00:41:49 SYSTEM: Health Request
+2021-01-01 00:41:50 SYSTEM: Health Request
+2021-01-01 00:41:50 SYSTEM: Health Request
+2021-01-01 00:41:50 SYSTEM: Warning: Cycle time exceeded by 23Âms
+2021-01-01 00:42:09 SYSTEM: Starting initialization
+2021-01-01 00:42:09 SYSTEM: Gyro init failed: [Errno 5] EIO
+2021-01-01 00:42:09 SYSTEM: Program started – waiting for init...
+2021-01-01 00:42:12 SYSTEM: Executed: InitThrusters
+2021-01-01 00:42:12 SYSTEM: Warning: Cycle time exceeded by 19Âms
+2021-01-01 00:42:12 SYSTEM: Health Request
+2021-01-01 00:42:12 SYSTEM: Warning: Cycle time exceeded by 15Âms

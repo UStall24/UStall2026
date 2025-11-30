@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.Ports;
+using System.Threading.Tasks;
 using Xceed.Wpf.Toolkit.Core.Converters;
 
 namespace UStallGUI.Helpers
@@ -13,8 +14,7 @@ namespace UStallGUI.Helpers
 
     public class UsbCANWrapper
     {
-        private const int CANUSB_TTY_BAUD_RATE_DEFAULT = 2000000;
-
+        private const CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_100000;
         private SerialPort sp = null;
 
         public delegate void OnCanMessageArrival(ushort rxId, byte[] data);
@@ -23,7 +23,7 @@ namespace UStallGUI.Helpers
 
         private string comPort;
 
-        public bool DebugMode { get; set; } = false;
+        public bool DebugMode { get; set; } = true;
 
         // Helper printing method
         private void Log(string msg)
@@ -35,7 +35,7 @@ namespace UStallGUI.Helpers
         public UsbCANWrapper()
         {
             ConnectToCanAdapter();
-        }
+        }  
 
         public bool IsOpen
         {
@@ -67,20 +67,52 @@ namespace UStallGUI.Helpers
 
         public bool ConnectToCanAdapter(bool force = false)
         {
+            // If already open and no force requested, nothing to do.
+            if (sp != null && sp.IsOpen && !force)
+                return true;
+
             if (!FindCanAdapter())
                 return false;
-            if (sp == null || force)
-            {
-                CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_500000;
-                int baudrate = CANUSB_TTY_BAUD_RATE_DEFAULT;
 
-                sp = UsbCAN.AdapterInit(comPort, baudrate);
-                sp.DataReceived += SerialPortDataRecievedEventHandler;
+            // If force requested and adapter is open, close it first.
+            if (sp != null && sp.IsOpen && force)
+            {
+                try
+                {
+                    Log("Force reconnect requested - closing existing serial port.");
+                    // Detach handler to avoid duplicates (safe even if not attached)
+                    try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
+                    UsbCAN.AdapterClose(sp);
+                }
+                catch (Exception ex)
+                {
+                    Log("Error closing serial port during reconnect: " + ex.Message);
+                }
+                finally
+                {
+                    sp = null;
+                }
+            }
+
+            // If we have a SerialPort instance that is closed, ensure handler is detached and clear it so we create a fresh one.
+            if (sp != null && !sp.IsOpen)
+            {
+                try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
+                sp = null;
+            }
+
+            // Initialize a new adapter if needed
+            if (sp == null)
+            {
+                sp = UsbCAN.AdapterInit(comPort);
                 if (sp == null)
                 {
                     Log("Failed to open serial port.");
                     return false;
                 }
+
+                // Attach handler after confirming adapter opened
+                sp.DataReceived += SerialPortDataRecievedEventHandler;
 
                 UsbCAN.CommandSettings(
                     sp,
@@ -88,9 +120,72 @@ namespace UStallGUI.Helpers
                     CanusbMode.CANUSB_MODE_NORMAL,
                     CanusbFrameType.CANUSB_FRAME_STANDARD
                 );
+                PrintSettings();
             }
             return true;
         }
+
+
+        // ---------------------------------------------------------------------
+        //  Connection‑test helper – clearer naming and safer async handling
+        // ---------------------------------------------------------------------
+
+
+
+
+
+        private bool _isTestingConnection = false;          // true while a test is in progress
+        private bool _hasHealthResponse = false;           // set by the callback when the reply arrives
+        private int _time_required = 0;
+
+        /// <summary>
+        /// Sends a Health request and waits up to <paramref name="timeoutMs"/> for the reply.
+        /// </summary>
+        public async Task<bool> TestConnectionAsync(int timeoutMs = 500)
+        {
+            // Reset state before starting a new test
+            _isTestingConnection = true;
+            _hasHealthResponse = false;
+
+            // Register a one‑shot callback that will capture the response
+            RegisterCallback(
+                (ushort)RecieveAddressesControlUnit.Health_response,
+                OnHealthResponse);
+
+            // Transmit the request (empty payload)
+            Console.Clear();
+            _time_required = Environment.TickCount;
+            SendFrame((ushort)SendAddressesControlUnit.Health, Array.Empty<byte>());
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs && !_hasHealthResponse)
+            {
+                await Task.Delay(10);
+            }
+
+            _isTestingConnection = false;
+            
+            if (_hasHealthResponse)
+            {
+                Log($"Health response received within timeout. Time required: {_time_required}ms");
+                return true;
+            }
+
+            Log("Health response not received within timeout.");
+            return false;
+        }
+
+        /// <summary>
+        /// Callback invoked when the Health response frame arrives.
+        /// </summary>
+        private void OnHealthResponse(ushort rxId, byte[] data)
+        {
+            _time_required = Environment.TickCount - _time_required;
+            _hasHealthResponse = true;
+            Log($"Health response received. Data: {BitConverter.ToString(data)}");
+        }
+
+
 
         private void SerialPortDataRecievedEventHandler(object sender, SerialDataReceivedEventArgs e)
         {
@@ -168,7 +263,7 @@ namespace UStallGUI.Helpers
                 _rxBuffer.RemoveRange(0, frameLen);
 
                 // Log + callback
-                Log($"[{DateTime.Now:HH:mm:ss}] RX ID 0x{rxId:X3} Data: {BitConverter.ToString(data)}");
+                Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
                 TriggerCallback(rxId, data);
             }
         }
@@ -179,11 +274,24 @@ namespace UStallGUI.Helpers
             Log("Serial port closed.");
         }
 
+        
         public bool RegisterCallback(ushort rxId, Action<ushort, byte[]> action)
         {
             if (!canMessageArrivalEvents.ContainsKey(rxId))
                 canMessageArrivalEvents[rxId] = null; // initialize
 
+            var delegateList = canMessageArrivalEvents[rxId]?.GetInvocationList();
+            if (delegateList != null)
+            {
+                foreach (var del in delegateList)
+                {
+                    if (del.Target.Equals(action))
+                    {
+                        // Already registered
+                        return false;
+                    }
+                }
+            }
             canMessageArrivalEvents[rxId] += new OnCanMessageArrival(action);
             return true;
         }
@@ -208,11 +316,12 @@ namespace UStallGUI.Helpers
 
         public bool SendFrame(ushort txId, byte[] data = null)
         {
+            ConnectToCanAdapter();
             if (data == null)
                 data = Array.Empty<byte>();
             byte idLsb = (byte)(txId & 0xFF);
             byte idMsb = (byte)(txId >> 8 & 0xFF);
-            Console.WriteLine($"Sending TX ID 0x{txId:X3} Data: {BitConverter.ToString(data)}");
+            // Console.WriteLine($"Sending TX ID {txId} Data: {BitConverter.ToString(data)}");
             return UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) == 0;
         }
 
@@ -220,5 +329,19 @@ namespace UStallGUI.Helpers
         {
             return UsbCAN.AdapterClose(sp);
         }
+        public void PrintSettings()
+        {
+            Console.WriteLine("=== USB CAN Adapter Settings ===");
+            Console.WriteLine($"COM Port      : {comPort}");
+            Console.WriteLine($"Is Open       : {sp?.IsOpen}");
+            Console.WriteLine($"Baudrate      : {sp?.BaudRate}");
+            Console.WriteLine($"Data Bits     : {sp?.DataBits}");
+            Console.WriteLine($"Parity        : {sp?.Parity}");
+            Console.WriteLine($"Stop Bits     : {sp?.StopBits}");
+            Console.WriteLine($"Handshake     : {sp?.Handshake}");
+            Console.WriteLine($"Debug Mode    : {DebugMode}");
+            Console.WriteLine("================================");
+        }
+
     }
 }

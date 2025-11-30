@@ -38,6 +38,27 @@ namespace UStallGUI.Model
             value.Rotation = AxisValues.GetDefaultAxisValues();
             return value;
         }
+        public static DirectionValues GetInvalidDirectionValues()
+        {
+            var value = new DirectionValues();
+            value.Translation = AxisValues.GetInvalidAxisValues();
+            value.Rotation = AxisValues.GetInvalidAxisValues();
+            return value;
+        }
+
+        public byte[] GetAsArray()
+        {
+            List<byte> payload = new List<byte>();
+            payload.AddRange(Translation.GetAsArray());
+            payload.AddRange(Rotation.GetAsArray());
+            return payload.ToArray();
+        }
+
+        public bool HasInvalidData()
+        {
+            // Check if Translation or Rotation contain invalid float values
+            return Translation.HasInvalidData() || Rotation.HasInvalidData();
+        }
     }
 
     public enum Axis
@@ -88,6 +109,7 @@ namespace UStallGUI.Model
         public void SwitchMotors(int m1, int m2) => (_values[m1 - 1], _values[m2 - 1]) = (_values[m2 - 1], _values[m1 - 1]);
 
         public static MotorValues GetDefaultMotorValues() => new MotorValues(new float[] { 0.7f, 0.5f, 0.3f, -0.3f, -0.5f, -0.7f });
+        public static MotorValues GetInvalidMotorValues() => new MotorValues(new float[] {-100, -100, -100, -100, -100, -100 });
 
         public override string ToString() => $"VM1: {VM1}, VM2: {VM2}, VM3: {VM3}, HM1: {HM1}, HM2: {HM2}, HM3: {HM3}";
     }
@@ -128,6 +150,40 @@ namespace UStallGUI.Model
             value.Y_Axis = MotorValues.GetDefaultMotorValues();
             value.Z_Axis = MotorValues.GetDefaultMotorValues();
             return value;
+        }
+
+        public static AxisValues GetInvalidAxisValues()
+        {
+            var value = new AxisValues();
+            value.X_Axis = MotorValues.GetInvalidMotorValues();
+            value.Y_Axis = MotorValues.GetInvalidMotorValues();
+            value.Z_Axis = MotorValues.GetInvalidMotorValues();
+            return value;
+        }
+
+        public byte[] GetAsArray()
+        {
+            List<byte> payload = new List<byte>();
+            payload.AddRange(Z_Axis.GetAsByte());
+            payload.AddRange(X_Axis.GetAsByte());
+            payload.AddRange(Y_Axis.GetAsByte());
+            return payload.ToArray();
+        }
+
+        public bool HasInvalidData()
+        {
+            return !IsAllValuesValid();
+        }
+
+        private bool IsAllValuesValid()
+        {
+            return IsMotorValuesValid(Z_Axis) && IsMotorValuesValid(X_Axis) && IsMotorValuesValid(Y_Axis);
+        }
+
+        private static bool IsMotorValuesValid(MotorValues motor)
+        {
+            float[] values = motor.GetAsArray();
+            return values.All(v => v >= -1f && v <= 1f);
         }
     }
 }

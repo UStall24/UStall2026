@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("usb_can_test")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4343e00c31e14931af8de57f5d233d6fb6b0ffb1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5479d178a1843422e184666edad01ea1c3b0866f")]
 [assembly: System.Reflection.AssemblyProductAttribute("usb_can_test")]
 [assembly: System.Reflection.AssemblyTitleAttribute("usb_can_test")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
