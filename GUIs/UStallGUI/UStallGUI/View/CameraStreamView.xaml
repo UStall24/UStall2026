@@ -93,6 +93,11 @@
                         <materialDesign:PackIcon Kind="LightbulbGroup" Width="24" Height="24"
                             Foreground="{Binding AreAllLightsOn, Converter={StaticResource BoolToBrushConverter}}" />
                     </ToggleButton>
+
+                    <Button ToolTip="Screenshot All Cameras" Width="40" Height="40" Margin="8,0,0,0"
+                            Command="{Binding TakeAllCamerasScreenshotCommand}">
+                        <materialDesign:PackIcon Kind="Camera" Width="24" Height="24" />
+                    </Button>
                 </StackPanel>
             </GroupBox>
 

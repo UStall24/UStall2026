@@ -1,0 +1,111 @@
+﻿<UserControl x:Class="UStallGUI.View.MechProAView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             xmlns:local="clr-namespace:UStallGUI.View" xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" d:DataContext="{d:DesignInstance Type=viewmodel:AccessoryBoxViewModel}"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="400" Background="White">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <GroupBox Margin="5" Header="Joint 1" Grid.Row="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <!--<Label Content="S1 Lo Limit" Grid.Row="3" />-->
+                <Label Content="Position" Grid.Row="0" />
+                <!--<Label Content="S1 Hi Limit" Grid.Column="1" Grid.Row="3" />-->
+                <!--<xctk:IntegerUpDown
+                    Grid.Row="4"
+                    Minimum="0"
+                    Maximum="{Binding GripperModel.G1S1.HigherLimit}"
+                    Value="{Binding GripperModel.G1S1.LowerLimit, Mode=TwoWay}"
+                    Increment="1"
+                    HorizontalAlignment="Stretch"
+                    Margin="5" />
+                <xctk:IntegerUpDown
+                    Grid.Row="4"
+                    Grid.Column="1"
+                    Minimum="{Binding GripperModel.G1S1.LowerLimit}"
+                    Maximum="100"
+                    Value="{Binding GripperModel.G1S1.HigherLimit, Mode=TwoWay}"
+                    Increment="1"
+                    HorizontalAlignment="Stretch"
+                    Margin="5" />-->
+
+                <Button Grid.Row="1"  Grid.Column="2"
+                        Content="- 10"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Plus}" />
+
+                <Button Grid.Row="1" Grid.Column="1"
+                        Content="- 1"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
+                <Button Grid.Row="0"  Grid.Column="1"
+                        Content="+ 1"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Plus}" />
+                <Button Grid.Row="0" Grid.Column="2"
+                        Content="+ 10"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
+
+                <Label Content="Speed" Grid.Row="2" Grid.Column="0" />
+                <xctk:IntegerUpDown
+                    Grid.Row="2"
+                    Grid.Column="1"
+                    Minimum="1"
+                    Maximum="100"
+                    Width="80"
+                    Value="{Binding StepSize, Mode=TwoWay}"
+                    Increment="1"
+                    HorizontalAlignment="Stretch"
+                    Margin="5" />
+                <Button Grid.Row="2" Grid.Column="2"
+                        Content="Apply"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
+
+                <Label Content="Current Position" Grid.Row="3" Grid.Column="0" />
+                <Label Content="127" Grid.Row="3" Grid.Column="2" />
+
+                <Label Content="Current Temperature" Grid.Row="4" Grid.Column="0" />
+                <Label Content="28 °C" Grid.Row="4" Grid.Column="2" />
+
+                <Label Content="Current Humidity" Grid.Row="5" Grid.Column="0" />
+                <Label Content="57 %" Grid.Row="5" Grid.Column="2" />
+            </Grid>
+        </GroupBox>
+
+        <Viewbox Stretch="Uniform" Grid.Row="4">
+            <Image Source="/Media/MechProA.png" Margin="10" />
+        </Viewbox>
+    </Grid>
+</UserControl>

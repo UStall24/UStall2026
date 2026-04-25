@@ -52,30 +52,33 @@ namespace UStallGUI.ViewModel
 
                 if (LoadedDirectionValue != null)
                 {
+                    // Y-Axis: + Vorne / - Hinten
+                    // X-Axis: + Rechts / - Links
+                    // Z-Axis: + Hoch / - Runter
                     switch (value)
                     {
-                        case 0:
-                            CurrentShownMotorValues = LoadedDirectionValue.Translation.Z_Axis;
-                            break;
-
-                        case 1:
-                            CurrentShownMotorValues = LoadedDirectionValue.Translation.X_Axis;
-                            break;
-
-                        case 2:
+                        case 0: // Linker Joystick - Vorne Hinten
                             CurrentShownMotorValues = LoadedDirectionValue.Translation.Y_Axis;
                             break;
 
-                        case 3:
-                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Z_Axis;
+                        case 1: // Linker Joystick - Rechts Links
+                            CurrentShownMotorValues = LoadedDirectionValue.Translation.X_Axis;
                             break;
 
-                        case 4:
+                        case 2: // Linker und Rechter Trigger (L2/R2)
+                            CurrentShownMotorValues = LoadedDirectionValue.Translation.Z_Axis;
+                            break;
+
+                        case 3: // Rechter Joystick - Vorne Hinten
+                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Y_Axis;
+                            break;
+
+                        case 4: // Rechter Joystick - Links Rechts
                             CurrentShownMotorValues = LoadedDirectionValue.Rotation.X_Axis;
                             break;
 
-                        case 5:
-                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Y_Axis;
+                        case 5: // Linker und Rechter Bumper (L1/R1)
+                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Z_Axis;
                             break;
                     }
                     ;
