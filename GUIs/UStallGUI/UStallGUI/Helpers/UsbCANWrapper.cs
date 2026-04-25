@@ -35,12 +35,9 @@ namespace UStallGUI.Helpers
         public UsbCANWrapper()
         {
             ConnectToCanAdapter();
-        }  
-
-        public bool IsOpen
-        {
-            get => sp == null || sp.IsOpen;
         }
+
+        public bool IsOpen => sp != null && sp.IsOpen;
 
         private readonly object _rxLock = new();
         private readonly List<byte> _rxBuffer = new();
@@ -125,14 +122,9 @@ namespace UStallGUI.Helpers
             return true;
         }
 
-
         // ---------------------------------------------------------------------
         //  Connection‑test helper – clearer naming and safer async handling
         // ---------------------------------------------------------------------
-
-
-
-
 
         private bool _isTestingConnection = false;          // true while a test is in progress
         private bool _hasHealthResponse = false;           // set by the callback when the reply arrives
@@ -164,7 +156,7 @@ namespace UStallGUI.Helpers
             }
 
             _isTestingConnection = false;
-            
+
             if (_hasHealthResponse)
             {
                 Log($"Health response received within timeout. Time required: {_time_required}ms");
@@ -184,8 +176,6 @@ namespace UStallGUI.Helpers
             _hasHealthResponse = true;
             Log($"Health response received. Data: {BitConverter.ToString(data)}");
         }
-
-
 
         private void SerialPortDataRecievedEventHandler(object sender, SerialDataReceivedEventArgs e)
         {
@@ -274,7 +264,6 @@ namespace UStallGUI.Helpers
             Log("Serial port closed.");
         }
 
-        
         public bool RegisterCallback(ushort rxId, Action<ushort, byte[]> action)
         {
             if (!canMessageArrivalEvents.ContainsKey(rxId))
@@ -329,6 +318,7 @@ namespace UStallGUI.Helpers
         {
             return UsbCAN.AdapterClose(sp);
         }
+
         public void PrintSettings()
         {
             Console.WriteLine("=== USB CAN Adapter Settings ===");
@@ -342,6 +332,5 @@ namespace UStallGUI.Helpers
             Console.WriteLine($"Debug Mode    : {DebugMode}");
             Console.WriteLine("================================");
         }
-
     }
 }

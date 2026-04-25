@@ -22,8 +22,8 @@
             <ComboBoxItem>JoystickL-VH</ComboBoxItem>
             <ComboBoxItem>JoystickL-LR</ComboBoxItem>
             <ComboBoxItem>LT/RT</ComboBoxItem>
-            <ComboBoxItem>Rotation: Z-Axis</ComboBoxItem>
-            <ComboBoxItem>Rotation: X-Axis</ComboBoxItem>
+            <ComboBoxItem>JoystickR-VH</ComboBoxItem>
+            <ComboBoxItem>JoystickR-LR</ComboBoxItem>
             <ComboBoxItem>LB/RB</ComboBoxItem>
         </ComboBox>
         <Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Width="400" Height="400">

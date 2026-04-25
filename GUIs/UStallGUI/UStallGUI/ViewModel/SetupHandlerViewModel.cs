@@ -232,9 +232,8 @@ namespace UStallGUI.ViewModel
             HealthCommand = new RelayCommand(SendHealthMessage);
         }
 
-        async void SendHealthMessage()
+        private async void SendHealthMessage()
         {
-
             MainWindowViewModel.Instance.LogToControlBox("Checking Health...");
             bool ok = await can.TestConnectionAsync(100);
             if (ok)
@@ -246,41 +245,26 @@ namespace UStallGUI.ViewModel
 
         private void UpdateConfig() => ConfigLoader.UpdateConfigGUI(currentConfig);
 
-        #endregion Config helpers
-
-        #region Connection / CAN
-
-        async void ConnectToControlUnit()
+        private async void ConnectToControlUnit()
         {
             can.ConnectToCanAdapter();
+
+            // Check if the adapter is connected before proceeding
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("USB serial adapter not connected.");
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                return;
+            }
+
             MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
             can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
-            bool ok = await can.TestConnectionAsync(); 
-            if (ok) MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-            else MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                //byte[] response = await WaitForResponseAsync(
-                //    (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
-                //    300
-                //).ConfigureAwait(false);
-
-                //if (response.Length != 0)
-                //{
-                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-
-                //    // Display first status byte as human-readable message, if mapping exists
-                //    if (response.Length > 0 &&
-                //        LCECommunicationHelper.LCE_MessageAddresses.TryGetValue(response[0], out var msg))
-                //    {
-                //        MainWindowViewModel.Instance.LogToControlBox(msg);
-                //    }
-
-                //    UpdateInterval = await PullUpdateInterval().ConfigureAwait(false);
-                //}
-                //else
-                //{
-                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                //}
-            }
+            bool ok = await can.TestConnectionAsync();
+            if (ok)
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+            else
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+        }
 
         public void DisconnectFromLCE()
         {
@@ -306,7 +290,7 @@ namespace UStallGUI.ViewModel
             return can;
         }
 
-        #endregion Connection / CAN
+        #endregion Config helpers
 
         #region Thruster Init/Deinit (stubs – fill in your protocol)
 
@@ -398,10 +382,10 @@ namespace UStallGUI.ViewModel
             ManualControlAll = 0f;
         }
 
-
         private void Health(object commandParameter)
         {
         }
+
         #endregion Manual Control Timer
 
         #region Update Interval

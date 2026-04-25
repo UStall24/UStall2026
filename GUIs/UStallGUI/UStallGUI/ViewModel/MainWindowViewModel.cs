@@ -127,7 +127,7 @@ namespace UStallGUI.ViewModel
             if (string.IsNullOrWhiteSpace(message))
                 return;
 
-            controlBoxLog.Add(message);
+            controlBoxLog.Add(message.Trim());
             ControlBoxConsoleText = controlBoxLog.CurrentText;
         }
 

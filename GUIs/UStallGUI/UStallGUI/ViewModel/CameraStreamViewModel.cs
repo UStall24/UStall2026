@@ -7,7 +7,8 @@ namespace UStallGUI.ViewModel
 {
     public class CameraStreamViewModel : ObservableObject
     {
-        public RelayCommand StartStream_Command { get; set; }
+        public RelayCommand ConnectAllCamerasCommand { get; set; }
+        public RelayCommand ToggleAllLightsCommand { get; set; }
 
         private CameraStreamModel _streamModel1;
         private CameraStreamModel _streamModel2;
@@ -37,21 +38,34 @@ namespace UStallGUI.ViewModel
             set => Set(ref _cameraFrame3, value);
         }
 
-        public CameraStreamViewModel()
+        private bool _areAllLightsOn;
+
+        public bool AreAllLightsOn
         {
-            StartStream_Command = new RelayCommand(StartStream);
+            get => _areAllLightsOn;
+            set => Set(ref _areAllLightsOn, value);
         }
 
-        private void StartStream()
+        public CameraStreamViewModel()
+        {
+            ConnectAllCamerasCommand = new RelayCommand(ConnectAllCameras);
+            ToggleAllLightsCommand = new RelayCommand(ToggleAllLights);
+        }
+
+        private void ConnectAllCameras()
         {
             _streamModel1 = new CameraStreamModel("http://192.168.0.3:8082");
             _streamModel1.FrameReady += (frame) => CameraFrame1 = frame;
-
             _streamModel2 = new CameraStreamModel("http://192.168.0.3:8084");
             _streamModel2.FrameReady += (frame) => CameraFrame2 = frame;
-
             _streamModel3 = new CameraStreamModel("http://192.168.0.3:8083");
             _streamModel3.FrameReady += (frame) => CameraFrame3 = frame;
+        }
+
+        private void ToggleAllLights()
+        {
+            AreAllLightsOn = !AreAllLightsOn;
+            // TODO: send light state to hardware
         }
 
         public void Cleanup()

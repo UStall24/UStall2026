@@ -29,6 +29,11 @@ def task_ten_hz():                     # runs every 100 ms
         led_toggles -= 1
     else:
         hardware.led.value(0)
+        
+def trigger_status_led():
+    global led_toggles, state
+    if state == 1:   # only when initialized / normal operation
+        hardware.led.value(1 - hardware.led.value())
 
 # ----------------------------------------------------------------------
 # Command handlers (receive side)
@@ -39,6 +44,7 @@ def apply_manual_control(data):
         pwm_vals = calculator.calc_all_motor_pwm2(motor_vals)
         logger.print_debug(pwm_vals, verbose=verbose)
         hardware.set_motor_speed_all(pwm_vals)
+        trigger_status_led()  
         hardware.sendcan(0x02)
 
 def apply_controller_values(data, use_dynamic_throttle):
@@ -47,25 +53,22 @@ def apply_controller_values(data, use_dynamic_throttle):
 
         if not use_dynamic_throttle:
             pwm_vals = calculator.calc_all_motor_pwm(throttle, False)
-
         else:
             pwm_vals, _, _ = calculator.dynamic_throttle_2_pwm(throttle)
         
-
         hardware.set_motor_speed_all(pwm_vals)
-        # if not use_dynamic_throttle:
-        #     logger.print_debug(f"Static PWM value: {pwm_vals}", verbose=True)
-        # else:
-        #     logger.print_debug(f"Dynamic PWM value: {pwm_vals}", verbose=True)
-
+        trigger_status_led()   
+        
+        
 def init_motor_sequence():
     hardware.init_motor_all()
     logger.print_debug("Motors initialized", verbose=verbose)
     hardware.sendcan(SendAddr.InitThrusters, [0x01])
-    # global state
-    # state = 1
+
+    global state
+    state = 1 
+
     logger.print_system("Motors initialized", verbose=verbose)
-    
 
 def send_direction_values():
     logger.print_system("Sending direction values", verbose=verbose)
@@ -80,22 +83,22 @@ def send_direction_values():
 direction_values_buffer = []
 def receive_direction_values(rxId, data):
     global direction_values_buffer
-    if len(direction_values_buffer) < 6:
-        direction_values_buffer.append((rxId, data))
+
+    direction_values_buffer.append((rxId, data))
+
     if len(direction_values_buffer) == 6:
-        # Sort by rxId ascending to ensure correct motor order
         sorted_buffer = sorted(direction_values_buffer, key=lambda x: x[0])
-        print(sorted_buffer)
+        direction_values_buffer = []  # Reset early to avoid race conditions
+
         matrix = []
-        for rxId_sorted, data in sorted_buffer:
-            matrix.append([calculator.byte_to_float(v) for v in data])
+        for _, frame_data in sorted_buffer:
+            matrix.append([calculator.byte_to_float(v) for v in frame_data])
 
         update_direction_values(calculator.direction_values, matrix)
         logger.print_system(str(calculator.direction_values), verbose=True)
         write_json_file(direction_values_path, calculator.direction_values)
-        direction_values_buffer = []  # Reset buffer for next batch
-    
         hardware.sendcan(SendAddr.ApplyDirectionValues)
+
 
 def send_PID_values():
     logger.print_system("Send PID values", verbose=verbose)
@@ -225,7 +228,7 @@ while True:
     try:
         data_list = hardware.recvcan()
         for rx_id, data in data_list:
-            logger.print_can_msg(rx_id, data, verbose=True)
+            #logger.print_can_msg(rx_id, data, verbose=True)
 
             # --------------------------------------------------------------
             # Dispatch based on the received CAN ID and announce the command
@@ -267,7 +270,7 @@ while True:
                 update_cycle_time(data)
                 logger.print_system("Executed: UpdateCycleTime", verbose=verbose)
         # if len(data_list) == 0:
-        #     print("no data")
+        #    print("no data")
 
     except Exception as e:
         state = 2

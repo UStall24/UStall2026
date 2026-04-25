@@ -131,14 +131,15 @@ namespace UStallGUI.ViewModel
             }
         }
 
-        const ushort dv_rx_0 = (ushort)RecieveAddressesControlUnit.PullDirectionValues_Response;
-        const ushort dv_rx_1 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 1);
-        const ushort dv_rx_2 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 2);
-        const ushort dv_rx_3 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 3);
-        const ushort dv_rx_4 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 4);
-        const ushort dv_rx_5 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 5);
-        DirectionValues recievedDirectionValues;
-        bool registeredCallbackPullData = false;
+        private const ushort dv_rx_0 = (ushort)RecieveAddressesControlUnit.PullDirectionValues_Response;
+        private const ushort dv_rx_1 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 1);
+        private const ushort dv_rx_2 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 2);
+        private const ushort dv_rx_3 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 3);
+        private const ushort dv_rx_4 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 4);
+        private const ushort dv_rx_5 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 5);
+        private DirectionValues recievedDirectionValues;
+        private bool registeredCallbackPullData = false;
+
         private async void PullDirectionValuesFromLCE()
         {
             if (can != null)
@@ -149,29 +150,33 @@ namespace UStallGUI.ViewModel
                     if (data.Length != 0)
                     {
                         float[] floatValues = LCECommunicationHelper.ConvertBytesToMotorValues(data);
-                        Console.WriteLine("Received Direction Values from LCE: " + string.Join(", ", floatValues)); 
+                        Console.WriteLine("Received Direction Values from LCE: " + string.Join(", ", floatValues));
                         switch (id)
                         {
                             case dv_rx_0:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.Z_Axis, floatValues);
                                 break;
+
                             case dv_rx_1:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.X_Axis, floatValues);
                                 break;
+
                             case dv_rx_2:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.Y_Axis, floatValues);
                                 break;
+
                             case dv_rx_3:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.Z_Axis, floatValues);
                                 break;
+
                             case dv_rx_4:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.X_Axis, floatValues);
                                 break;
+
                             case dv_rx_5:
                                 recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.Y_Axis, floatValues);
                                 break;
                         }
-                        
                     }
                     else
                     {
@@ -191,30 +196,29 @@ namespace UStallGUI.ViewModel
                     registeredCallbackPullData = true;
                 }
 
-                can.SendFrame((ushort) SendAddressesControlUnit.PullDirectionValues, []);
+                can.SendFrame((ushort)SendAddressesControlUnit.PullDirectionValues, []);
                 await Task.Delay(500);
-                
-                
+
                 if (recievedDirectionValues.HasInvalidData())
                     MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Invalid Data");
                 else
-                { 
+                {
                     LoadedDirectionValue = recievedDirectionValues;
                     MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE successful");
                 }
-
             }
             else MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Serial Port is not open");
         }
 
-        const ushort dv_tx_0 = (ushort)SendAddressesControlUnit.ApplyDirectionValues;
-        const ushort dv_tx_1 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 1);
-        const ushort dv_tx_2 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 2);
-        const ushort dv_tx_3 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 3);
-        const ushort dv_tx_4 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 4);
-        const ushort dv_tx_5 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 5);
-        bool registeredCallbackApplyData = false;
-        bool gotResponse = false;
+        private const ushort dv_tx_0 = (ushort)SendAddressesControlUnit.ApplyDirectionValues;
+        private const ushort dv_tx_1 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 1);
+        private const ushort dv_tx_2 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 2);
+        private const ushort dv_tx_3 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 3);
+        private const ushort dv_tx_4 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 4);
+        private const ushort dv_tx_5 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 5);
+        private bool registeredCallbackApplyData = false;
+        private bool gotResponse = false;
+
         private async void ApplyDirectionValuesToLCE()
         {
             if (LoadedDirectionValue == null)
@@ -223,7 +227,7 @@ namespace UStallGUI.ViewModel
                 return;
             }
             if (can != null)
-            { 
+            {
                 gotResponse = false;
                 ushort[] addresses = { dv_tx_0, dv_tx_1, dv_tx_2, dv_tx_3, dv_tx_4, dv_tx_5 };
                 byte[][] payload = new byte[6][];
@@ -241,7 +245,7 @@ namespace UStallGUI.ViewModel
                 }
                 if (!registeredCallbackApplyData)
                 {
-                    can.RegisterCallback((ushort) RecieveAddressesControlUnit.ApplyDirectionValues_Response, OnSuccessfulResponse);
+                    can.RegisterCallback((ushort)RecieveAddressesControlUnit.ApplyDirectionValues_Response, OnSuccessfulResponse);
                     registeredCallbackApplyData = true;
                 }
                 for (int i = 0; i < 6; i++)
