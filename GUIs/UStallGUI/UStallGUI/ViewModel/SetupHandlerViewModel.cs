@@ -32,33 +32,33 @@ namespace UStallGUI.ViewModel
         /// <summary>
         /// 1 = Manual control, 2 = Controller, others = off
         /// </summary>
-        public int ControlType
-        {
-            get => _controlType;
-            set
-            {
-                if (!Set(ref _controlType, value))
-                    return;
+        //public int ControlType
+        //{
+        //    get => _controlType;
+        //    set
+        //    {
+        //        if (!Set(ref _controlType, value))
+        //            return;
 
-                switch (_controlType)
-                {
-                    case 1:
-                        ControllerHandlerViewModel.SendControllerValues = false;
-                        InitManualControl();
-                        break;
+        //        switch (_controlType)
+        //        {
+        //            case 1:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
+        //                InitManualControl();
+        //                break;
 
-                    case 2:
-                        ControllerHandlerViewModel.SendControllerValues = true;
-                        StopManualControl();
-                        break;
+        //            case 2:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+        //                StopManualControl();
+        //                break;
 
-                    default:
-                        ControllerHandlerViewModel.SendControllerValues = false;
-                        StopManualControl();
-                        break;
-                }
-            }
-        }
+        //            default:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
+        //                StopManualControl();
+        //                break;
+        //        }
+        //    }
+        //}
 
         public RelayCommand ConnectToLCE_Command { get; }
         public RelayCommand InitThrusters_Command { get; }
@@ -93,9 +93,9 @@ namespace UStallGUI.ViewModel
 
                 if (ManualControlValues != null)
                 {
-                    ManualControlValues.VM1 = clamped;
-                    ManualControlValues.VM2 = clamped;
-                    ManualControlValues.VM3 = clamped;
+                    ManualControlValues.M1 = clamped;
+                    ManualControlValues.M2 = clamped;
+                    ManualControlValues.M3 = clamped;
                 }
             }
         }
@@ -113,9 +113,9 @@ namespace UStallGUI.ViewModel
 
                 if (ManualControlValues != null)
                 {
-                    ManualControlValues.HM1 = clamped;
-                    ManualControlValues.HM2 = clamped;
-                    ManualControlValues.HM3 = clamped;
+                    ManualControlValues.M4 = clamped;
+                    ManualControlValues.M5 = clamped;
+                    ManualControlValues.M6 = clamped;
                 }
             }
         }
@@ -218,7 +218,7 @@ namespace UStallGUI.ViewModel
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
 
-            ControlType = 2; // default to controller
+            //ControlType = 2; // default to controller
 
             //InitThrusters_Command = new RelayCommand(() => _ = InitThrustersAsync());
             //DeinitThrusters_Command = new RelayCommand(() => _ = DeinitThrustersAsync());

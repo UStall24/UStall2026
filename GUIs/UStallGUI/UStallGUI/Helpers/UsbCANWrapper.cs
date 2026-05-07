@@ -141,7 +141,7 @@ namespace UStallGUI.Helpers
 
             // Register a one‑shot callback that will capture the response
             RegisterCallback(
-                (ushort)RecieveAddressesControlUnit.Health_response,
+                (ushort)RecieveAddressesControlUnit.Health,
                 OnHealthResponse);
 
             // Transmit the request (empty payload)

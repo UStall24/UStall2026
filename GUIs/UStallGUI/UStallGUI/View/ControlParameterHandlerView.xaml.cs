@@ -13,9 +13,5 @@ namespace UStallGUI.View
             InitializeComponent();
             DataContext = App.Instance.ControlParamterHandlerViewModelGetter;
         }
-
-        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-        }
     }
 }

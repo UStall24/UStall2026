@@ -3,12 +3,8 @@ using GalaSoft.MvvmLight.Command;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Ports;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Documents;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
 
@@ -16,6 +12,7 @@ namespace UStallGUI.ViewModel
 {
     public class ControlParameterHandlerViewModel : ObservableObject
     {
+        // --- Properties & Fields ---
         public MotorValues _currentShownMotorValues;
 
         public MotorValues CurrentShownMotorValues
@@ -36,10 +33,41 @@ namespace UStallGUI.ViewModel
             }
         }
 
-        public RelayCommand PullDirectionValuesFromLCE_Command { get; }
-        public RelayCommand ApplyDirectionValuesToLCE_Command { get; }
-        public RelayCommand LoadDirectionValuesFromPC_Command { get; }
-        public RelayCommand SaveDirectionValuesToPC_Command { get; }
+        private bool _pullFromROV_Enabled = true;
+
+        public bool PullFromROV_Enabled
+        {
+            get => _pullFromROV_Enabled;
+            set
+            {
+                if (Set(ref _pullFromROV_Enabled, value))
+                    PullFromROV_Command.RaiseCanExecuteChanged();
+            }
+        }
+
+        private bool _applyToROV_Enabled = true;
+
+        public bool ApplyToROV_Enabled
+        {
+            get => _applyToROV_Enabled;
+            set
+            {
+                if (Set(ref _applyToROV_Enabled, value))
+                    ApplyToROV_Command.RaiseCanExecuteChanged();
+            }
+        }
+
+        private bool _testMotor_Enabled = true;
+
+        public bool TestMotor_Enabled
+        {
+            get => _testMotor_Enabled;
+            set
+            {
+                if (Set(ref _testMotor_Enabled, value))
+                    TestMotor.RaiseCanExecuteChanged();
+            }
+        }
 
         private int _direction_selectedIndex = 0;
 
@@ -49,217 +77,262 @@ namespace UStallGUI.ViewModel
             set
             {
                 _direction_selectedIndex = value;
-
                 if (LoadedDirectionValue != null)
                 {
-                    // Y-Axis: + Vorne / - Hinten
-                    // X-Axis: + Rechts / - Links
-                    // Z-Axis: + Hoch / - Runter
                     switch (value)
                     {
-                        case 0: // Linker Joystick - Vorne Hinten
-                            CurrentShownMotorValues = LoadedDirectionValue.Translation.Y_Axis;
-                            break;
-
-                        case 1: // Linker Joystick - Rechts Links
-                            CurrentShownMotorValues = LoadedDirectionValue.Translation.X_Axis;
-                            break;
-
-                        case 2: // Linker und Rechter Trigger (L2/R2)
-                            CurrentShownMotorValues = LoadedDirectionValue.Translation.Z_Axis;
-                            break;
-
-                        case 3: // Rechter Joystick - Vorne Hinten
-                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Y_Axis;
-                            break;
-
-                        case 4: // Rechter Joystick - Links Rechts
-                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.X_Axis;
-                            break;
-
-                        case 5: // Linker und Rechter Bumper (L1/R1)
-                            CurrentShownMotorValues = LoadedDirectionValue.Rotation.Z_Axis;
-                            break;
+                        case 0: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.ForwardsBackwards); break;
+                        case 1: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.LeftRight); break;
+                        case 2: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.UpDown); break;
+                        case 3: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.Yaw); break;
+                        case 4: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.Roll); break;
+                        case 5: CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.Pitch); break;
                     }
-                    ;
                 }
             }
         }
 
-        private readonly UsbCANWrapper can;
+        public RelayCommand PullFromROV_Command { get; }
+        public RelayCommand ApplyToROV_Command { get; }
+        public RelayCommand LoadFromPC_Command { get; }
+        public RelayCommand SaveToPC_Command { get; }
+        public RelayCommand<object> TestMotor { get; }
 
+        private readonly UsbCANWrapper can;
+        private const int PullTimeoutMs = 500;
+        private const int MaxRetries = 3;
+        private const ushort AllDofSavedRx = (ushort)RecieveAddressesControlUnit.All_DoF_Saved;
+        private readonly Dictionary<DOF, float[]> _tempDirectionBuffer = new();
+
+        // --- Constructor ---
         public ControlParameterHandlerViewModel(UsbCANWrapper can)
         {
             this.can = can;
             LoadedDirectionValue = DirectionValues.GetDefaultDirectionValues();
-            CurrentShownMotorValues = LoadedDirectionValue.Translation.Z_Axis;
-            LoadDirectionValuesFromPC_Command = new RelayCommand(LoadDirectionValuesFromPC);
-            SaveDirectionValuesToPC_Command = new RelayCommand(SaveDirectionValuesToPC);
-            PullDirectionValuesFromLCE_Command = new RelayCommand(PullDirectionValuesFromLCE);
-            ApplyDirectionValuesToLCE_Command = new RelayCommand(ApplyDirectionValuesToLCE);
+            CurrentShownMotorValues = LoadedDirectionValue.Get(DOF.ForwardsBackwards);
+
+            LoadFromPC_Command = new RelayCommand(LoadDirectionValuesFromPC);
+            SaveToPC_Command = new RelayCommand(SaveDirectionValuesToPC);
+
+            // Commands now respect the Enabled boolean properties
+            PullFromROV_Command = new RelayCommand(PullDirectionValuesFromROV, () => PullFromROV_Enabled);
+            ApplyToROV_Command = new RelayCommand(ApplyDirectionValuesToLCE, () => ApplyToROV_Enabled);
+            TestMotor = new RelayCommand<object>(TestMotorCommand, _ => TestMotor_Enabled);
+
+            can.RegisterCallback((ushort)RecieveAddressesControlUnit.TestMotor, TestMotorCommandCallback);
         }
 
+        // --- PC File Logic ---
         private void LoadDirectionValuesFromPC()
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "JSON files (*.json)|*.json";
-            openFileDialog.Title = "Select a JSON file";
-
+            OpenFileDialog openFileDialog = new OpenFileDialog { Filter = "JSON files (*.json)|*.json", Title = "Select a JSON file" };
             if (openFileDialog.ShowDialog() == true)
             {
-                string filePath = openFileDialog.FileName;
-
-                DirectionValues directionValues = ConfigLoader.LoadControllerParameters(filePath);
+                DirectionValues directionValues = ConfigLoader.LoadControllerParameters(openFileDialog.FileName);
                 if (directionValues != null) LoadedDirectionValue = directionValues;
-                else MessageBox.Show("That is not a vaild DirectionValue file");
+                else MessageBox.Show("That is not a valid DirectionValue file");
             }
         }
 
         private void SaveDirectionValuesToPC()
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-                Title = "Save DirectionValue File",
-                FileName = "directionValues.json" // Set the default filename here
-            };
-
-            // Show the dialog and check if the user clicked "Save"
+            SaveFileDialog saveFileDialog = new SaveFileDialog { Filter = "JSON files (*.json)|*.json", Title = "Save DirectionValue File", FileName = "directionValues.json" };
             if (saveFileDialog.ShowDialog() == true)
             {
-                string filePath = saveFileDialog.FileName;
-                bool successful = ConfigLoader.UpdateConfigurationFile(LoadedDirectionValue, filePath);
-                if (successful) MessageBox.Show("File saved successfully");
-                else MessageBox.Show("Saving Failed");
+                bool successful = ConfigLoader.UpdateConfigurationFile(LoadedDirectionValue, saveFileDialog.FileName);
+                MessageBox.Show(successful ? "File saved successfully" : "Saving Failed");
             }
         }
 
-        private const ushort dv_rx_0 = (ushort)RecieveAddressesControlUnit.PullDirectionValues_Response;
-        private const ushort dv_rx_1 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 1);
-        private const ushort dv_rx_2 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 2);
-        private const ushort dv_rx_3 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 3);
-        private const ushort dv_rx_4 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 4);
-        private const ushort dv_rx_5 = (ushort)(RecieveAddressesControlUnit.PullDirectionValues_Response + 5);
-        private DirectionValues recievedDirectionValues;
-        private bool registeredCallbackPullData = false;
-
-        private async void PullDirectionValuesFromLCE()
+        // --- ROV Pull Logic ---
+        public async void PullDirectionValuesFromROV()
         {
-            if (can != null)
+            if (can == null || !can.IsOpen) { MainWindowViewModel.Instance.LogToControlBox("CAN not open"); return; }
+            ControllerHandlerViewModel.Instance.SendControllerValues = false; // Ensure controller values are not sent during pull
+            PullFromROV_Enabled = false; // Disable UI
+            _tempDirectionBuffer.Clear();
+
+            try
             {
-                recievedDirectionValues = DirectionValues.GetInvalidDirectionValues();
-                async void OnSuccessfulResponse(ushort id, byte[] data)
+                var requests = new (DOF dof, ushort sendId, ushort recvId)[]
                 {
-                    if (data.Length != 0)
+                    (DOF.ForwardsBackwards, (ushort)SendAddressesControlUnit.Get_FB, (ushort)RecieveAddressesControlUnit.Get_FB),
+                    (DOF.LeftRight,         (ushort)SendAddressesControlUnit.Get_LR, (ushort)RecieveAddressesControlUnit.Get_LR),
+                    (DOF.UpDown,            (ushort)SendAddressesControlUnit.Get_UD, (ushort)RecieveAddressesControlUnit.Get_UD),
+                    (DOF.Yaw,               (ushort)SendAddressesControlUnit.Get_YAW, (ushort)RecieveAddressesControlUnit.Get_YAW),
+                    (DOF.Roll,              (ushort)SendAddressesControlUnit.Get_ROLL, (ushort)RecieveAddressesControlUnit.Get_ROLL),
+                    (DOF.Pitch,             (ushort)SendAddressesControlUnit.Get_PITCH, (ushort)RecieveAddressesControlUnit.Get_PITCH),
+                };
+
+                foreach (var (dof, sendId, recvId) in requests)
+                {
+                    bool success = false;
+                    for (int retry = 0; retry < MaxRetries; retry++)
                     {
-                        float[] floatValues = LCECommunicationHelper.ConvertBytesToMotorValues(data);
-                        Console.WriteLine("Received Direction Values from LCE: " + string.Join(", ", floatValues));
-                        switch (id)
+                        var tcs = new TaskCompletionSource<float[]>();
+                        void Handler(ushort id, byte[] data)
                         {
-                            case dv_rx_0:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.Z_Axis, floatValues);
-                                break;
+                            if (id != recvId) return;
+                            tcs.TrySetResult(data != null && data.Length > 0 ? LCECommunicationHelper.ConvertBytesToMotorValues(data) : null);
+                        }
 
-                            case dv_rx_1:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.X_Axis, floatValues);
-                                break;
+                        can.RegisterCallback(recvId, Handler);
+                        can.SendFrame(sendId);
+                        var completed = await Task.WhenAny(tcs.Task, Task.Delay(PullTimeoutMs));
+                        can.UnregisterCallback(recvId, Handler);
 
-                            case dv_rx_2:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Translation, Axis.Y_Axis, floatValues);
-                                break;
+                        if (completed == tcs.Task && tcs.Task.Result != null)
+                        {
+                            _tempDirectionBuffer[dof] = tcs.Task.Result;
+                            MainWindowViewModel.Instance.LogToControlBox($"[{dof}] Pull OK (try {retry + 1})");
+                            success = true;
+                            break;
+                        }
+                        MainWindowViewModel.Instance.LogToControlBox($"[{dof}] Pull retry {retry + 1}");
+                    }
 
-                            case dv_rx_3:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.Z_Axis, floatValues);
-                                break;
+                    if (!success)
+                    {
+                        MainWindowViewModel.Instance.LogToControlBox($"[{dof}] PULL FAILED → aborting");
+                        return;
+                    }
+                }
+                LoadedDirectionValue = BuildDirectionValues(_tempDirectionBuffer);
+                MainWindowViewModel.Instance.LogToControlBox("Direction pull SUCCESSFUL");
+            }
+            finally
+            {
+                PullFromROV_Enabled = true; // Re-enable UI
+                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+            }
+        }
 
-                            case dv_rx_4:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.X_Axis, floatValues);
-                                break;
+        // --- ROV Apply Logic ---
+        private async void ApplyDirectionValuesToLCE()
+        {
+            if (LoadedDirectionValue == null || can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot Apply: Data null or CAN closed");
+                return;
+            }
+            ControllerHandlerViewModel.Instance.SendControllerValues = false; // Ensure controller values are not sent during pull
+            ApplyToROV_Enabled = false; // Disable UI
 
-                            case dv_rx_5:
-                                recievedDirectionValues.UpdateSingleAxis(Direction.Rotation, Axis.Y_Axis, floatValues);
-                                break;
+            try
+            {
+                var requests = new (DOF dof, ushort sendId)[]
+                {
+                    (DOF.ForwardsBackwards, (ushort)SendAddressesControlUnit.Set_FB),
+                    (DOF.LeftRight,         (ushort)SendAddressesControlUnit.Set_LR),
+                    (DOF.UpDown,            (ushort)SendAddressesControlUnit.Set_UD),
+                    (DOF.Yaw,               (ushort)SendAddressesControlUnit.Set_YAW),
+                    (DOF.Roll,              (ushort)SendAddressesControlUnit.Set_ROLL),
+                    (DOF.Pitch,             (ushort)SendAddressesControlUnit.Set_PITCH),
+                };
+
+                foreach (var (dof, sendId) in requests)
+                {
+                    bool success = false;
+                    for (int retry = 0; retry < MaxRetries; retry++)
+                    {
+                        var tcs = new TaskCompletionSource<bool>();
+                        void Handler(ushort id, byte[] data) { if (id == sendId) tcs.TrySetResult(true); }
+
+                        can.RegisterCallback(sendId, Handler);
+                        byte[] payload = LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Get(dof).GetAsArray());
+                        can.SendFrame(sendId, payload);
+
+                        var completed = await Task.WhenAny(tcs.Task, Task.Delay(PullTimeoutMs));
+                        can.UnregisterCallback(sendId, Handler);
+
+                        if (completed == tcs.Task)
+                        {
+                            MainWindowViewModel.Instance.LogToControlBox($"[{dof}] Apply OK (try {retry + 1})");
+                            success = true;
+                            break;
                         }
                     }
-                    else
+
+                    if (!success)
                     {
-                        MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Invalid Data");
+                        MainWindowViewModel.Instance.LogToControlBox($"[{dof}] APPLY FAILED → aborting");
                         return;
                     }
                 }
 
-                if (!registeredCallbackPullData)
-                {
-                    can.RegisterCallback(dv_rx_0, OnSuccessfulResponse);
-                    can.RegisterCallback(dv_rx_1, OnSuccessfulResponse);
-                    can.RegisterCallback(dv_rx_2, OnSuccessfulResponse);
-                    can.RegisterCallback(dv_rx_3, OnSuccessfulResponse);
-                    can.RegisterCallback(dv_rx_4, OnSuccessfulResponse);
-                    can.RegisterCallback(dv_rx_5, OnSuccessfulResponse);
-                    registeredCallbackPullData = true;
-                }
+                // Wait for Save Confirmation
+                var finalTcs = new TaskCompletionSource<bool>();
+                void FinalHandler(ushort id, byte[] data) { if (id == AllDofSavedRx) finalTcs.TrySetResult(true); }
+                can.RegisterCallback(AllDofSavedRx, FinalHandler);
 
-                can.SendFrame((ushort)SendAddressesControlUnit.PullDirectionValues, []);
-                await Task.Delay(500);
+                var finalCompleted = await Task.WhenAny(finalTcs.Task, Task.Delay(PullTimeoutMs * 2));
+                can.UnregisterCallback(AllDofSavedRx, FinalHandler);
 
-                if (recievedDirectionValues.HasInvalidData())
-                    MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Invalid Data");
-                else
-                {
-                    LoadedDirectionValue = recievedDirectionValues;
-                    MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE successful");
-                }
+                MainWindowViewModel.Instance.LogToControlBox(finalCompleted == finalTcs.Task
+                    ? "Direction APPLY SUCCESSFUL (saved on Pico)"
+                    : "Direction APPLY FAILED → No final save confirmation");
             }
-            else MainWindowViewModel.Instance.LogToControlBox("Requesting Direction Values from LCE failed - Serial Port is not open");
+            finally
+            {
+                ApplyToROV_Enabled = true; // Re-enable UI
+                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+            }
         }
 
-        private const ushort dv_tx_0 = (ushort)SendAddressesControlUnit.ApplyDirectionValues;
-        private const ushort dv_tx_1 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 1);
-        private const ushort dv_tx_2 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 2);
-        private const ushort dv_tx_3 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 3);
-        private const ushort dv_tx_4 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 4);
-        private const ushort dv_tx_5 = (ushort)(SendAddressesControlUnit.ApplyDirectionValues + 5);
-        private bool registeredCallbackApplyData = false;
-        private bool gotResponse = false;
-
-        private async void ApplyDirectionValuesToLCE()
+        private DirectionValues BuildDirectionValues(Dictionary<DOF, float[]> data)
         {
-            if (LoadedDirectionValue == null)
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE failed - No Direction Values loaded");
-                return;
-            }
-            if (can != null)
-            {
-                gotResponse = false;
-                ushort[] addresses = { dv_tx_0, dv_tx_1, dv_tx_2, dv_tx_3, dv_tx_4, dv_tx_5 };
-                byte[][] payload = new byte[6][];
-                payload[0] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Translation.Z_Axis.GetAsArray()));
-                payload[1] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Translation.X_Axis.GetAsArray()));
-                payload[2] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Translation.Y_Axis.GetAsArray()));
-                payload[3] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Rotation.Z_Axis.GetAsArray()));
-                payload[4] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Rotation.X_Axis.GetAsArray()));
-                payload[5] = (LCECommunicationHelper.ConvertMotorValuesToBytes(LoadedDirectionValue.Rotation.Y_Axis.GetAsArray()));
+            var result = DirectionValues.GetInvalidDirectionValues();
+            foreach (var kv in data) result.UpdateSingleDOF(kv.Key, kv.Value);
+            return result;
+        }
 
-                async void OnSuccessfulResponse(ushort id, byte[] data)
+        // --- Test Motor Logic ---
+        private float _testThrust = 1f;
+
+        public float TestThrust
+        {
+            get => _testThrust;
+            set => Set(ref _testThrust, MotorValues.Clip(value));
+        }
+
+        public async void TestMotorCommand(object motorIndexStr)
+        {
+            if (motorIndexStr == null || !int.TryParse(motorIndexStr.ToString(), out int motorIndex)) return;
+
+            // Toggle states during the brief send operation
+            PullFromROV_Enabled = false;
+            ApplyToROV_Enabled = false;
+            TestMotor_Enabled = false;
+
+            try
+            {
+                ushort duration = 50;
+                if (can != null)
                 {
-                    gotResponse = true;
-                    MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE successful");
+                    float[] values = new float[6];
+                    values[motorIndex] = TestThrust;
+                    byte[] motorBytes = LCECommunicationHelper.ConvertMotorValuesToBytes(values);
+                    byte[] payload = new byte[motorBytes.Length + 1];
+                    Array.Copy(motorBytes, payload, motorBytes.Length);
+                    payload[^1] = (byte)duration;
+
+                    can.SendFrame((ushort)SendAddressesControlUnit.TestMotor, payload);
+
+                    // Artificial delay to prevent spamming the Pico during the motor pulse
+                    await Task.Delay(200);
                 }
-                if (!registeredCallbackApplyData)
-                {
-                    can.RegisterCallback((ushort)RecieveAddressesControlUnit.ApplyDirectionValues_Response, OnSuccessfulResponse);
-                    registeredCallbackApplyData = true;
-                }
-                for (int i = 0; i < 6; i++)
-                {
-                    can.SendFrame(addresses[i], payload[i]);
-                    await Task.Delay(100);
-                }
-                await Task.Delay(500);
-                if (!gotResponse) MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE failed - Timeout Error ");
             }
-            else MainWindowViewModel.Instance.LogToControlBox("Writing Direction Values to LCE failed - Serial Port is not open");
+            finally
+            {
+                PullFromROV_Enabled = true;
+                ApplyToROV_Enabled = true;
+                TestMotor_Enabled = true;
+            }
+        }
+
+        public void TestMotorCommandCallback(ushort id, byte[] data)
+        {
+            MainWindowViewModel.Instance.LogToControlBox("Testing Motor Successful");
         }
     }
 }

@@ -21,10 +21,6 @@
             <!-- Splitter column -->
             <ColumnDefinition Width="*" MinWidth="200" />
         </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="20" />
-        </Grid.RowDefinitions>
 
         <!-- Left content -->
         <view:CameraStreamView Grid.Row="0" Grid.Column="0" Margin="3,0,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
@@ -45,16 +41,16 @@
 
             <!-- SetupHandlerView (top) -->
             <TabControl Grid.Row="0" Margin="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                <TabItem Header="Setup" IsSelected="True">
+                <TabItem Header="Quick Setup" IsSelected="True">
                     <view:SetupHandlerView />
                 </TabItem>
-                <TabItem Header="Controller">
+                <TabItem Header="Controller Settings">
                     <view:ControllerHandlerView />
                 </TabItem>
-                <TabItem Header="Control Parameter">
+                <TabItem Header="Driving Settings">
                     <view:ControlParameterHandlerView />
                 </TabItem>
-                <TabItem Header="Accessory Box Setup">
+                <TabItem Header="Gripper Settings">
                     <view:AccessoryBoxSetupView />
                 </TabItem>
             </TabControl>
@@ -70,29 +66,6 @@
                     <TextBlock Text="{Binding ControlBoxConsoleText}" TextWrapping="Wrap" />
                 </ScrollViewer>
             </GroupBox>
-        </Grid>
-
-        <!-- Status bar at the bottom -->
-        <Grid Grid.Row="1" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Label Content="Connection Status to LCE: " FontSize="8" />
-            <Label Grid.Column="1" Content="{Binding ConnectionStatusLCE}" FontSize="8" />
-            <Label Content="Controller Connected: " FontSize="8" Grid.Column="2" />
-            <Label Content="{Binding ConnectionStatusController}" FontSize="8" Grid.Column="3" />
-            <Label Content="Selected Gripper: " FontSize="8" Grid.Column="4" />
-            <Label Content="{Binding SelectedGripper}" FontSize="8" Grid.Column="5" />
-            <Label Content="RPi 5 CPU Temperature: " FontSize="8" Grid.Column="6" />
-            <Label Content="{Binding RPiTemperature}" FontSize="8" Grid.Column="7" />
         </Grid>
     </Grid>
 </Window>
