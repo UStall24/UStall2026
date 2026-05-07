@@ -5,8 +5,24 @@ namespace UStallGUI.Helpers
 {
     public static class LCECommunicationHelper
     {
-        public static byte[] ConvertMotorValuesToBytes(float[] motorValues)
+        public static byte ConvertMotorValueToByte(float motorValue)
+        {
+            const byte ZERO_POINT = 0x7F;
 
+            if (Math.Abs(motorValue) <= 1e-3)
+            {
+                return ZERO_POINT;
+            }
+
+            return (byte)((motorValue + 1) * 127.5);
+        }
+
+        public static float ConvertByteToMotorValue(byte byteValue)
+        {
+            return (float)Math.Round((byteValue / 127.5f) - 1, 2);
+        }
+
+        public static byte[] ConvertMotorValuesToBytes(float[] motorValues)
         {
             if (motorValues == null)
             {
@@ -17,18 +33,13 @@ namespace UStallGUI.Helpers
 
             for (int i = 0; i < motorValues.Length; i++)
             {
-                byte byteValue = 0x7F; // 127 dez -> 7F hex and 128 dez -> 80 dez the zero points for the ROV
-                if (Math.Abs(motorValues[i]) > 1e-3)
-                {
-                    byteValue = (byte)((motorValues[i] + 1) * 127.5);
-                }
-                byteArray[i] = byteValue;
+                byteArray[i] = ConvertMotorValueToByte(motorValues[i]);
             }
 
             return byteArray;
         }
 
-        public static float[] ConvertBytesToMotorValues(byte[] byteArray, bool roundUp = true)
+        public static float[] ConvertBytesToMotorValues(byte[] byteArray)
         {
             if (byteArray == null)
             {
@@ -39,7 +50,7 @@ namespace UStallGUI.Helpers
 
             for (int i = 0; i < byteArray.Length; i++)
             {
-                motorVals[i] = (float)(Math.Round((byteArray[i] / 127.5f) - 1, 2));
+                motorVals[i] = ConvertByteToMotorValue(byteArray[i]);
             }
 
             return motorVals;
@@ -65,27 +76,35 @@ namespace UStallGUI.Helpers
     public enum SendAddressesControlUnit : ushort
     {
         Health = 40,
-        // Connection / initialization
-        InitConnection = 50,                     // Establish initial link
-        InitThrusters = 60,                      // Power‑up thrusters
-        DeinitThrusters = 70,                    // Power‑down thrusters
-        ResetError = 80,                         // Clear error flags
+        InitConnection = 50,
+        InitThrusters = 60,
+        DeinitThrusters = 70,
+        ResetError = 80,
+        ApplyManualControl = 90,
+        ApplyControllerValues = 100,
+        ApplyControllerValues_Dyn = 110,
 
-        // Manual / controller input
-        ApplyManualControl = 90,                 // Direct manual command
-        ApplyControllerValues = 100,            // Standard controller setpoint
-        ApplyControllerValues_DynamicThrottle = 110, // Controller with dynamic throttle
+        // --- NEW: per DoF responses ---
 
-        // Direction data
-        PullDirectionValues = 120,               // Request current direction data
-        ApplyDirectionValues = 130,              // Send new direction setpoints
+        Set_FB = 120,
+        Set_LR = 121,
+        Set_UD = 122,
+        Set_YAW = 123,
+        Set_ROLL = 124,
+        Set_PITCH = 125,
 
-        // PID / gyro data
-        PullPidValues = 140,                     // Request current PID parameters
-        ApplyPidValues = 150,                    // Send updated PID parameters
+        Get_FB = 130,
+        Get_LR = 131,
+        Get_UD = 132,
+        Get_YAW = 133,
+        Get_ROLL = 134,
+        Get_PITCH = 135,
 
-        // Timing
-        UpdateCylceTime = 160                    // Update the control loop cycle time
+        PullPidValues = 140,
+        ApplyPidValues = 150,
+        UpdateCycleTime = 160,
+
+        TestMotor = 170
     }
 
     /// <summary>
@@ -95,28 +114,38 @@ namespace UStallGUI.Helpers
     /// </summary>
     public enum RecieveAddressesControlUnit : ushort
     {
-        Health_response = SendAddressesControlUnit.Health + 1,
-        // Connection / init responses
-        InitConnection_Response = SendAddressesControlUnit.InitConnection + 1,          // 51
-        InitThrusters_Response = SendAddressesControlUnit.InitThrusters + 1,           // 61
-        DeinitThrusters_Response = SendAddressesControlUnit.DeinitThrusters + 1,         // 71
-        ResetError_Response = SendAddressesControlUnit.ResetError + 1,              // 81
+        Health = 41,
+        InitConnection = 51,
+        InitThrusters = 61,
+        DeinitThrusters = 71,
+        ResetError = 81,
+        ApplyManualControl = 91,
+        ApplyControllerValues = 101,
+        ApplyControllerValues_Dyn = 111,
 
-        // Cycle‑time response
-        UpdateCycleTime_Response = SendAddressesControlUnit.UpdateCylceTime + 1,        // 161
+        // --- NEW: per DoF direction values ---
 
-        // Control / manual responses
-        ApplyManualControl_Response = SendAddressesControlUnit.ApplyManualControl + 1,      // 91
-        ApplyControllerValues_Response = SendAddressesControlUnit.ApplyControllerValues + 1,   // 101
-        ApplyControllerValues_DynamicThrottle_Response = SendAddressesControlUnit.ApplyControllerValues_DynamicThrottle + 1, // 111
+        Set_FB = 121,      // forwards_backwards
+        Set_LR = 122,      // left_right
+        Set_UD = 123,      // up_down
+        Set_YAW = 124,
+        Set_ROLL = 125,
+        Set_PITCH = 126,
+        All_DoF_Saved = 127,
 
-        // Direction values responses
-        PullDirectionValues_Response = SendAddressesControlUnit.PullDirectionValues + 1,    // 121
-        ApplyDirectionValues_Response = SendAddressesControlUnit.ApplyDirectionValues + 1,   // 131
+        // Pull values (optional, same structure)
 
-        // Gyro / PID responses
-        PullPidValues_Response = SendAddressesControlUnit.PullPidValues + 1,          // 141
-        ApplyPidValues_Response = SendAddressesControlUnit.ApplyPidValues + 1          // 151
+        Get_FB = 131,
+        Get_LR = 132,
+        Get_UD = 133,
+        Get_YAW = 134,
+        Get_ROLL = 135,
+        Get_PITCH = 136,
+
+        PullPidValues = 141,
+        ApplyPidValues = 151,
+        UpdateCycleTime = 161,
+
+        TestMotor = 171
     }
-
 }

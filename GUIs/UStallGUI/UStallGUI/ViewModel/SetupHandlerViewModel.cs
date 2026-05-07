@@ -32,33 +32,33 @@ namespace UStallGUI.ViewModel
         /// <summary>
         /// 1 = Manual control, 2 = Controller, others = off
         /// </summary>
-        public int ControlType
-        {
-            get => _controlType;
-            set
-            {
-                if (!Set(ref _controlType, value))
-                    return;
+        //public int ControlType
+        //{
+        //    get => _controlType;
+        //    set
+        //    {
+        //        if (!Set(ref _controlType, value))
+        //            return;
 
-                switch (_controlType)
-                {
-                    case 1:
-                        ControllerHandlerViewModel.SendControllerValues = false;
-                        InitManualControl();
-                        break;
+        //        switch (_controlType)
+        //        {
+        //            case 1:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
+        //                InitManualControl();
+        //                break;
 
-                    case 2:
-                        ControllerHandlerViewModel.SendControllerValues = true;
-                        StopManualControl();
-                        break;
+        //            case 2:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+        //                StopManualControl();
+        //                break;
 
-                    default:
-                        ControllerHandlerViewModel.SendControllerValues = false;
-                        StopManualControl();
-                        break;
-                }
-            }
-        }
+        //            default:
+        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
+        //                StopManualControl();
+        //                break;
+        //        }
+        //    }
+        //}
 
         public RelayCommand ConnectToLCE_Command { get; }
         public RelayCommand InitThrusters_Command { get; }
@@ -93,9 +93,9 @@ namespace UStallGUI.ViewModel
 
                 if (ManualControlValues != null)
                 {
-                    ManualControlValues.VM1 = clamped;
-                    ManualControlValues.VM2 = clamped;
-                    ManualControlValues.VM3 = clamped;
+                    ManualControlValues.M1 = clamped;
+                    ManualControlValues.M2 = clamped;
+                    ManualControlValues.M3 = clamped;
                 }
             }
         }
@@ -113,9 +113,9 @@ namespace UStallGUI.ViewModel
 
                 if (ManualControlValues != null)
                 {
-                    ManualControlValues.HM1 = clamped;
-                    ManualControlValues.HM2 = clamped;
-                    ManualControlValues.HM3 = clamped;
+                    ManualControlValues.M4 = clamped;
+                    ManualControlValues.M5 = clamped;
+                    ManualControlValues.M6 = clamped;
                 }
             }
         }
@@ -218,7 +218,7 @@ namespace UStallGUI.ViewModel
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
 
-            ControlType = 2; // default to controller
+            //ControlType = 2; // default to controller
 
             //InitThrusters_Command = new RelayCommand(() => _ = InitThrustersAsync());
             //DeinitThrusters_Command = new RelayCommand(() => _ = DeinitThrustersAsync());
@@ -232,9 +232,8 @@ namespace UStallGUI.ViewModel
             HealthCommand = new RelayCommand(SendHealthMessage);
         }
 
-        async void SendHealthMessage()
+        private async void SendHealthMessage()
         {
-
             MainWindowViewModel.Instance.LogToControlBox("Checking Health...");
             bool ok = await can.TestConnectionAsync(100);
             if (ok)
@@ -246,41 +245,26 @@ namespace UStallGUI.ViewModel
 
         private void UpdateConfig() => ConfigLoader.UpdateConfigGUI(currentConfig);
 
-        #endregion Config helpers
-
-        #region Connection / CAN
-
-        async void ConnectToControlUnit()
+        private async void ConnectToControlUnit()
         {
             can.ConnectToCanAdapter();
+
+            // Check if the adapter is connected before proceeding
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("USB serial adapter not connected.");
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                return;
+            }
+
             MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
             can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
-            bool ok = await can.TestConnectionAsync(); 
-            if (ok) MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-            else MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                //byte[] response = await WaitForResponseAsync(
-                //    (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
-                //    300
-                //).ConfigureAwait(false);
-
-                //if (response.Length != 0)
-                //{
-                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-
-                //    // Display first status byte as human-readable message, if mapping exists
-                //    if (response.Length > 0 &&
-                //        LCECommunicationHelper.LCE_MessageAddresses.TryGetValue(response[0], out var msg))
-                //    {
-                //        MainWindowViewModel.Instance.LogToControlBox(msg);
-                //    }
-
-                //    UpdateInterval = await PullUpdateInterval().ConfigureAwait(false);
-                //}
-                //else
-                //{
-                //    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                //}
-            }
+            bool ok = await can.TestConnectionAsync();
+            if (ok)
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+            else
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+        }
 
         public void DisconnectFromLCE()
         {
@@ -306,7 +290,7 @@ namespace UStallGUI.ViewModel
             return can;
         }
 
-        #endregion Connection / CAN
+        #endregion Config helpers
 
         #region Thruster Init/Deinit (stubs – fill in your protocol)
 
@@ -398,10 +382,10 @@ namespace UStallGUI.ViewModel
             ManualControlAll = 0f;
         }
 
-
         private void Health(object commandParameter)
         {
         }
+
         #endregion Manual Control Timer
 
         #region Update Interval

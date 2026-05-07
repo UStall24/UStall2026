@@ -3,105 +3,69 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:UStallGUI" xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" xmlns:view="clr-namespace:UStallGUI.View" d:DataContext="{d:DesignInstance Type=viewmodel:MainWindowViewModel}"
+        xmlns:local="clr-namespace:UStallGUI"
+        xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
+        xmlns:view="clr-namespace:UStallGUI.View"
+        d:DataContext="{d:DesignInstance Type=viewmodel:MainWindowViewModel}"
         mc:Ignorable="d"
         Title="MainWindow"
-        Height="1000" Width="1920">
+        MinHeight="600" MinWidth="900">
 
     <Window.InputBindings>
-        <KeyBinding Key="T"
-                    Command="{Binding KeyPressedCommand}"
-                    CommandParameter="T">
-        </KeyBinding>
-        <KeyBinding Key="G"
-                    Command="{Binding KeyPressedCommand}"
-                    CommandParameter="G">
-        </KeyBinding>
-        <KeyBinding Key="Z"
-                    Command="{Binding KeyPressedCommand}"
-                    CommandParameter="Z">
-        </KeyBinding>
-        <KeyBinding Key="H"
-                    Command="{Binding KeyPressedCommand}"
-                    CommandParameter="H">
-        </KeyBinding>
-        <KeyBinding Key="U"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="U">
-        </KeyBinding>
-        <KeyBinding Key="J"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="J">
-        </KeyBinding>
-        <KeyBinding Key="I"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="I">
-        </KeyBinding>
-        <KeyBinding Key="K"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="K">
-        </KeyBinding>
-        <KeyBinding Key="O"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="O">
-        </KeyBinding>
-        <KeyBinding Key="L"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="L">
-        </KeyBinding>
-        <KeyBinding Key="B"
-            Command="{Binding KeyPressedCommand}"
-            CommandParameter="B">
-        </KeyBinding>
+        <!-- ... your key bindings ... -->
     </Window.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition Width="400" />
+            <ColumnDefinition Width="3*" MinWidth="200" />
+            <ColumnDefinition Width="5" />
+            <!-- Splitter column -->
+            <ColumnDefinition Width="*" MinWidth="200" />
         </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="714.04" />
-            <RowDefinition Height="250" />
-            <RowDefinition Height="20" />
-        </Grid.RowDefinitions>
-        <view:CameraStreamView Grid.RowSpan="2" />
-        <TabControl Grid.Column="2" Margin="0,0,8,0">
-            <TabItem Header="Setup" IsSelected="True">
-                <view:SetupHandlerView />
-            </TabItem>
-            <TabItem Header="Controller">
-                <view:ControllerHandlerView />
-            </TabItem>
-            <TabItem Header="Control Parameter">
-                <view:ControlParameterHandlerView />
-            </TabItem>
-            <TabItem Header="Accessory Box Setup">
-                <view:AccessoryBoxSetupView />
-            </TabItem>
-        </TabControl>
-        <GroupBox Grid.Row="1" Grid.Column="1" Header="Console" Margin="5">
-            <TextBlock Text="{Binding ControlBoxConsoleText}" />
-        </GroupBox>
-        <Grid Grid.Row="2" Grid.ColumnSpan="100">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Label Content="Connection Status to LCE: " FontSize="8" />
-            <Label Grid.Column="1" Content="{Binding ConnectionStatusLCE}" FontSize="8" />
-            <Label Content="Controller Connected: " FontSize="8" Grid.Column="2" />
-            <Label Content="{Binding ConnectionStatusController}" FontSize="8" Grid.Column="3" />
-            <Label Content="Selected Gripper: " FontSize="8" Grid.Column="4" />
-            <Label Content="{Binding SelectedGripper}" FontSize="8" Grid.Column="5" />
-            <Label Content="RPi 5 CPU Temperature: " FontSize="8" Grid.Column="6" />
-            <Label Content="{Binding RPiTemperature}" FontSize="8" Grid.Column="7" />
+
+        <!-- Left content -->
+        <view:CameraStreamView Grid.Row="0" Grid.Column="0" Margin="3,0,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+        <!-- Horizontal GridSplitter -->
+        <GridSplitter Grid.Column="1" Grid.Row="0"
+                      HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                      Width="5" Background="Gray" ShowsPreview="True" />
+
+        <!-- Right content: Nested Grid for vertical resizing -->
+        <Grid Grid.Column="2" Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" MinHeight="200" />
+                <RowDefinition Height="5" />
+                <!-- Vertical splitter -->
+                <RowDefinition Height="*" MinHeight="200" />
+            </Grid.RowDefinitions>
+
+            <!-- SetupHandlerView (top) -->
+            <TabControl Grid.Row="0" Margin="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <TabItem Header="Quick Setup" IsSelected="True">
+                    <view:SetupHandlerView />
+                </TabItem>
+                <TabItem Header="Controller Settings">
+                    <view:ControllerHandlerView />
+                </TabItem>
+                <TabItem Header="Driving Settings">
+                    <view:ControlParameterHandlerView />
+                </TabItem>
+                <TabItem Header="Gripper Settings">
+                    <view:AccessoryBoxSetupView />
+                </TabItem>
+            </TabControl>
+
+            <!-- Vertical GridSplitter -->
+            <GridSplitter Grid.Row="1"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                          Height="5" Background="Gray" ShowsPreview="True" />
+
+            <!-- Console (bottom) -->
+            <GroupBox Grid.Row="2" Header="Console" Margin="3,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <ScrollViewer Name="ConsoleScrollViewer" VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding ControlBoxConsoleText}" TextWrapping="Wrap" />
+                </ScrollViewer>
+            </GroupBox>
         </Grid>
     </Grid>
 </Window>

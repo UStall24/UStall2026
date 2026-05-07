@@ -2,188 +2,91 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UStallGUI.Model
 {
+    public enum DOF
+    {
+        ForwardsBackwards = 0,
+        LeftRight = 1,
+        UpDown = 2,
+        Yaw = 3,
+        Roll = 4,
+        Pitch = 5
+    }
+
     public class DirectionValues
     {
-        public AxisValues Translation { get; set; }
-        public AxisValues Rotation { get; set; }
+        public Dictionary<DOF, MotorValues> Values { get; set; }
 
-        public void UpdateSingleAxis(Direction dir, Axis axis, float[] values)
+        public DirectionValues()
         {
-            if (dir == Direction.Translation)
-            {
-                Translation.UpdateAxis(values, axis);
-            }
-            else
-            {
-                Rotation.UpdateAxis(values, axis);
-            }
+            Values = new Dictionary<DOF, MotorValues>();
+            foreach (DOF dof in Enum.GetValues(typeof(DOF)))
+                Values[dof] = MotorValues.GetDefaultMotorValues();
         }
 
-        public void SwitchMotors(int m1, int m2)
+        public void UpdateSingleDOF(DOF dof, float[] values)
         {
-            Translation.SwitchMotors(m1, m2);
-            Rotation.SwitchMotors(m1, m2);
+            Values[dof].UpdateAsArray(values);
         }
+
+        public MotorValues Get(DOF dof) => Values[dof];
 
         public static DirectionValues GetDefaultDirectionValues()
         {
-            var value = new DirectionValues();
-            value.Translation = AxisValues.GetDefaultAxisValues();
-            value.Rotation = AxisValues.GetDefaultAxisValues();
-            return value;
-        }
-        public static DirectionValues GetInvalidDirectionValues()
-        {
-            var value = new DirectionValues();
-            value.Translation = AxisValues.GetInvalidAxisValues();
-            value.Rotation = AxisValues.GetInvalidAxisValues();
-            return value;
+            return new DirectionValues();
         }
 
-        public byte[] GetAsArray()
+        public static DirectionValues GetInvalidDirectionValues()
         {
-            List<byte> payload = new List<byte>();
-            payload.AddRange(Translation.GetAsArray());
-            payload.AddRange(Rotation.GetAsArray());
-            return payload.ToArray();
+            var dv = new DirectionValues();
+            foreach (var key in dv.Values.Keys.ToList())
+                dv.Values[key] = MotorValues.GetInvalidMotorValues();
+            return dv;
         }
 
         public bool HasInvalidData()
         {
-            // Check if Translation or Rotation contain invalid float values
-            return Translation.HasInvalidData() || Rotation.HasInvalidData();
+            return Values.Values.Any(v => v.GetAsArray().Any(x => x < -1f || x > 1f));
         }
-    }
-
-    public enum Axis
-    {
-        Z_Axis,
-        X_Axis,
-        Y_Axis
-    }
-
-    public enum Direction
-    {
-        Translation,
-        Rotation
     }
 
     public class MotorValues : ObservableObject
     {
         private float[] _values = new float[6];
 
-        public float VM1 { get => _values[0]; set => _values[0] = ClipValue(value); }
-        public float VM2 { get => _values[1]; set => _values[1] = ClipValue(value); }
-        public float VM3 { get => _values[2]; set => _values[2] = ClipValue(value); }
-        public float HM1 { get => _values[3]; set => _values[3] = ClipValue(value); }
-        public float HM2 { get => _values[4]; set => _values[4] = ClipValue(value); }
-        public float HM3 { get => _values[5]; set => _values[5] = ClipValue(value); }
+        public float M1 { get => _values[0]; set => _values[0] = Clip(value); }
+        public float M2 { get => _values[1]; set => _values[1] = Clip(value); }
+        public float M3 { get => _values[2]; set => _values[2] = Clip(value); }
+        public float M4 { get => _values[3]; set => _values[3] = Clip(value); }
+        public float M5 { get => _values[4]; set => _values[4] = Clip(value); }
+        public float M6 { get => _values[5]; set => _values[5] = Clip(value); }
 
-        private static float ClipValue(float value) => Math.Clamp(value, -1f, 1f);
+        public static float Clip(float v) => Math.Clamp(v, -1f, 1f);
 
-        public MotorValues(float[] array) => UpdateAsArray(array);
+        public MotorValues(float[] arr) => UpdateAsArray(arr);
 
         public float[] GetAsArray() => (float[])_values.Clone();
 
-        public void UpdateAsArray(float[] array)
+        public void UpdateAsArray(float[] arr)
         {
-            if (array != null) Array.Copy(array, _values, Math.Min(array.Length, _values.Length));
+            if (arr != null)
+                Array.Copy(arr, _values, Math.Min(arr.Length, 6));
         }
 
         public byte[] GetAsByte()
         {
             byte[] payload = new byte[6];
             for (int i = 0; i < 6; i++)
-            {
                 payload[i] = (byte)(_values[i] * 127.5 + 127.5);
-            }
             return payload;
         }
 
-        public void SwitchMotors(int m1, int m2) => (_values[m1 - 1], _values[m2 - 1]) = (_values[m2 - 1], _values[m1 - 1]);
+        public static MotorValues GetDefaultMotorValues()
+            => new MotorValues(new float[] { 0, 0, 0, 0, 0, 0 });
 
-        public static MotorValues GetDefaultMotorValues() => new MotorValues(new float[] { 0.7f, 0.5f, 0.3f, -0.3f, -0.5f, -0.7f });
-        public static MotorValues GetInvalidMotorValues() => new MotorValues(new float[] {-100, -100, -100, -100, -100, -100 });
-
-        public override string ToString() => $"VM1: {VM1}, VM2: {VM2}, VM3: {VM3}, HM1: {HM1}, HM2: {HM2}, HM3: {HM3}";
-    }
-
-    public class AxisValues
-    {
-        public MotorValues Z_Axis { get; set; }
-        public MotorValues X_Axis { get; set; }
-        public MotorValues Y_Axis { get; set; }
-
-        public void UpdateAxis(float[] array, Axis axis)
-        {
-            if (axis == Axis.Z_Axis)
-            {
-                Z_Axis.UpdateAsArray(array);
-            }
-            else if (axis == Axis.Y_Axis)
-            {
-                Y_Axis.UpdateAsArray(array);
-            }
-            else if (axis == Axis.X_Axis)
-            {
-                X_Axis.UpdateAsArray(array);
-            }
-        }
-
-        public void SwitchMotors(int m1, int m2)
-        {
-            Z_Axis.SwitchMotors(m1, m2);
-            Y_Axis.SwitchMotors(m1, m2);
-            X_Axis.SwitchMotors(m1, m2);
-        }
-
-        public static AxisValues GetDefaultAxisValues()
-        {
-            var value = new AxisValues();
-            value.X_Axis = MotorValues.GetDefaultMotorValues();
-            value.Y_Axis = MotorValues.GetDefaultMotorValues();
-            value.Z_Axis = MotorValues.GetDefaultMotorValues();
-            return value;
-        }
-
-        public static AxisValues GetInvalidAxisValues()
-        {
-            var value = new AxisValues();
-            value.X_Axis = MotorValues.GetInvalidMotorValues();
-            value.Y_Axis = MotorValues.GetInvalidMotorValues();
-            value.Z_Axis = MotorValues.GetInvalidMotorValues();
-            return value;
-        }
-
-        public byte[] GetAsArray()
-        {
-            List<byte> payload = new List<byte>();
-            payload.AddRange(Z_Axis.GetAsByte());
-            payload.AddRange(X_Axis.GetAsByte());
-            payload.AddRange(Y_Axis.GetAsByte());
-            return payload.ToArray();
-        }
-
-        public bool HasInvalidData()
-        {
-            return !IsAllValuesValid();
-        }
-
-        private bool IsAllValuesValid()
-        {
-            return IsMotorValuesValid(Z_Axis) && IsMotorValuesValid(X_Axis) && IsMotorValuesValid(Y_Axis);
-        }
-
-        private static bool IsMotorValuesValid(MotorValues motor)
-        {
-            float[] values = motor.GetAsArray();
-            return values.All(v => v >= -1f && v <= 1f);
-        }
+        public static MotorValues GetInvalidMotorValues()
+            => new MotorValues(new float[] { -100, -100, -100, -100, -100, -100 });
     }
 }

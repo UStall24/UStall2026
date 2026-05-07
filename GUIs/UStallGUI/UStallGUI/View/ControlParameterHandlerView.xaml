@@ -12,34 +12,130 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
+
         <ComboBox Margin="10" SelectedIndex="{Binding DirectionSelectedIndex}">
-            <ComboBoxItem>JoystickL-VH</ComboBoxItem>
-            <ComboBoxItem>JoystickL-LR</ComboBoxItem>
-            <ComboBoxItem>LT/RT</ComboBoxItem>
-            <ComboBoxItem>Rotation: Z-Axis</ComboBoxItem>
-            <ComboBoxItem>Rotation: X-Axis</ComboBoxItem>
-            <ComboBoxItem>LB/RB</ComboBoxItem>
+            <ComboBoxItem>Forward Backwards</ComboBoxItem>
+            <ComboBoxItem>Left Right</ComboBoxItem>
+            <ComboBoxItem>Up Down</ComboBoxItem>
+            <ComboBoxItem>Yaw</ComboBoxItem>
+            <ComboBoxItem>Roll</ComboBoxItem>
+            <ComboBoxItem>Pitch</ComboBoxItem>
         </ComboBox>
-        <Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Width="400" Height="400">
+
+        <Button Grid.Row="1" Grid.Column="0" Margin="10" Content="Pull from ROV" Command="{Binding PullFromROV_Command}" IsEnabled="{Binding PullFromROV_Enabled}" />
+        <Button Grid.Row="1" Grid.Column="1" Margin="10" Content="Apply to ROV"  Command="{Binding ApplyToROV_Command}" IsEnabled="{Binding ApplyToROV_Enabled}" />
+        <Button Grid.Row="2" Grid.Column="0" Margin="10" Content="Load from PC" Command="{Binding LoadFromPC_Command}" />
+        <Button Grid.Row="2" Grid.Column="1" Margin="10" Content="Save to PC" Command="{Binding SaveToPC_Command}" />
+        <Grid Grid.Row="3" Grid.ColumnSpan="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition />
+                <RowDefinition />
+                <RowDefinition />
+            </Grid.RowDefinitions>
+            <Label Content="Motor Label" Grid.Row="0" HorizontalAlignment="Center" FontWeight="Bold" />
+            <Label Content="Thrust" Grid.Row="1" HorizontalAlignment="Center" FontWeight="Bold" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding TestThrust}" Grid.Row="2" Grid.Column="0" Margin="5" />
+
+            <Label Content="M1" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="1" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M1}" Grid.Row="1" Grid.Column="1" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="1" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="0" IsEnabled="{Binding TestMotor_Enabled}" />
+
+            <Label Content="M2" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="2" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M2}" Grid.Row="1" Grid.Column="2" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="2" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="1" IsEnabled="{Binding TestMotor_Enabled}" />
+
+            <Label Content="M3" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="3" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M3}" Grid.Row="1" Grid.Column="3" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="3" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="2" IsEnabled="{Binding TestMotor_Enabled}" />
+
+            <Label Content="M4" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="4" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M4}" Grid.Row="1" Grid.Column="4" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="4" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="3" IsEnabled="{Binding TestMotor_Enabled}" />
+
+            <Label Content="M5" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="5" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M5}" Grid.Row="1" Grid.Column="5" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="5" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="4" IsEnabled="{Binding TestMotor_Enabled}" />
+
+            <Label Content="M6" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="6" />
+            <TextBox Width="40" Height="20" HorizontalAlignment="Center" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.M6}" Grid.Row="1" Grid.Column="6" Margin="5" />
+            <Button Content="Test" Grid.Row="2" Grid.Column="6" Width="40" Height="20" Margin="5" Command="{Binding TestMotor}" CommandParameter="5" IsEnabled="{Binding TestMotor_Enabled}" />
+        </Grid>
+        <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Width="400" Height="400">
             <Viewbox Stretch="Uniform">
                 <Image Source="/ROV_Model.png" />
             </Viewbox>
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="175,42,175,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM1}" />
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="60,142,290,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM2}" />
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="165,306,185,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.HM3}" />
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="314,250,36,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM1}" />
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="35,275,315,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM2}" />
-            <TextBox Width="50" Height="30" VerticalAlignment="Top" Margin="289,127,61,0" Background="Aquamarine" Text="{Binding CurrentShownMotorValues.VM3}" />
+
+            <ComboBox Margin="174,73,192,302" Width="55" Height="25" RenderTransformOrigin="3.586,3.066">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <ComboBox Margin="350,122,15,253" Width="55" Height="25">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <ComboBox Margin="22,122,342,253" Width="55" Height="25">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <ComboBox Margin="22,273,342,102" Width="55" Height="25">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <ComboBox Margin="174,356,191,19" Width="55" Height="25">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <ComboBox Margin="350,273,15,102" Width="55" Height="25">
+                <ComboBoxItem>M1</ComboBoxItem>
+                <ComboBoxItem>M2</ComboBoxItem>
+                <ComboBoxItem>M3</ComboBoxItem>
+                <ComboBoxItem>M4</ComboBoxItem>
+                <ComboBoxItem>M5</ComboBoxItem>
+                <ComboBoxItem>M6</ComboBoxItem>
+                <ComboBoxItem>Dead</ComboBoxItem>
+            </ComboBox>
+            <Button Content="Save Visual Classification" Width="150" Height="25" Margin="235,356,15,19" />
         </Grid>
-        <Button Grid.Row="1" Grid.Column="0" Margin="10" Content="Pull Direction Values From LCE" Command="{Binding PullDirectionValuesFromLCE_Command}" />
-        <Button Grid.Row="1" Grid.Column="1" Margin="10" Content="Apply Direction Values To LCE"  Command="{Binding ApplyDirectionValuesToLCE_Command}" />
-        <Button Grid.Row="2" Grid.Column="0" Margin="10" Content="Load Current Direction Values From PC" Command="{Binding LoadDirectionValuesFromPC_Command}" />
-        <Button Grid.Row="2" Grid.Column="1" Margin="10" Content="Save Current Direction Values to PC" Command="{Binding SaveDirectionValuesToPC_Command}" />
     </Grid>
 </UserControl>

@@ -30,6 +30,13 @@ namespace UStallGUI.ViewModel
 
         private LceConnectionStatus lceConnectionStatus = LceConnectionStatus.None;
 
+        public RelayCommand OnButtonPress_Click { get; set; }
+
+        private void OnButtonPress()
+        {
+            Console.WriteLine("Button Pressed!");
+        }
+
         // Keyboard mapping: key -> gripper command
         private readonly IReadOnlyDictionary<string, GripperAssignment> keyToGripperMap =
             new Dictionary<string, GripperAssignment>(StringComparer.OrdinalIgnoreCase)
@@ -66,6 +73,7 @@ namespace UStallGUI.ViewModel
             // Initial state
             UpdateConnectionStatusLCE(LceConnectionStatus.None);
             InitKeyboardInputHandling();
+            OnButtonPress_Click = new RelayCommand(OnButtonPress);
         }
 
         #region Public Properties
@@ -127,7 +135,7 @@ namespace UStallGUI.ViewModel
             if (string.IsNullOrWhiteSpace(message))
                 return;
 
-            controlBoxLog.Add(message);
+            controlBoxLog.Add(message.Trim());
             ControlBoxConsoleText = controlBoxLog.CurrentText;
         }
 

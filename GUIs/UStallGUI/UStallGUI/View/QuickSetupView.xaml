@@ -1,0 +1,46 @@
+﻿<UserControl x:Class="UStallGUI.View.QuickSetupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:UStallGUI.View"
+             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
+             mc:Ignorable="d"
+             d:DesignHeight="650" d:DesignWidth="400" Background="White">
+    <StackPanel Margin="10" VerticalAlignment="Top">
+
+        <!-- Driving Unit Quick Setup -->
+        <GroupBox Header="Driving Unit Quick Setup" Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button Content="Init Thrusters" Command="{Binding InitThrusters_Command}" Margin="5" />
+                <Button Content="Check Connection" Command="{Binding CheckConnection_Command}" Margin="5" Grid.Column="1" />
+            </Grid>
+        </GroupBox>
+
+        <!-- Controller Quick Setup -->
+        <GroupBox Header="Controller Quick Setup">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button Content="Connect to Controller"
+                        Command="{Binding ConnectToControlle}" Margin="5" Grid.ColumnSpan="99" />
+            </Grid>
+        </GroupBox>
+    </StackPanel>
+</UserControl>

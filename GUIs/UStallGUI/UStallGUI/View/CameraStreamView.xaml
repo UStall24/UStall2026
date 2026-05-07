@@ -3,7 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:UStallGUI.View" xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" d:DataContext="{d:DesignInstance Type=viewmodel:CameraStreamViewModel}"
+             xmlns:local="clr-namespace:UStallGUI.View"
+             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:view="clr-namespace:UStallGUI.View"
+             d:DataContext="{d:DesignInstance Type=viewmodel:CameraStreamViewModel}"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="800" Background="White">
     <Grid>
@@ -15,29 +19,108 @@
             <RowDefinition />
             <RowDefinition />
         </Grid.RowDefinitions>
+
+        <!-- Camera Stream 1 -->
         <GroupBox Header="Camera Stream 1" Margin="5">
-            <Image Stretch="Uniform" Source="{Binding CameraFrame1}" />
+            <Grid>
+                <Image Stretch="Uniform" Source="{Binding CameraFrame1}" Margin="0,0,0,8" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,5">
+                    <Button ToolTip="Connect Camera 1" Width="40" Height="40" Margin="0,0,8,0" Visibility="Hidden"
+                            Command="{Binding ConnectCamera1Command}">
+                        <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
+                    </Button>
+                    <ToggleButton ToolTip="Toggle Light 1" Width="40" Height="40" Visibility="Hidden"
+                                  IsChecked="{Binding IsLight1On, Mode=TwoWay}">
+                        <materialDesign:PackIcon Kind="Lightbulb" Width="24" Height="24"
+                            Foreground="{Binding IsLight1On, Converter={StaticResource BoolToBrushConverter}}" />
+                    </ToggleButton>
+                </StackPanel>
+            </Grid>
         </GroupBox>
+
+        <!-- Camera Stream 2 -->
         <GroupBox Grid.Column="1" Header="Camera Stream 2" Margin="5">
-            <Image Stretch="Uniform" Source="{Binding CameraFrame2}" />
+            <Grid>
+                <Image Stretch="Uniform" Source="{Binding CameraFrame2}" Margin="0,0,0,8" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,5">
+                    <Button ToolTip="Connect Camera 2" Width="40" Height="40" Margin="0,0,8,0" Visibility="Hidden"
+                            Command="{Binding ConnectCamera2Command}">
+                        <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
+                    </Button>
+                    <ToggleButton ToolTip="Toggle Light 2" Width="40" Height="40" Visibility="Hidden"
+                                  IsChecked="{Binding IsLight2On, Mode=TwoWay}">
+                        <materialDesign:PackIcon Kind="Lightbulb" Width="24" Height="24"
+                            Foreground="{Binding IsLight2On, Converter={StaticResource BoolToBrushConverter}}" />
+                    </ToggleButton>
+                </StackPanel>
+            </Grid>
         </GroupBox>
+
+        <!-- Camera Stream 3 -->
         <GroupBox Grid.Column="0" Grid.Row="1" Header="Camera Stream 3" Margin="5">
-            <Image Stretch="Uniform" Source="{Binding CameraFrame3}" />
+            <Grid>
+                <Image Stretch="Uniform" Source="{Binding CameraFrame3}" Margin="0,0,0,8" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,5">
+                    <Button ToolTip="Connect Camera 3" Width="40" Height="40" Margin="0,0,8,0" Visibility="Hidden"
+                            Command="{Binding ConnectCamera3Command}">
+                        <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
+                    </Button>
+                    <ToggleButton ToolTip="Toggle Light 3" Width="40" Height="40" Visibility="Hidden"
+                                  IsChecked="{Binding IsLight3On, Mode=TwoWay}">
+                        <materialDesign:PackIcon Kind="Lightbulb" Width="24" Height="24"
+                            Foreground="{Binding IsLight3On, Converter={StaticResource BoolToBrushConverter}}" />
+                    </ToggleButton>
+                </StackPanel>
+            </Grid>
         </GroupBox>
 
-        <Button Grid.Column="1" Grid.Row="1" Content="Connect" Width="100" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,5" Command="{Binding StartStream_Command}" />
-
+        <!-- Logos (unchanged) -->
         <Grid Grid.Row="1" Grid.Column="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Viewbox Stretch="Uniform">
-                <Image Source="/ustall_logo.png" Margin="20" />
-            </Viewbox>
-            <Viewbox Stretch="Uniform" Grid.Column="1">
-                <Image Source="/andritz_logo.png" />
-            </Viewbox>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- All Cameras Control Box -->
+            <GroupBox Header="Camera Control" Margin="5" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,5">
+                    <Button ToolTip="Connect All Cameras" Width="40" Height="40" Margin="0,0,8,0"
+                            Command="{Binding ConnectAllCamerasCommand}">
+                        <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
+                    </Button>
+                    <ToggleButton ToolTip="Toggle All Lights" Width="40" Height="40" IsEnabled="False"
+                                  IsChecked="{Binding AreAllLightsOn, Mode=TwoWay}"
+                                  Command="{Binding ToggleAllLightsCommand}">
+                        <materialDesign:PackIcon Kind="LightbulbGroup" Width="24" Height="24"
+                            Foreground="{Binding AreAllLightsOn, Converter={StaticResource BoolToBrushConverter}}" />
+                    </ToggleButton>
+
+                    <Button ToolTip="Screenshot All Cameras" Width="40" Height="40" Margin="8,0,0,0"
+                            Command="{Binding TakeAllCamerasScreenshotCommand}">
+                        <materialDesign:PackIcon Kind="Camera" Width="24" Height="24" />
+                    </Button>
+                </StackPanel>
+            </GroupBox>
+            <view:QuickSetupView Grid.Row="1" Grid.RowSpan="2" />
+            <!-- Logos (unchanged, now in Grid.Row=1) -->
+            <Grid Grid.Row="2" Visibility="Hidden">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="auto" />
+                    <RowDefinition Height="10" />
+                </Grid.RowDefinitions>
+                <Viewbox Stretch="Uniform" Grid.Row="1">
+                    <Image Source="/ustall_logo.png" Margin="20" />
+                </Viewbox>
+                <Viewbox Stretch="Uniform" Grid.Column="1" Grid.Row="1">
+                    <Image Source="/andritz_logo.png" />
+                </Viewbox>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

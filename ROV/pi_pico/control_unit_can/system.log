@@ -1,18 +1,373 @@
-2021-01-01 00:41:45 SYSTEM: Starting initialization
-2021-01-01 00:41:45 SYSTEM: Gyro init failed: [Errno 5] EIO
-2021-01-01 00:41:45 SYSTEM: Program started – waiting for init...
-2021-01-01 00:41:46 SYSTEM: Executed: InitThrusters
-2021-01-01 00:41:46 SYSTEM: Health Request
-2021-01-01 00:41:48 SYSTEM: Health Request
-2021-01-01 00:41:49 SYSTEM: Health Request
-2021-01-01 00:41:49 SYSTEM: Health Request
-2021-01-01 00:41:50 SYSTEM: Health Request
-2021-01-01 00:41:50 SYSTEM: Health Request
-2021-01-01 00:41:50 SYSTEM: Warning: Cycle time exceeded by 23Âms
-2021-01-01 00:42:09 SYSTEM: Starting initialization
-2021-01-01 00:42:09 SYSTEM: Gyro init failed: [Errno 5] EIO
-2021-01-01 00:42:09 SYSTEM: Program started – waiting for init...
-2021-01-01 00:42:12 SYSTEM: Executed: InitThrusters
-2021-01-01 00:42:12 SYSTEM: Warning: Cycle time exceeded by 19Âms
-2021-01-01 00:42:12 SYSTEM: Health Request
-2021-01-01 00:42:12 SYSTEM: Warning: Cycle time exceeded by 15Âms
+--- LOG TRUNCATED (keeping last 25600 bytes) ---
+me 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: Health Request
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:12 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:13 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:14 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:15 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:16 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:17 SYSTEM: [ERROR] NameError: name 'clamped' isn't defined
+2026-05-06 21:42:42 SYSTEM: Starting initialization
+2026-05-06 21:42:42 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:42:42 SYSTEM: Program started – waiting for init...
+2026-05-06 21:42:45 SYSTEM: Motors initialized
+2026-05-06 21:42:45 SYSTEM: Executed: InitThrusters
+2026-05-06 21:42:45 SYSTEM: Health Request
+2026-05-06 21:43:55 SYSTEM: Starting initialization
+2026-05-06 21:43:55 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:43:55 SYSTEM: Program started – waiting for init...
+2026-05-06 21:43:56 SYSTEM: Motors initialized
+2026-05-06 21:43:56 SYSTEM: Executed: InitThrusters
+2026-05-06 21:43:58 SYSTEM: Motors initialized
+2026-05-06 21:43:58 SYSTEM: Executed: InitThrusters
+2026-05-06 21:43:58 SYSTEM: Health Request
+2026-05-06 21:44:22 SYSTEM: Starting initialization
+2026-05-06 21:44:22 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:44:22 SYSTEM: Program started – waiting for init...
+2026-05-06 21:44:24 SYSTEM: Motors initialized
+2026-05-06 21:44:24 SYSTEM: Executed: InitThrusters
+2026-05-06 21:55:28 SYSTEM: Starting initialization
+2026-05-06 21:55:29 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:55:29 SYSTEM: Program started – waiting for init...
+2026-05-06 21:55:31 SYSTEM: Motors initialized
+2026-05-06 21:55:31 SYSTEM: Executed: InitThrusters
+2026-05-06 21:55:33 SYSTEM: Motors initialized
+2026-05-06 21:55:33 SYSTEM: Executed: InitThrusters
+2026-05-06 21:55:33 SYSTEM: Health Request
+2026-05-06 21:56:45 SYSTEM: Starting initialization
+2026-05-06 21:56:45 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:56:45 SYSTEM: Program started – waiting for init...
+2026-05-06 21:56:46 SYSTEM: Motors initialized
+2026-05-06 21:56:46 SYSTEM: Executed: InitThrusters
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:46 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:47 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:48 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:49 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:56:50 SYSTEM: [ERROR] NameError: name 'dof_commands' isn't defined
+2026-05-06 21:57:10 SYSTEM: Starting initialization
+2026-05-06 21:57:11 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:57:11 SYSTEM: Program started – waiting for init...
+2026-05-06 21:57:12 SYSTEM: Motors initialized
+2026-05-06 21:57:12 SYSTEM: Executed: InitThrusters
+2026-05-06 21:57:59 SYSTEM: Starting initialization
+2026-05-06 21:57:59 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:57:59 SYSTEM: Program started – waiting for init...
+2026-05-06 21:58:01 SYSTEM: Motors initialized
+2026-05-06 21:58:01 SYSTEM: Executed: InitThrusters
+2026-05-06 21:58:01 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:02 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:03 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:04 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:05 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:58:06 SYSTEM: [ERROR] AttributeError: 'Calculator' object has no attribute 'byte_array_to_float'
+2026-05-06 21:59:33 SYSTEM: Starting initialization
+2026-05-06 21:59:33 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 21:59:33 SYSTEM: Program started – waiting for init...
+2026-05-06 21:59:37 SYSTEM: Motors initialized
+2026-05-06 21:59:37 SYSTEM: Executed: InitThrusters
+2026-05-06 22:00:50 SYSTEM: Starting initialization
+2026-05-06 22:00:50 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 22:00:50 SYSTEM: Program started – waiting for init...
+2026-05-06 22:00:51 SYSTEM: Motors initialized
+2026-05-06 22:00:51 SYSTEM: Executed: InitThrusters
+2026-05-06 22:01:50 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:01:50 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:01:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:01:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:01:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:01:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:02:17 SYSTEM: Starting initialization
+2026-05-06 22:02:17 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 22:02:17 SYSTEM: Program started – waiting for init...
+2026-05-06 22:02:32 SYSTEM: [ERROR] RuntimeError: Motors are not initialized. Call init_motor_all() first.
+2026-05-06 22:02:36 SYSTEM: Health Request
+2026-05-06 22:02:37 SYSTEM: Health Request
+2026-05-06 22:02:38 SYSTEM: Motors initialized
+2026-05-06 22:02:38 SYSTEM: Executed: InitThrusters
+2026-05-06 22:06:53 SYSTEM: Starting initialization
+2026-05-06 22:06:53 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 22:06:53 SYSTEM: Program started – waiting for init...
+2026-05-06 22:06:57 SYSTEM: Motors initialized
+2026-05-06 22:06:57 SYSTEM: Executed: InitThrusters
+2026-05-06 22:06:57 SYSTEM: Health Request
+2026-05-06 22:10:12 SYSTEM: Motors initialized
+2026-05-06 22:10:12 SYSTEM: Executed: InitThrusters
+2026-05-06 22:10:12 SYSTEM: Health Request
+2026-05-06 22:10:43 SYSTEM: Motors initialized
+2026-05-06 22:10:43 SYSTEM: Executed: InitThrusters
+2026-05-06 22:10:43 SYSTEM: Health Request
+2026-05-06 22:11:23 SYSTEM: Starting initialization
+2026-05-06 22:11:23 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-06 22:11:23 SYSTEM: Program started – waiting for init...
+2026-05-06 22:11:27 SYSTEM: [ERROR] RuntimeError: Motors are not initialized. Call init_motor_all() first.
+2026-05-06 22:11:30 SYSTEM: Motors initialized
+2026-05-06 22:11:31 SYSTEM: Executed: InitThrusters
+2026-05-06 22:11:31 SYSTEM: Health Request
+2026-05-06 22:12:24 SYSTEM: Motors initialized
+2026-05-06 22:12:24 SYSTEM: Executed: InitThrusters
+2026-05-06 22:12:24 SYSTEM: Health Request
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues

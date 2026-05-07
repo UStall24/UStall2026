@@ -97,7 +97,7 @@ class RP2350_CAN:
             self.write_byte(CANCTRL, REQOP_NORMAL | CLKOUT_ENABLED) #set normal mode
         
     def send(self, can_id, data):
-        print("Sending CAN ID:", pretty_can_print(can_id, data))
+        # print("Sending CAN ID:", pretty_can_print(can_id, data))
         TXB0CTRL = 0x30
         TXB0SIDH = 0x31
         TXB0SIDL = 0x32
