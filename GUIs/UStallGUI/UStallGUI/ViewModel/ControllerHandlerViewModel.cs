@@ -42,7 +42,7 @@ namespace UStallGUI.ViewModel
             ConnectToController = new RelayCommand(() => SetController(0));
         }
 
-        private void SetController(int index)
+        public void SetController(int index)
         {
             Controller controller = new Controller((UserIndex)index);
             CurrentControllerModel.Controller = controller;

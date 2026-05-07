@@ -10,7 +10,7 @@ namespace UStallGUI.View
         public QuickSetupView()
         {
             InitializeComponent();
-            DataContext = App.Instance.SetupHandlerViewModelGetter;
+            DataContext = App.Instance.QuickSetupViewModelGetter;
         }
     }
 }

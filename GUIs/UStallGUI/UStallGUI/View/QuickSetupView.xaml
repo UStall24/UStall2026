@@ -6,7 +6,8 @@
              xmlns:local="clr-namespace:UStallGUI.View"
              xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
              mc:Ignorable="d"
-             d:DesignHeight="650" d:DesignWidth="400" Background="White">
+             d:DesignHeight="650" d:DesignWidth="400" Background="White"
+             d:DataContext="{d:DesignInstance Type=viewmodel:QuickSetupViewModel}">
     <StackPanel Margin="10" VerticalAlignment="Top">
 
         <!-- Driving Unit Quick Setup -->
@@ -39,7 +40,7 @@
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
                 <Button Content="Connect to Controller"
-                        Command="{Binding ConnectToControlle}" Margin="5" Grid.ColumnSpan="99" />
+                        Command="{Binding ConnectToController_Command}" Margin="5" Grid.ColumnSpan="99" />
             </Grid>
         </GroupBox>
     </StackPanel>
