@@ -148,6 +148,7 @@ namespace UStallGUI.ViewModel
         public async void PullDirectionValuesFromROV()
         {
             if (can == null || !can.IsOpen) { MainWindowViewModel.Instance.LogToControlBox("CAN not open"); return; }
+            bool originalSendControllerToggle = ControllerHandlerViewModel.Instance.SendControllerValues;
             ControllerHandlerViewModel.Instance.SendControllerValues = false; // Ensure controller values are not sent during pull
             PullFromROV_Enabled = false; // Disable UI
             _tempDirectionBuffer.Clear();
@@ -203,7 +204,7 @@ namespace UStallGUI.ViewModel
             finally
             {
                 PullFromROV_Enabled = true; // Re-enable UI
-                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+                ControllerHandlerViewModel.Instance.SendControllerValues = originalSendControllerToggle;
             }
         }
 
@@ -215,6 +216,7 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance.LogToControlBox("Cannot Apply: Data null or CAN closed");
                 return;
             }
+            bool originalSendControllerToggle = ControllerHandlerViewModel.Instance.SendControllerValues;
             ControllerHandlerViewModel.Instance.SendControllerValues = false; // Ensure controller values are not sent during pull
             ApplyToROV_Enabled = false; // Disable UI
 
@@ -275,8 +277,21 @@ namespace UStallGUI.ViewModel
             finally
             {
                 ApplyToROV_Enabled = true; // Re-enable UI
-                ControllerHandlerViewModel.Instance.SendControllerValues = true;
+                ControllerHandlerViewModel.Instance.SendControllerValues = originalSendControllerToggle;
             }
+        }
+
+        public static byte[] PwmArrayToByteArray(int[] pwmValues)
+        {
+            byte[] result = new byte[pwmValues.Length];
+
+            for (int i = 0; i < pwmValues.Length; i++)
+            {
+                int pwm = Math.Clamp(pwmValues[i], 1100, 1900);
+                result[i] = (byte)Math.Round(((pwm - 1100) / 800.0) * 255);
+            }
+
+            return result;
         }
 
         private DirectionValues BuildDirectionValues(Dictionary<DOF, float[]> data)
@@ -287,12 +302,12 @@ namespace UStallGUI.ViewModel
         }
 
         // --- Test Motor Logic ---
-        private float _testThrust = 1f;
+        private int _testThrust = 1560;
 
-        public float TestThrust
+        public int TestThrust
         {
             get => _testThrust;
-            set => Set(ref _testThrust, MotorValues.Clip(value));
+            set => Set(ref _testThrust, Math.Clamp(value, 1100, 1900));
         }
 
         public async void TestMotorCommand(object motorIndexStr)
@@ -306,12 +321,16 @@ namespace UStallGUI.ViewModel
 
             try
             {
-                ushort duration = 50;
+                ushort duration = 150;
                 if (can != null)
                 {
-                    float[] values = new float[6];
+                    int[] values = new int[6];
+                    for (int i = 0; i < values.Length; i++)
+                        values[i] = 1500;
+
+                    // Override the selected motor
                     values[motorIndex] = TestThrust;
-                    byte[] motorBytes = LCECommunicationHelper.ConvertMotorValuesToBytes(values);
+                    byte[] motorBytes = PwmArrayToByteArray(values);
                     byte[] payload = new byte[motorBytes.Length + 1];
                     Array.Copy(motorBytes, payload, motorBytes.Length);
                     payload[^1] = (byte)duration;

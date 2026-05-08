@@ -245,3 +245,8 @@ def round_direction_values(direction_values, decimals=2):
 
 def byte_array_to_float(values):
     return [round((v / 127.5) - 1, 2) for v in values]
+def byte_to_pwm(value):
+    value = max(0, min(255, value))  # clamp
+    return int(1100 + (value / 255) * 800)
+def byte_array_to_pwm(values):
+    return [byte_to_pwm(v) for v in values]

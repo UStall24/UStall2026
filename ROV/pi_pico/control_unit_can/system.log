@@ -371,3 +371,169 @@ me 'clamped' isn't defined
 2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
 2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
 2026-05-06 22:12:31 SYSTEM: Executed: RecievedDirectionValues
+2021-01-01 00:00:00 SYSTEM: Starting initialization
+2021-01-01 00:00:00 SYSTEM: Gyro init failed: [Errno 5] EIO
+2021-01-01 00:00:00 SYSTEM: Program started – waiting for init...
+2026-05-08 19:56:21 SYSTEM: Starting initialization
+2026-05-08 19:56:21 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 19:56:21 SYSTEM: Program started – waiting for init...
+2026-05-08 19:56:23 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:56:23 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:56:24 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:56:27 SYSTEM: Motors initialized
+2026-05-08 19:56:27 SYSTEM: Executed: InitThrusters
+2026-05-08 19:56:27 SYSTEM: Health Request
+2026-05-08 19:56:28 SYSTEM: Motors initialized
+2026-05-08 19:56:28 SYSTEM: Executed: InitThrusters
+2026-05-08 19:56:29 SYSTEM: Health Request
+2026-05-08 19:56:30 SYSTEM: Motors initialized
+2026-05-08 19:56:30 SYSTEM: Executed: InitThrusters
+2026-05-08 19:56:30 SYSTEM: Health Request
+2026-05-08 19:57:00 SYSTEM: Health Request
+2026-05-08 19:57:01 SYSTEM: Health Request
+2026-05-08 19:57:02 SYSTEM: Motors initialized
+2026-05-08 19:57:02 SYSTEM: Executed: InitThrusters
+2026-05-08 19:57:03 SYSTEM: Motors initialized
+2026-05-08 19:57:03 SYSTEM: Executed: InitThrusters
+2026-05-08 19:57:08 SYSTEM: Health Request
+2026-05-08 19:57:09 SYSTEM: Health Request
+2026-05-08 19:57:18 SYSTEM: Starting initialization
+2026-05-08 19:57:18 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 19:57:18 SYSTEM: Program started – waiting for init...
+2026-05-08 19:57:26 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:27 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:27 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:29 SYSTEM: Motors initialized
+2026-05-08 19:57:29 SYSTEM: Executed: InitThrusters
+2026-05-08 19:57:30 SYSTEM: Motors initialized
+2026-05-08 19:57:30 SYSTEM: Executed: InitThrusters
+2026-05-08 19:57:48 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:48 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:49 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:51 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 19:57:52 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:00:26 SYSTEM: Starting initialization
+2026-05-08 20:00:26 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 20:00:26 SYSTEM: Program started – waiting for init...
+2026-05-08 20:00:28 SYSTEM: Motors initialized
+2026-05-08 20:00:28 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:29 SYSTEM: Health Request
+2026-05-08 20:00:31 SYSTEM: Motors initialized
+2026-05-08 20:00:31 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:32 SYSTEM: Health Request
+2026-05-08 20:00:32 SYSTEM: Motors initialized
+2026-05-08 20:00:32 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:33 SYSTEM: Health Request
+2026-05-08 20:00:33 SYSTEM: Motors initialized
+2026-05-08 20:00:33 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:33 SYSTEM: Health Request
+2026-05-08 20:00:34 SYSTEM: Motors initialized
+2026-05-08 20:00:34 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:34 SYSTEM: Health Request
+2026-05-08 20:00:35 SYSTEM: Motors initialized
+2026-05-08 20:00:35 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:35 SYSTEM: Health Request
+2026-05-08 20:00:35 SYSTEM: Motors initialized
+2026-05-08 20:00:35 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:35 SYSTEM: Health Request
+2026-05-08 20:00:35 SYSTEM: Motors initialized
+2026-05-08 20:00:35 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:35 SYSTEM: Health Request
+2026-05-08 20:00:35 SYSTEM: Motors initialized
+2026-05-08 20:00:35 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Health Request
+2026-05-08 20:00:36 SYSTEM: Motors initialized
+2026-05-08 20:00:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:37 SYSTEM: Health Request
+2026-05-08 20:00:37 SYSTEM: Health Request
+2026-05-08 20:00:37 SYSTEM: Motors initialized
+2026-05-08 20:00:37 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:37 SYSTEM: Health Request
+2026-05-08 20:00:37 SYSTEM: Motors initialized
+2026-05-08 20:00:37 SYSTEM: Executed: InitThrusters
+2026-05-08 20:00:37 SYSTEM: Health Request
+2026-05-08 20:01:04 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:01:05 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:01:05 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:01:55 SYSTEM: Starting initialization
+2026-05-08 20:01:55 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 20:01:55 SYSTEM: Program started – waiting for init...
+2026-05-08 20:03:05 SYSTEM: Motors initialized
+2026-05-08 20:03:05 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:05 SYSTEM: Health Request
+2026-05-08 20:03:06 SYSTEM: Motors initialized
+2026-05-08 20:03:06 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:06 SYSTEM: Health Request
+2026-05-08 20:03:07 SYSTEM: Motors initialized
+2026-05-08 20:03:07 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:07 SYSTEM: Health Request
+2026-05-08 20:03:08 SYSTEM: Motors initialized
+2026-05-08 20:03:08 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:08 SYSTEM: Health Request
+2026-05-08 20:03:12 SYSTEM: Starting initialization
+2026-05-08 20:03:12 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 20:03:12 SYSTEM: Program started – waiting for init...
+2026-05-08 20:03:15 SYSTEM: Motors initialized
+2026-05-08 20:03:15 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:15 SYSTEM: Health Request
+2026-05-08 20:03:16 SYSTEM: Motors initialized
+2026-05-08 20:03:16 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:16 SYSTEM: Health Request
+2026-05-08 20:03:16 SYSTEM: Motors initialized
+2026-05-08 20:03:17 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:17 SYSTEM: Health Request
+2026-05-08 20:03:17 SYSTEM: Motors initialized
+2026-05-08 20:03:18 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:18 SYSTEM: Health Request
+2026-05-08 20:03:51 SYSTEM: Motors initialized
+2026-05-08 20:03:51 SYSTEM: Executed: InitThrusters
+2026-05-08 20:03:51 SYSTEM: Health Request
+2026-05-08 20:04:00 SYSTEM: Motors initialized
+2026-05-08 20:04:00 SYSTEM: Executed: InitThrusters
+2026-05-08 20:04:00 SYSTEM: Health Request
+2026-05-08 20:04:01 SYSTEM: Motors initialized
+2026-05-08 20:04:01 SYSTEM: Executed: InitThrusters
+2026-05-08 20:04:01 SYSTEM: Health Request
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2026-05-08 20:04:06 SYSTEM: Executed: RecievedDirectionValues
+2021-01-01 00:00:00 SYSTEM: Starting initialization
+2021-01-01 00:00:00 SYSTEM: Gyro init failed: [Errno 5] EIO
+2021-01-01 00:00:00 SYSTEM: Program started – waiting for init...
+2026-05-08 20:28:12 SYSTEM: Starting initialization
+2026-05-08 20:28:12 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 20:28:12 SYSTEM: Program started – waiting for init...
+2026-05-08 20:28:32 SYSTEM: [ERROR] RuntimeError: Motors are not initialized. Call init_motor_all() first.
+2026-05-08 20:28:36 SYSTEM: Motors initialized
+2026-05-08 20:28:36 SYSTEM: Executed: InitThrusters
+2026-05-08 20:28:36 SYSTEM: Health Request
+2026-05-08 20:30:56 SYSTEM: Starting initialization
+2026-05-08 20:30:56 SYSTEM: Gyro init failed: [Errno 5] EIO
+2026-05-08 20:30:56 SYSTEM: Program started – waiting for init...
+2026-05-08 20:31:05 SYSTEM: [ERROR] RuntimeError: Motors are not initialized. Call init_motor_all() first.
+2026-05-08 20:31:11 SYSTEM: Motors initialized
+2026-05-08 20:31:11 SYSTEM: Executed: InitThrusters
+2026-05-08 20:31:11 SYSTEM: Health Request
