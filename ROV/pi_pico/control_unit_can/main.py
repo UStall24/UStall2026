@@ -1,7 +1,7 @@
 import time
 from machine import I2C, Pin
 from libs.hardwareHandler import HardwareHandler
-from libs.calculator import Calculator, round_direction_values, byte_array_to_float
+from libs.calculator import Calculator, round_direction_values, byte_array_to_float, byte_array_to_pwm
 from libs.configLoader import *
 from libs.imu_wrapper import IMUWrapper
 from libs.communicationHelperLib import *
@@ -70,7 +70,8 @@ def apply_controller_values(motor_thrust_in_bytes, use_dynamic_throttle):
         
         hardware.set_motor_speed_all(pwm_vals)
         trigger_status_led()   
-        
+
+
 def direct_motor_test(data):
     print("direct_motor_test")
 
@@ -82,9 +83,7 @@ def direct_motor_test(data):
     
     motor_thrust_in_bytes = data[0:6]
     #logger.print_as_bytes(motor_thrust_in_bytes)
-    motor_thrust_in_float = byte_array_to_float(motor_thrust_in_bytes)
-    #logger.print_as_percent(motor_thrust_in_float)
-    motor_thrust_in_pwm   = calculator.calc_all_motor_pwm2(motor_thrust_in_float)
+    motor_thrust_in_pwm = byte_array_to_pwm(motor_thrust_in_bytes)
     #logger.print_raw_list(motor_thrust_in_pwm)
     motor_thrust_in_pwm_deadzone = [calculator.deadZoneDefault] * 6
 
