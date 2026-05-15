@@ -32,7 +32,7 @@ namespace UStallGUI.ViewModel
             }
             else
             {
-                MainWindowViewModel.Instance.LogToControlBox("Fehler: SetupHandlerViewModel ist noch nicht initialisiert.");
+                MainWindowViewModel.Instance.LogToControlBox("SetupHandlerViewModel not initialized.");
             }
         }
 
@@ -44,7 +44,7 @@ namespace UStallGUI.ViewModel
             }
             else
             {
-                MainWindowViewModel.Instance.LogToControlBox("Fehler: SetupHandlerViewModel ist noch nicht initialisiert.");
+                MainWindowViewModel.Instance.LogToControlBox("SetupHandlerViewModel not initialized.");
             }
         }
 

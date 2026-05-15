@@ -1,11 +1,12 @@
 ﻿using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
-using System.IO;
 using System;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using UStallGUI.Model;
-using System.Threading.Tasks;
 
 namespace UStallGUI.ViewModel
 {
@@ -83,6 +84,17 @@ namespace UStallGUI.ViewModel
             Console.WriteLine(msg1); MainWindowViewModel.Instance.LogToControlBox(msg1);
             Console.WriteLine(msg2); MainWindowViewModel.Instance.LogToControlBox(msg2);
             Console.WriteLine(msg3); MainWindowViewModel.Instance.LogToControlBox(msg3);
+
+            // Trigger popup if any camera fails to connect within the timeout
+            if (!frame1Received || !frame2Received || !frame3Received)
+            {
+                MessageBox.Show(
+                    "One or more cameras timed out.\n\nDid you set the manual IP Address of the ethernet connection to 192.168.0.5?",
+                    "Connection Timeout",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
+            }
         }
 
         private void ToggleAllLights()
