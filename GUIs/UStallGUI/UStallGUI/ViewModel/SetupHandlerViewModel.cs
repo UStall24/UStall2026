@@ -14,6 +14,7 @@ namespace UStallGUI.ViewModel
 {
     public class SetupHandlerViewModel : ObservableObject
     {
+        public static SetupHandlerViewModel Instance { get; private set; }
         #region LCE Setup
 
         private byte _updateInterval;
@@ -213,6 +214,7 @@ namespace UStallGUI.ViewModel
 
         public SetupHandlerViewModel()
         {
+            Instance = this;
             can = new UsbCANWrapper();
 
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
@@ -232,7 +234,7 @@ namespace UStallGUI.ViewModel
             HealthCommand = new RelayCommand(SendHealthMessage);
         }
 
-        private async void SendHealthMessage()
+        public async void SendHealthMessage()
         {
             MainWindowViewModel.Instance.LogToControlBox("Checking Health...");
             bool ok = await can.TestConnectionAsync(100);
@@ -245,7 +247,7 @@ namespace UStallGUI.ViewModel
 
         private void UpdateConfig() => ConfigLoader.UpdateConfigGUI(currentConfig);
 
-        private async void ConnectToControlUnit()
+        public async void ConnectToControlUnit()
         {
             can.ConnectToCanAdapter();
 
