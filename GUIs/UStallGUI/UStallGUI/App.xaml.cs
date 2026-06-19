@@ -7,7 +7,7 @@ namespace UStallGUI
     {
         public MainWindowViewModel MainWindowViewModelGetter { get; }
         public SetupHandlerViewModel SetupHandlerViewModelGetter { get; }
-        public AccessoryBoxViewModel AccessoryBoxViewModelGetter { get; }
+        public MechProAViewModel AccessoryBoxViewModelGetter { get; }
         public ControllerHandlerViewModel ControllerHandlerViewModelGetter { get; }
         public ControlParameterHandlerViewModel ControlParamterHandlerViewModelGetter { get; }
         public CameraStreamViewModel CameraStreamViewModelGetter { get; }
@@ -20,7 +20,7 @@ namespace UStallGUI
             Instance = this;
             MainWindowViewModelGetter = new MainWindowViewModel();
             SetupHandlerViewModelGetter = new SetupHandlerViewModel();
-            AccessoryBoxViewModelGetter = new AccessoryBoxViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
+            AccessoryBoxViewModelGetter = new MechProAViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
             ControllerHandlerViewModelGetter = new ControllerHandlerViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
             ControlParamterHandlerViewModelGetter = new ControlParameterHandlerViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
             CameraStreamViewModelGetter = new CameraStreamViewModel();

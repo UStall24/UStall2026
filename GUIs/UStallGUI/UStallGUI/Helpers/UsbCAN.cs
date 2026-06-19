@@ -72,6 +72,7 @@ namespace UStallGUI.Helpers
                 _ => 0,
             };
         }
+
         public static int CanusbSpeedToInt(CanusbSpeed speed)
         {
             return speed switch
@@ -91,6 +92,7 @@ namespace UStallGUI.Helpers
                 _ => 0,
             };
         }
+
         public static int GenerateChecksum(byte[] data, int offset, int length)
         {
             int checksum = 0;
@@ -131,33 +133,41 @@ namespace UStallGUI.Helpers
 
         public static int FrameSend(SerialPort sp, byte[] frame, int frameLen)
         {
-            if (printTraffic > 0)
+            if (sp != null)
             {
-                Console.Write(">>> ");
-                for (int i = 0; i < frameLen; i++)
-                    Console.Write($"{frame[i]:X2} ");
-
-                if (printTraffic > 1)
+                if (printTraffic > 0)
                 {
-                    Console.Write("    '");
-                    for (int i = 4; i < frameLen - 1; i++)
-                    {
-                        char ch = (char)frame[i];
-                        Console.Write(char.IsLetterOrDigit(ch) ? ch : '.');
-                    }
-                    Console.Write("'");
-                }
-                Console.WriteLine();
-            }
+                    Console.Write(">>> ");
+                    for (int i = 0; i < frameLen; i++)
+                        Console.Write($"{frame[i]:X2} ");
 
-            try
-            {
-                sp.Write(frame, 0, frameLen);
-                return frameLen;
+                    if (printTraffic > 1)
+                    {
+                        Console.Write("    '");
+                        for (int i = 4; i < frameLen - 1; i++)
+                        {
+                            char ch = (char)frame[i];
+                            Console.Write(char.IsLetterOrDigit(ch) ? ch : '.');
+                        }
+                        Console.Write("'");
+                    }
+                    Console.WriteLine();
+                }
+
+                try
+                {
+                    sp.Write(frame, 0, frameLen);
+                    return frameLen;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("Write failed: " + ex.Message);
+                    return -1;
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Console.Error.WriteLine("Write failed: " + ex.Message);
+                Console.Error.WriteLine("Write failed: USB-CAN Adapter not connected!");
                 return -1;
             }
         }

@@ -81,6 +81,57 @@
                 <Image Source="/ROV_Model.png" />
             </Viewbox>
 
+            <Canvas Width="200" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="92,112,0,0">
+                <Canvas.Resources>
+                    <Geometry x:Key="ArrowGeo">M 100,10 L 130,50 L 110,50 L 110,90 L 90,90 L 90,50 L 70,50 Z</Geometry>
+                </Canvas.Resources>
+
+                <Path Data="{StaticResource ArrowGeo}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Fill" Value="Gray" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsArrow1On}" Value="True">
+                                    <Setter Property="Fill" Value="LimeGreen" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+
+                <Path Data="{StaticResource ArrowGeo}">
+                    <Path.RenderTransform>
+                        <RotateTransform Angle="120" CenterX="100" CenterY="100" />
+                    </Path.RenderTransform>
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Fill" Value="Gray" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsArrow2On}" Value="True">
+                                    <Setter Property="Fill" Value="LimeGreen" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+
+                <Path Data="{StaticResource ArrowGeo}">
+                    <Path.RenderTransform>
+                        <RotateTransform Angle="240" CenterX="100" CenterY="100" />
+                    </Path.RenderTransform>
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Fill" Value="Gray" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsArrow3On}" Value="True">
+                                    <Setter Property="Fill" Value="LimeGreen" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+            </Canvas>
+
             <ComboBox Margin="174,73,192,302" Width="55" Height="25" RenderTransformOrigin="3.586,3.066">
                 <ComboBoxItem>M1</ComboBoxItem>
                 <ComboBoxItem>M2</ComboBoxItem>

@@ -51,7 +51,7 @@
                     <view:ControlParameterHandlerView />
                 </TabItem>
                 <TabItem Header="Gripper Settings">
-                    <view:AccessoryBoxSetupView />
+                    <view:MechProAView />
                 </TabItem>
             </TabControl>
 

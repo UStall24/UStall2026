@@ -4,7 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
-             xmlns:local="clr-namespace:UStallGUI.View" xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" d:DataContext="{d:DesignInstance Type=viewmodel:AccessoryBoxViewModel}"
+             xmlns:local="clr-namespace:UStallGUI.View"
+             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="400" Background="White">
     <Grid>
@@ -15,7 +16,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <GroupBox Margin="5" Header="Joint 1" Grid.Row="1">
+
+        <!--<GroupBox Margin="5" Header="Joint 1" Grid.Row="0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition />
@@ -33,74 +35,125 @@
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
 
-                <!--<Label Content="S1 Lo Limit" Grid.Row="3" />-->
-                <Label Content="Position" Grid.Row="0" />
-                <!--<Label Content="S1 Hi Limit" Grid.Column="1" Grid.Row="3" />-->
-                <!--<xctk:IntegerUpDown
-                    Grid.Row="4"
-                    Minimum="0"
-                    Maximum="{Binding GripperModel.G1S1.HigherLimit}"
-                    Value="{Binding GripperModel.G1S1.LowerLimit, Mode=TwoWay}"
-                    Increment="1"
-                    HorizontalAlignment="Stretch"
-                    Margin="5" />
-                <xctk:IntegerUpDown
-                    Grid.Row="4"
-                    Grid.Column="1"
-                    Minimum="{Binding GripperModel.G1S1.LowerLimit}"
-                    Maximum="100"
-                    Value="{Binding GripperModel.G1S1.HigherLimit, Mode=TwoWay}"
-                    Increment="1"
-                    HorizontalAlignment="Stretch"
-                    Margin="5" />-->
+                <Label Content="Position" Grid.Row="0" Grid.Column="0" />
 
-                <Button Grid.Row="1"  Grid.Column="2"
-                        Content="- 10"
+                <Button Grid.Row="0" Grid.Column="1"
+                        Content="+ Step"
                         Margin="10,5"
                         Command="{Binding GripperCommand}"
-                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Plus}" />
+                        CommandParameter="J1_INC" />
 
-                <Button Grid.Row="1" Grid.Column="1"
-                        Content="- 1"
-                        Margin="10,5"
-                        Command="{Binding GripperCommand}"
-                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
-                <Button Grid.Row="0"  Grid.Column="1"
-                        Content="+ 1"
-                        Margin="10,5"
-                        Command="{Binding GripperCommand}"
-                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Plus}" />
                 <Button Grid.Row="0" Grid.Column="2"
                         Content="+ 10"
                         Margin="10,5"
                         Command="{Binding GripperCommand}"
-                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
+                        CommandParameter="J1_INC10" />
+
+                <Button Grid.Row="1" Grid.Column="1"
+                        Content="- Step"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J1_DEC" />
+
+                <Button Grid.Row="1" Grid.Column="2"
+                        Content="- 10"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J1_DEC10" />
 
                 <Label Content="Speed" Grid.Row="2" Grid.Column="0" />
                 <xctk:IntegerUpDown
                     Grid.Row="2"
                     Grid.Column="1"
-                    Minimum="1"
-                    Maximum="100"
+                    Minimum="0"
+                    Maximum="255"
                     Width="80"
-                    Value="{Binding StepSize, Mode=TwoWay}"
+                    Value="{Binding Joint1Speed, Mode=TwoWay}"
                     Increment="1"
                     HorizontalAlignment="Stretch"
                     Margin="5" />
-                <Button Grid.Row="2" Grid.Column="2"
-                        Content="Apply"
-                        Margin="10,5"
-                        Command="{Binding GripperCommand}"
-                        CommandParameter="{x:Static viewmodel:GripperAssignment.Gripper1_Servo1Minus}" />
 
                 <Label Content="Current Position" Grid.Row="3" Grid.Column="0" />
-                <Label Content="127" Grid.Row="3" Grid.Column="2" />
+                <Label Content="{Binding Joint1Position}" Grid.Row="3" Grid.Column="2" />
 
                 <Label Content="Current Temperature" Grid.Row="4" Grid.Column="0" />
                 <Label Content="28 °C" Grid.Row="4" Grid.Column="2" />
 
                 <Label Content="Current Humidity" Grid.Row="5" Grid.Column="0" />
                 <Label Content="57 %" Grid.Row="5" Grid.Column="2" />
+            </Grid>
+        </GroupBox>-->
+
+        <GroupBox Margin="5" Header="Joint 2 + 3" Grid.Row="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <Label Content="Position" Grid.Row="0" Grid.Column="0" />
+
+                <Button Grid.Row="0" Grid.Column="1"
+                        Content="J2 Step +"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J2_INC" />
+
+                <Button Grid.Row="0" Grid.Column="2"
+                        Content="J3 Step +"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J3_INC" />
+
+                <Button Grid.Row="1" Grid.Column="1"
+                        Content="J2 Step -"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J2_DEC" />
+
+                <Button Grid.Row="1" Grid.Column="2"
+                        Content="J3 Step -"
+                        Margin="10,5"
+                        Command="{Binding GripperCommand}"
+                        CommandParameter="J2_DEC" />
+
+                <Label Content="Speed" Grid.Row="2" Grid.Column="0" />
+                <xctk:IntegerUpDown
+                    Grid.Row="2"
+                    Grid.Column="1"
+                    Minimum="0"
+                    Maximum="255"
+                    Width="80"
+                    Value="{Binding Joint2Speed, Mode=TwoWay}"
+                    Increment="1"
+                    HorizontalAlignment="Stretch"
+                    Margin="5" />
+                <Button Grid.Row="1" Grid.Column="2"
+                Content="J3 Step -"
+                Margin="10,5"
+                Command="{Binding GripperCommand}"
+                CommandParameter="J3_DEC" />
+                <Label Content="Current Position J2" Grid.Row="3" Grid.Column="0" />
+                <Label Content="{Binding ActualJoint2Position, FallbackValue='XXX'}" Grid.Row="3" Grid.Column="2" />
+
+                <Label Content="Current Position J3" Grid.Row="4" Grid.Column="0" />
+                <Label Content="{Binding ActualJoint3Position, FallbackValue='XXX'}" Grid.Row="4" Grid.Column="2" />
+                <Label Content="Current Temperature" Grid.Row="5" Grid.Column="0" />
+                <Label Content="{Binding Joint2and3Temperature, FallbackValue='XX °C'}" Grid.Row="5" Grid.Column="2" />
+
+                <Label Content="Current Humidity" Grid.Row="6" Grid.Column="0" />
+                <Label Content="{Binding Joint2and3Humidity, FallbackValue='XX %'}" Grid.Row="6" Grid.Column="2" />
             </Grid>
         </GroupBox>
 

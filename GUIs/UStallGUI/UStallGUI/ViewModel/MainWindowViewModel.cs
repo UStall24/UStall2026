@@ -37,23 +37,23 @@ namespace UStallGUI.ViewModel
             Console.WriteLine("Button Pressed!");
         }
 
-        // Keyboard mapping: key -> gripper command
-        private readonly IReadOnlyDictionary<string, GripperAssignment> keyToGripperMap =
-            new Dictionary<string, GripperAssignment>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["T"] = GripperAssignment.Gripper2_Servo1Plus,
-                ["G"] = GripperAssignment.Gripper2_Servo1Minus,
-                ["Z"] = GripperAssignment.Gripper2_Servo2Plus,
-                ["H"] = GripperAssignment.Gripper2_Servo2Minus,
-                ["B"] = GripperAssignment.Gripper2_PumpOn,
+        //// Keyboard mapping: key -> gripper command
+        //private readonly IReadOnlyDictionary<string, GripperAssignment> keyToGripperMap =
+        //    new Dictionary<string, GripperAssignment>(StringComparer.OrdinalIgnoreCase)
+        //    {
+        //        ["T"] = GripperAssignment.Gripper2_Servo1Plus,
+        //        ["G"] = GripperAssignment.Gripper2_Servo1Minus,
+        //        ["Z"] = GripperAssignment.Gripper2_Servo2Plus,
+        //        ["H"] = GripperAssignment.Gripper2_Servo2Minus,
+        //        ["B"] = GripperAssignment.Gripper2_PumpOn,
 
-                ["U"] = GripperAssignment.Gripper1_Servo1Plus,
-                ["J"] = GripperAssignment.Gripper1_Servo1Minus,
-                ["I"] = GripperAssignment.Gripper1_Servo2Plus,
-                ["K"] = GripperAssignment.Gripper1_Servo2Minus,
-                ["O"] = GripperAssignment.Gripper1_Servo3Plus,
-                ["L"] = GripperAssignment.Gripper1_Servo3Minus,
-            };
+        //        ["U"] = GripperAssignment.Gripper1_Servo1Plus,
+        //        ["J"] = GripperAssignment.Gripper1_Servo1Minus,
+        //        ["I"] = GripperAssignment.Gripper1_Servo2Plus,
+        //        ["K"] = GripperAssignment.Gripper1_Servo2Minus,
+        //        ["O"] = GripperAssignment.Gripper1_Servo3Plus,
+        //        ["L"] = GripperAssignment.Gripper1_Servo3Minus,
+        //    };
 
         private static readonly IReadOnlyDictionary<LceConnectionStatus, string> LceStatusMessages =
             new Dictionary<LceConnectionStatus, string>
@@ -154,23 +154,24 @@ namespace UStallGUI.ViewModel
         {
             if (string.IsNullOrWhiteSpace(key))
                 return;
-
-            Console.WriteLine($"{key} pressed!");
-
-            if (!keyToGripperMap.TryGetValue(key, out var assignment))
-            {
-                // Unknown key – silently ignore or log if you want.
-                return;
-            }
-
-            if (App.Instance.AccessoryBoxViewModelGetter == null)
-            {
-                LogToControlBox("AccessoryBoxViewModel.Instance is null. Cannot execute gripper command.");
-                return;
-            }
-
-            App.Instance.AccessoryBoxViewModelGetter.ExecuteGripperCommand(assignment);
         }
+
+        //    Console.WriteLine($"{key} pressed!");
+
+        //    if (!keyToGripperMap.TryGetValue(key, out var assignment))
+        //    {
+        //        // Unknown key – silently ignore or log if you want.
+        //        return;
+        //    }
+
+        //    if (App.Instance.AccessoryBoxViewModelGetter == null)
+        //    {
+        //        LogToControlBox("AccessoryBoxViewModel.Instance is null. Cannot execute gripper command.");
+        //        return;
+        //    }
+
+        //    App.Instance.AccessoryBoxViewModelGetter.ExecuteGripperCommand(assignment);
+        //}
 
         #endregion Keyboard Input Handling
     }

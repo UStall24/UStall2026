@@ -14,7 +14,7 @@ namespace UStallGUI.Helpers
 
     public class UsbCANWrapper
     {
-        private const CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_100000;
+        private const CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_125000;
         private SerialPort sp = null;
 
         public delegate void OnCanMessageArrival(ushort rxId, byte[] data);

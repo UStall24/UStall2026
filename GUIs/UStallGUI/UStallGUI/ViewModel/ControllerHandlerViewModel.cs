@@ -4,6 +4,7 @@ using SharpDX.XInput;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
@@ -14,6 +15,39 @@ namespace UStallGUI.ViewModel
     {
         public static ControllerHandlerViewModel Instance;
         public bool sendControllerValues = true;
+
+        // --- Keyboard Polling via P/Invoke for Background Thread Safety ---
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        private bool IsKeyDown(int vKey)
+        {
+            // If the high bit is set, the key is currently down.
+            return (GetAsyncKeyState(vKey) & 0x8000) != 0;
+        }
+
+        // Virtual-Key Codes for mapped keys
+        private const int VK_W = 0x57;
+
+        private const int VK_S = 0x53;
+        private const int VK_A = 0x41;
+        private const int VK_D = 0x44;
+        private const int VK_Q = 0x51;
+        private const int VK_E = 0x45;
+        private const int VK_X = 0x58;
+        private const int VK_Y = 0x59;
+
+        // ------------------------------------------------------------------
+        private bool isPollingTaskRunning = false;
+
+        private void EnsurePollingStarted()
+        {
+            if (!isPollingTaskRunning)
+            {
+                isPollingTaskRunning = true;
+                _ = Task.Run(ControllerTimerCallback);
+            }
+        }
 
         public bool SendControllerValues
         {
@@ -47,8 +81,8 @@ namespace UStallGUI.ViewModel
             Controller controller = new Controller((UserIndex)index);
             CurrentControllerModel.Controller = controller;
 
-            // Run the polling task in the background
-            _ = Task.Run(ControllerTimerCallback);
+            // Use the helper method instead of Task.Run directly
+            EnsurePollingStarted();
 
             MainWindowViewModel.Instance.LogToControlBox("Controller with Index 0 is connected");
             MainWindowViewModel.Instance.ConnectionStatusController = "Connected";
@@ -73,7 +107,9 @@ namespace UStallGUI.ViewModel
                             : SendAddressesControlUnit.ApplyControllerValues;
 
                         var payload = GetMappedPayload();
-                        if (sendControllerValues)
+
+                        // Allow sending if either Controller or Keyboard is active
+                        if (sendControllerValues || EnableKeyboardInput)
                         {
                             can.SendFrame((ushort)command, payload);
                             Console.WriteLine($"[TX: Driving] {string.Join(", ", payload)}");
@@ -104,16 +140,20 @@ namespace UStallGUI.ViewModel
         public List<string> MappingOptions { get; } = new()
         {
             "Left Joystick Up/Down",      // 0
-            "Left Joystick Left/Right",// 1
-            "Right Joystick Up/Down",// 2
-            "Right Joystick Left/Right",// 3
-            "Back Triggers L2/R2",// 4
-            "Back Bumpers L1/R1",// 5
-            "D-Pad Up/Down",// 6
-            "D-Pad Left/Right",// 7
-            "A/B",// 8
-            "X/Y",// 9
-            "None"// 10
+            "Left Joystick Left/Right",   // 1
+            "Right Joystick Up/Down",     // 2
+            "Right Joystick Left/Right",  // 3
+            "Back Triggers L2/R2",        // 4
+            "Back Bumpers L1/R1",         // 5
+            "D-Pad Up/Down",              // 6
+            "D-Pad Left/Right",           // 7
+            "A/B",                        // 8
+            "X/Y",                        // 9
+            "None",                       // 10
+            "Keyboard W/S",               // 11
+            "Keyboard A/D",               // 12
+            "Keyboard Q/E",               // 13
+            "Keyboard X/Y"                // 14
         };
 
         public ObservableCollection<ControllerMappingItem> ControllerMappings { get; } = new()
@@ -149,8 +189,10 @@ namespace UStallGUI.ViewModel
 
                 // 4 (Triggers L2/R2 → combine to signed style)
                 4 => (byte)((m.R2Trigger - m.L2Trigger + 255) * 0.5),
+
                 // 5 (Bumpers L1/R1 → digital)
                 5 => m.R1Trigger ? (byte)255 : m.L1Trigger ? (byte)0 : (byte)127,
+
                 // 6 (DPad Up/Down)
                 6 => (byte)(127 + ((m.DPadUp ? 1 : 0) - (m.DPadDown ? 1 : 0)) * 127),
 
@@ -164,8 +206,39 @@ namespace UStallGUI.ViewModel
                 9 => (byte)(127 + ((m.ButtonX ? 1 : 0) - (m.ButtonY ? 1 : 0)) * 127),
 
                 // 10 (None)
+                10 => 127,
+
+                11 => EnableKeyboardInput ? (byte)(127 + ((IsKeyDown(VK_W) ? 1 : 0) - (IsKeyDown(VK_S) ? 1 : 0)) * 127) : (byte)127,
+
+                // 12 (Keyboard A/D -> D is right/positive, A is left/negative)
+                12 => (byte)(127 + ((IsKeyDown(VK_D) ? 1 : 0) - (IsKeyDown(VK_A) ? 1 : 0)) * 127),
+
+                // 13 (Keyboard Q/R -> Q is positive, R is negative)
+                13 => (byte)(127 + ((IsKeyDown(VK_Q) ? 1 : 0) - (IsKeyDown(VK_E) ? 1 : 0)) * 127),
+
+                // 14 (Keyboard X/Y -> X is positive, Y is negative)
+                14 => (byte)(127 + ((IsKeyDown(VK_X) ? 1 : 0) - (IsKeyDown(VK_Y) ? 1 : 0)) * 127),
+
                 _ => 127
             };
+        }
+
+        private bool enableKeyboardInput = false;
+
+        public bool EnableKeyboardInput
+        {
+            get => enableKeyboardInput;
+            set
+            {
+                if (Set(ref enableKeyboardInput, value))
+                {
+                    // Start the polling loop if keyboard is enabled
+                    if (enableKeyboardInput)
+                    {
+                        EnsurePollingStarted();
+                    }
+                }
+            }
         }
 
         private byte[] GetMappedPayload()
