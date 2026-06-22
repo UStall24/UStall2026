@@ -12,6 +12,9 @@ namespace UStallGUI.ViewModel
 {
     public class CameraStreamViewModel : ObservableObject
     {
+        public RelayCommand TurnCamera1Command { get; set; }
+        public RelayCommand TurnCamera2Command { get; set; }
+        public RelayCommand TurnCamera3Command { get; set; }
         public RelayCommand ConnectAllCamerasCommand { get; set; }
         public RelayCommand ToggleAllLightsCommand { get; set; }
 
@@ -53,6 +56,10 @@ namespace UStallGUI.ViewModel
 
         public CameraStreamViewModel()
         {
+            TurnCamera1Command = new RelayCommand(TurnCamera1);
+            TurnCamera2Command = new RelayCommand(TurnCamera2);
+            TurnCamera3Command = new RelayCommand(TurnCamera3);
+
             ConnectAllCamerasCommand = new RelayCommand(ConnectAllCameras);
             ToggleAllLightsCommand = new RelayCommand(ToggleAllLights);
             TakeAllCamerasScreenshotCommand = new RelayCommand(TakeCamerasScreenshot);
@@ -159,6 +166,42 @@ namespace UStallGUI.ViewModel
             {
                 encoder.Save(fileStream);
             }
+        }
+
+        //Camera Rotations
+        private int _rotation1;
+        public int Rotation1
+        {
+            get => _rotation1;
+            set => Set(ref _rotation1, value);
+        }
+
+        private int _rotation2;
+        public int Rotation2
+        {
+            get => _rotation2;
+            set => Set(ref _rotation2, value);
+        }
+
+        private int _rotation3;
+        public int Rotation3
+        {
+            get => _rotation3;
+            set => Set(ref _rotation3, value);
+        }
+        private void TurnCamera1()
+        {
+            Rotation1 = (Rotation1 + 90) % 360;
+        }
+
+        private void TurnCamera2()
+        {
+            Rotation2 = (Rotation2 + 90) % 360;
+        }
+
+        private void TurnCamera3()
+        {
+            Rotation3 = (Rotation3 + 90) % 360;
         }
     }
 }
