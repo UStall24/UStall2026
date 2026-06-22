@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Float Control Center</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="chart.js" defer></script>
+  <script src="javascript.js" defer></script>
+</head>
+
+
+<body style="background-color: #dadada;">
+  <h1>Float Klara Control Center - MateROV Competition 2025 - U.Stall Esslingen University</h1>
+
+  <div class="first-row-container">
+
+    <div class="status-box">
+      <div class="status-title">Float Status</div>
+        
+        <div class="outerConnection-container">
+          <div class="innerConnection-container">
+            <div id="connection-led" class="connection-led connection-led-disconnected"></div>
+            <span id="spanConnectionStatus" class="status-text">Disconnected</span>
+          </div>
+        <input class="status-text" type="text" id="textboxConnection" style="width: 370px;" readonly>  
+        </div>
+
+      	<div class="outerSetName-container">
+        <div class="innerSetName-container">
+          <div id="nameStatus-led" class="nameStatus-led nameStatus-led-not-ready"></div>
+          <span id="nameStatus-text" class="status-text">Not Ready</span>
+        </div>
+        
+        <label class="status-text" for="textboxName">Float Name:</label>
+        <input class="status-text" type="text" id="textboxName" style="width: 60px;" placeholder="EX01" maxlength="4">
+        <button id="buttonName">Set Name</button>
+      </div>
+      
+      
+      <div class="outerSetPressure-container">
+        <div class="innerSetPressure-container">
+          <div id="pressureStatus-led" class="pressureStatus-led pressureStatus-led-not-ready"></div>
+          <span id="pressureStatus-text" class="status-text">Not Ready</span>
+        </div>
+        <span class="status-text">Current Pressure:</span>
+        <span id="spanCurrentPressure" class="status-text"></span>
+        <span class="status-text">kPa:</span>
+        <button id="buttonPressure">Set Pressure</button>
+      </div>
+      
+      
+      <div class="outerSetTime-container">
+        <div class="innerSetTime-container">
+          <div id="timeStatus-led" class="timeStatus-led timeStatus-led-not-ready"></div>
+          <span id="timeStatus-text" class="status-text">Not Ready</span>
+        </div>
+        <span class="status-text">Current Time:</span>
+        <span id="time-text" class="status-text"></span>
+        <button id="buttonTime">Set Time</button>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">Battery Voltage:</span>
+        <span id="spanVoltageBattery" class="status-text"></span>
+        <span class="status-text">V</span>
+        <span id="spanVoltageBatteryPercent" class="status-text"></span>
+      </div>
+
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">Current Depth:</span>
+        <span id="spanCurrentDepth" class="status-text"></span>
+        <span class="status-text">m</span>
+      </div>
+
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">Init Pressure Balluff:</span>
+        <span id="spanInitPressureBalluff" class="status-text"></span>
+        <span class="status-text">kPa</span>
+      </div>
+    
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">Init Pressure BME280:</span>
+        <span id="spanInitPressureBME" class="status-text"></span>
+        <span class="status-text">kPa</span>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">Balluff Pressure:</span>
+        <span id="spanPressureBalluff" class="status-text"></span>
+        <span class="status-text">kPa</span>
+      </div>
+
+      
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">BME280(1) inner Pressure:</span>
+        <span id="spanBME280pressure" class="status-text"></span>
+        <span class="status-text">kPa</span>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">BME280(1) inner Temperature:</span>
+        <span id="spanBME280temperature" class="status-text"></span>
+        <span class="status-text">°C</span>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">BME280(1) inner Humidity:</span>
+        <span id="spanBME280humidity" class="status-text"></span>
+        <span class="status-text">%</span>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">BME280(2) Electronics Temperature</span>
+        <span id="spanBME280temperatureElectronics" class="status-text"></span>
+        <span class="status-text">°C</span>
+      </div>
+
+      <div class="innerOverviewParameterStatus-container">
+        <span class="status-text">CPU Temperature:</span>
+        <span id="CPU-temp-text" class="status-text"></span>
+        <span class="status-text">°C</span>
+      </div>
+
+      <div class="outerDataset-container">
+        <label class="status-text" for="numDataset">Save Run to Dataset:</label>
+        <input class="status-text" type="number" id="numDatasetRun" min="0" max="4" value="0" step="1" style="width: 30px;"/>
+        <button id="buttonSelectDatasetRun">Select Dataset</button>
+      </div>
+      
+
+      <div class="launch-button-container">
+        <button class="launch-button" id="buttonLaunch">Launch</button>
+      </div>
+    </div>
+
+
+    <div class="control-box">
+      <div class="control-title">Manual</div>
+        <div class="innerControl-container">
+          <button id="buttonUp">Up</button>
+          <button id="buttonStop">Stop</button> 
+          <button id="buttonDown">Down</button>
+        </div>
+
+        <div class="innerControl-container">
+          <button id="buttonReferenzFahrt">Auto Ref-Drive</button>
+          <div id="refDrive-led" class="refDrive-led refDrive-led-refDriveNotDone"></div>
+        </div>
+
+
+        <div class="innerControl-container">
+          <button id="buttonSetBuoyancyPosition">Set Buoy. Pos.</button>
+          <div id="bouyancyPosition-led" class="bouyancyPosition-led bouyancyPosition-led-bouyancyPositionNotSet"></div>
+        </div>
+          
+        <div class="innerControl-container">
+          <button id="buttonMoveToBuoyancyPosition">Move to BP</button>
+          <input class="status-text" type="number" id="numNeutralBouyancyPosition" step="100" style="width: 80px;">
+        </div>
+
+        <div class="innerControl-container">
+          <!--<label class="status-text" for="numMoveSteps">Move Steps:</label>-->
+          <button id="buttonMoveSteps">Move Steps</button>
+          <input class="status-text" type="number" id="numMoveSteps" step="50" style="width: 80px;" />
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text" for="textboxCurrentPosition">Current. Pos:</label>
+          <input class="status-text" type="text" id="textboxCurrentPosition" style="width: 110px;">
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text" for="textboxTargetPosition">Target. Pos:</label>
+          <input class="status-text" type="text" id="textboxTargetPosition" style="width: 110px;">
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text" for="textboxVirtualPosition">Virtual. Pos:</label>
+          <input class="status-text" type="text" id="textboxVirtualPosition" style="width: 110px;">
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text" for="textboxOperatingState">Operat. State:</label>
+          <input class="status-text" type="text" id="textboxOperatingState" style="width: 110px;">
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text">Upper Limit Switch:</label>
+          <div id="upperLimit-led" class="upperLimit-led upperLimit-led-not-active"></div>
+        </div>
+
+        <div class="innerControl-container">
+          <label class="status-text">Lower Limit Switch:</label>
+          <div id="lowerLimit-led" class="lowerLimit-led lowerLimit-led-not-active"></div>
+        </div>
+
+
+
+    </div>
+
+    <div class="controll-loop-box">
+        <div class="controll-loop-title">Parameters</div> 
+          <div class="innerParameter-container">
+            <label class="status-text" for="numControllPressure">Ctrl. Press. (kPa):</label>
+            <input class="status-text" type="number" id="numControllPressure" step="0.1" style="width: 75px;">
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numSyringesUpperStepsLimit">Syr. Up-Lim. (Steps):</label>
+            <input class="status-text" type="number" id="numSyringesUpperStepsLimit" step="100" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numKP">KP:</label>
+            <input class="status-text" type="number" id="numKP" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numKI">KI:</label>
+            <input class="status-text" type="number" id="numKI" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numKD">KD:</label>
+            <input class="status-text" type="number" id="numKD" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numPidMaxStepsPos">Max Steps+:</label>
+            <input class="status-text" type="number" id="numPidMaxStepsPos" step="1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numPidMaxStepsNeg">Max Steps-:</label>
+            <input class="status-text" type="number" id="numPidMaxStepsNeg" step="1" style="width: 75px;"/>
+          </div>
+
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numWidthDeltaPressure">Tol. deltaP (kPa):</label>
+            <input class="status-text" type="number" id="numWidthDeltaPressure" step="0.01" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numSchwelleCatch">Schw. Catch: (kPa):</label>
+            <input class="status-text" type="number" id="numSchwelleCatch" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numStepsCatch">Catch (Steps):</label>
+            <input class="status-text" type="number" id="numStepsCatch" step="10" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numCatchIntervall">Int. Catch (ms):</label>
+            <input class="status-text" type="number" id="numCatchIntervall" step="100" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numSchwelleOben">Schw. Oben (kPa):</label>
+            <input class="status-text" type="number" id="numSchwelleOben" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numStepsSinken">Sinken (Steps):</label>
+            <input class="status-text" type="number" id="numStepsSinken" step="10" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numOuterControlIntervall">Ctrl-Int. Outer (ms):</label>
+            <input class="status-text" type="number" id="numOuterControlIntervall" step="100" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numSchwelleUnten">Schw. Unten (kPa):</label>
+            <input class="status-text" type="number" id="numSchwelleUnten" step="0.1" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numStepsAuftreiben">Auftreiben (Steps):</label>
+            <input class="status-text" type="number" id="numStepsAuftreiben" step="10" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <label class="status-text" for="numInnerControlIntervall">Ctrl-Int. inner (ms):</label>
+            <input class="status-text" type="number" id="numInnerControlIntervall" step="100" style="width: 75px;"/>
+          </div>
+
+          <div class="innerParameter-container">
+            <button id="buttonSendAllControlLoopParams" class="highlight-button">Send all CL-Parameters</button>
+            <div id="controlParam-led" class="controlParam-led controlParam-led-not-send"></div>
+          </div>
+      </div>
+      
+      
+    <div class="data-box">
+      <div class="data-title">Data</div> 
+        <label class="status-text" for="numDatasetPlot">Dataset:</label>
+        <input class="status-text" type="number" id="numDatasetPlot" min="0" max="4" value="0" step="1" style="width: 30px;"/>
+        <button id="buttonSelectDatasetPlot">Select/Plot <br> Dataset</button>
+        <button id="buttonExportData">Export Dataset</button>
+        <label class="status-text">Log:</label>
+        <button id="buttonExportLog">Export Log</button>
+        <button id="buttonClearLog">Clear Log</button>
+    </div>
+
+  
+    <div class="info-box">
+      <div class="info-title">Information</div>
+        <div class="info-box-inner-container">
+          <button id="buttonShowWelcomeMessage" style="margin-bottom: 5px;">Show Welcome Message</button>
+          <button id="buttonClearTextboxInfo" style="margin-bottom: 5px;">Clear Info</button>
+        </div>
+      <textarea class="info-text" id="textboxInfo" style="width: 350px; height: 235px; resize: none;" readonly></textarea>
+    </div>
+  </div>
+
+
+
+  <!-- <div class="second-row-container"> -->
+    <div class="chart-container">
+      <div class="chart-title">Data Chart</div>
+      <canvas id="myChart"></canvas>
+    </div>
+  <!-- </div> -->
+
+
+  <div class="table-container">
+    <div class="table-title">Data Package</div>
+    <div id="datapackageTableContainer">
+      <!-- Tabellen werden hier dynamisch hinzugefügt -->
+    </div>
+  </div>
+
+</body>
+
+
+</html>

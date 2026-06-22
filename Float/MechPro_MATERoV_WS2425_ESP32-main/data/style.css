@@ -1,0 +1,557 @@
+/* CSS Styling für webpage.html */
+
+/* Flexbox-Container um alle Rahmen der Ersten Reihe nebeneinannder anzuordnen */
+
+.first-row-container {
+    display: flex; /* Nebeneinander anordnen */
+    align-items: flex-start; /* Oben ausrichten */
+  }
+
+
+  .second-row-container {
+    display: flex; /* Flexbox für nebeneinander Anordnung */
+    justify-content: flex-start; /* Links ausrichten */
+    align-items: flex-start; /* Oben ausrichten */
+    margin-top: 30px; 
+    margin-left: 20px;
+  }
+
+  
+
+  /* Status Box */
+  
+   /* Rahmen Float Status Box */
+  .status-box {
+    border: 2px solid #000;
+    padding: 10px; 
+    width: 550px; 
+    border-radius: 10px;
+    margin: 0 20px; 
+  }
+
+  /* Überschrift Float Status Box*/
+  .status-title {
+    text-align: center;
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+
+  /* Status Container für LED und Text */
+  .outerConnection-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung */
+    justify-content: space-between ; /* Button rechts positionieren */
+    margin-bottom: 10px;
+  }
+
+
+  /* Innerer Container für LED und Text */
+  .innerConnection-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung für LED und Text */
+  }
+
+  .connection-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .connection-led-connected {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .connection-led-disconnected {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+  
+  
+  /* Basis-Design für die Pressure-Status-LED */
+  .nameStatus-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  
+   /* Default LED Farben */
+  .nameStatus-led-ready {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .nameStatus-led-not-ready {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+  
+  
+  
+  /* Basis-Design für die Pressure-Status-LED */
+  .pressureStatus-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  
+   /* Default LED Farben */
+  .pressureStatus-led-ready {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .pressureStatus-led-not-ready {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+  
+  
+  
+  /* Basis-Design für die time-Status-LED */
+  .timeStatus-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  
+   /* Default LED Farben */
+  .timeStatus-led-ready {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .timeStatus-led-not-ready {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+  
+
+  
+  
+  
+  /* Status Container für LED, Text und Button */
+  .outerSetName-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung */
+    justify-content: space-between ; /* Button rechts positionieren */
+    margin-bottom: 10px;
+  }
+
+  /* Pressure - Innerer Container für LED und Text */
+  .innerSetName-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung für LED und Text */
+  }
+  
+  
+  
+  /* Status Container für LED, Text und Button */
+  .outerSetPressure-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung */
+    justify-content: space-between ; /* Button rechts positionieren */
+    margin-bottom: 10px;
+  }
+
+  /* Pressure - Innerer Container für LED und Text */
+  .innerSetPressure-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung für LED und Text */
+  }
+  
+  
+  
+  /* Time - Container für LED, Text und Button */
+  .outerSetTime-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung */
+    justify-content: space-between ; /* Button rechts positionieren */
+    margin-bottom: 20px;
+    
+  }
+  
+
+  /* Time - Innerer Container für LED und Text */
+  .innerSetTime-container {
+    display: flex;
+    align-items: center; /* Vertikale Zentrierung für LED und Text */
+  }
+
+
+  .status-text {
+    font-size: 20px;
+  }
+  
+  
+  /* Controll Box */
+  
+   /* Rahmen manuelle Steuerung Box */
+  .control-box {
+    border: 2px solid #000;
+    padding: 10px;
+    width: 250px;
+    border-radius: 10px;
+    margin: 0 20px; /* Gleichmäßiger Abstand zwischen den Rahmen */
+  }
+
+  .innerControl-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+
+  /* Überschrift manuelle Steuerung Box*/
+  .control-title {
+    text-align: center;
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+    margin-bottom: 5px;
+  } 
+
+  .refDrive-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .refDrive-led-refDriveDone {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .refDrive-led-refDriveNotDone {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+
+
+  .bouyancyPosition-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .bouyancyPosition-led-bouyancyPositionSet {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .bouyancyPosition-led-bouyancyPositionNotSet {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+
+
+  .upperLimit-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .upperLimit-led-active {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .upperLimit-led-not-active {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+
+  .lowerLimit-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .lowerLimit-led-active {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .lowerLimit-led-not-active {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+
+   
+   
+   /* Controll Loop */
+  
+  /* Rahmen Parameter Box */
+  .controll-loop-box {
+    border: 2px solid #000;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 0 20px; /* Gleichmäßiger Abstand zwischen den Rahmen */
+  }
+
+  /* Überschrift für den Parameterrahmen */
+  .controll-loop-title {
+    text-align: center;
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+
+  .innerParameter-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+
+
+  .innerOverviewParameterStatus-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start; 
+    margin-bottom: 5px;
+    gap: 10px;
+  }
+
+
+  .controlParam-led {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .controlParam-led-send {
+    background-color: green;
+    box-shadow: 0 0 10px green;
+  }
+
+  .controlParam-led-not-send {
+    background-color: red;
+    box-shadow: 0 0 10px red;
+  }
+
+
+
+  .outerDataset-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    gap: 10px;
+  }
+
+  
+  /* Data Box */
+  
+  /* Rahmen Daten Box */
+  .data-box {
+    border: 2px solid #000;
+    padding: 10px;
+    width: 120px;
+    border-radius: 10px;
+    margin: 0 20px;
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+  }
+
+  /* Überschrift für den Datenrahmen */
+  .data-title {
+    text-align: center;
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+
+  .info-box {
+    border: 2px solid #000;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 0 20px; /* Gleichmäßiger Abstand zwischen den Rahmen */
+  }
+
+  .info-box-inner-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+
+
+  .info-title {
+    text-align: center;
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .info-text {
+    font-size: 16px;
+  }
+  
+
+
+  /* Buttons */
+  
+  /* Button-Design */
+  button {
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+
+  .launch-button {
+    display: felx;
+    background-color: red; 
+    color: white;
+    font-size: 30px;
+    font-weight: bold;
+    justify-content: center;
+    align-items: center; 
+    cursor: pointer;
+    border: 4px solid black;
+  }
+  
+  
+  /* Button zentriert unten im Rahmen */
+  .launch-button-container {
+    text-align: center;
+    margin-top: 20px; /* Drücke den Launch-Button nach unten */
+  }
+  
+
+
+  /* Abstand zwischen den Buttons in der Steuerung */
+  .control-box button {
+    margin: 5px 0; 
+  }
+  
+  /* Abstand zwischen den Buttons in Data Daten */
+  .data-box button {
+    margin: 5px 0;
+  }
+    
+  
+  .button-name {
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+
+  .table-container {
+    display: flex; 
+    gap: 20px; 
+    flex-direction: column;
+    margin-left: 20px;
+  }
+
+  #datapackageTableContainer {
+    display: flex; 
+    gap: 20px; 
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  table {
+    width: 380px;
+    border-collapse: collapse;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    table-layout: fixed;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+    height: 26px;
+  }
+
+  th {
+      background-color: #f2f2f2;
+  }
+
+
+  td:first-child { /* Erste Spalte (Nummer) ansprechen */
+    font-weight: bold; /* Fettschrift */
+  }
+
+
+  .table-title {
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+  }
+
+
+
+  .chart-title {
+    font-size: 30px;
+    color: blue;
+    font-weight: bold;
+  }
+
+  .chart-container {
+    max-width: 1800px; 
+    margin-left: 20px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    overflow: hidden;
+  }
+
+
+  #myChart {
+    width: 80%;       
+    max-width: 1800px;
+    max-height: 800px;
+}
+
+
+  @media (max-width: 768px) {
+    #myChart {
+      width: 100%;  /* Volle Breite bei kleineren Bildschirmen */
+      aspect-ratio: 2;
+    }
+  }
