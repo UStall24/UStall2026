@@ -15,11 +15,6 @@
 #include <SimpleMap.h>
 #include <etl/vector.h>
 
-// Version V2 for 2026 Competition: Edited by Iheb Elleuch
-// Core Update:
-// - Changing the Diving Routine.
-// - Removing dead and unused functions and variables.
-
 
 TaskHandle_t TaskMotorSteuerung;
 
@@ -87,6 +82,15 @@ int accelerationSteps = 500;
 float param_KP = 2;
 float param_KI = 0.1;
 float param_KD = 1;
+
+// Parameters MATE 2026 Sequence
+float profile1Target = 25.0;
+int profile1Hold = 30;
+float profile2Target = 4.0;
+int profile2Hold = 30;
+bool enable2026Sequence = true;
+int sequence2026State = 0;
+unsigned long holdTimerStart = 0;
 
 // Parameter Datasets
 int numDatasetRun = 0;
@@ -524,85 +528,29 @@ void loop()
         return;
       }
       
-      //Serial.println("Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) + " added!");
       addLog(INFO, "Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) + " added!");
       addMeasurement(numDatasetRun, numMeasurement);
 
-      if ((!sucessfullMeasurementCompleted) && (pressureVector[numDatasetRun][numMeasurement] >= controlPressure-5) && (pressureVector[numDatasetRun][numMeasurement] <= controlPressure+5)) {
-        //Serial.println("Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) +  " was in range! => successfull");
-        addLog(INFO, "Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) +  " was in range! => successfull"); 
-        numSuccessfullMeasurements++;
+      // Im 2026 Modus läuft die Messung einfach durch, Trigger kommt vom Sequenzer
+      if (!enable2026Sequence) {
+        if ((!sucessfullMeasurementCompleted) && (pressureVector[numDatasetRun][numMeasurement] >= controlPressure-5) && (pressureVector[numDatasetRun][numMeasurement] <= controlPressure+5)) {
+          addLog(INFO, "Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) +  " was in range! => successfull"); 
+          numSuccessfullMeasurements++;
+        }
       }
 
       numMeasurement++;
     }
 
-    if (numSuccessfullMeasurements >= 10)  {
+    // Alter Modus: Beenden nach 10 erfolgreichen Messungen
+    if (!enable2026Sequence && numSuccessfullMeasurements >= 10)  {
       sucessfullMeasurementCompleted = true; 
       numSuccessfullMeasurements = 0;
       launchActive = false;
       numMeasurement = 0;
-      //Serial.println("Sucessfull Measurements for Set: " + String(numDatasetRun) + " completed!");
       addLog(INFO, "Sucessfull Measurements for Set: " + String(numDatasetRun) + " completed!");
     }
   }
-
-
-  //Testmessung
-  // if (launchActive == true) {
-    
-  //   if ((currentMillis - previousMillisMeasurement >= intervallMeasurement)) {
-  //     previousMillisMeasurement = currentMillis; 
-      
-  //     // Simuliertes Druckverhalten
-  //     if (numMeasurement < 20) {
-  //       currentPressure += 0.93; // Abtauchen
-  //       Serial.println("Abtauchen: currentPressure = " + String(currentPressure));
-  //     }
-  //     else if ((numMeasurement >= 20) && (numMeasurement <= 40)) {
-  //       currentPressure = 20.00 + (float)rand() / ((float)RAND_MAX / (30.00 - 20.00)); // Druck halten
-  //       Serial.println("Druck halten: currentPressure = " + String(currentPressure));
-  //     }
-  //     else if (numMeasurement > 40) {
-  //       if (currentPressure > 0.97) {
-  //         currentPressure -= 0.97;  // Auftauchen
-  //       }
-  //       else {
-  //         currentPressure = 2.0;
-  //       }
-  //       Serial.println("Auftauchen: currentPressure = " + String(currentPressure));
-  //     }
-
-  //     currentDepth = calcDepth(currentPressure);
-      
-  //     Serial.println("Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) + " added!");
-  //     addMeasurement(numDatasetRun, numMeasurement);
-
-  //     if ((!sucessfullMeasurementCompleted) && (pressureVector[numDatasetRun][numMeasurement] >= controlPressure-5) && (pressureVector[numDatasetRun][numMeasurement] <= controlPressure+5)) {
-  //       Serial.println("Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) +  " was in range! => successfull");
-  //       addLog(INFO, "Measurement No.: " + String(numMeasurement) + " for Set No.: " + String(numDatasetRun) +  " was in range! => successfull"); 
-  //       numSuccessfullMeasurements++;
-  //     }
-
-  //     numMeasurement++;
-  //   }
-
-  //   if (numSuccessfullMeasurements >= 10)  {
-  //     sucessfullMeasurementCompleted = true; 
-  //     numSuccessfullMeasurements = 0;
-  //     Serial.println("Sucessfull Measurements for Set: " + String(numDatasetRun) + " completed!");
-  //     addLog(INFO, "Sucessfull Measurements for Set: " + String(numDatasetRun) + " completed!");
-  //   }
-
-  //   // Testmessung stoppen
-  //   if (numMeasurement >= 99) {
-  //     launchActive = false;  
-  //     Serial.println("Testmessung beendet");
-  //     addLog(INFO, "Testmessung beendet");
-  //     currentPressure = 0.0;
-  //     numMeasurement = 0;
-  //   }
-  // }
 
 
   // Parameters to Log frequently only if launch is active
@@ -742,98 +690,6 @@ void TaskMotorSteuerungCode(void * parameter) {
     }
 
 
-    // Old: Zweipunktregler - Automatikbetrieb: Abtauchen und regeln zwischen 2m und 3m
-    // currentControlMillis = millis();
-
-
-    // if (launchActive && !sucessfullMeasurementCompleted && currentControlMillis - lastControlMillis >= controlIntervall) {
-    //   lastControlMillis = currentControlMillis;
-
-    //   float deltaPressure = currentPressure - lastControlPressure;
-    //   lastControlPressure = currentPressure;  // für den nächsten Regeltakt speichern
-      
-    //   // Einmalig zu Beginn von der unteren Endlage zur neutralen Bouyancy Position verfahren
-    //   if (!driveToNeutralBouyancyPositionCompleted) {
-    //     numMoveSteps = neutralBouyancyPosition - stepper.currentPosition();
-    //     moveStepsFreigabe = true;
-    //     addLog(INFO, "Start Automatik, einmaliges Verfahren zur neutral Bouyancy-Position");
-    //   }
-        
-
-    //   // Float einmalig abfangen ab 1,5m, um Überschwingen zu reduzieren eventuell auf pressureLimitMediumDive (2m) wechseln
-    //   if (!depthCatchFloatDetected && currentPressure >= schwelleCatch) {
-    //       if (stepper.distanceToGo() < 0) {
-    //         stopAndHoldStepper();   // Stepper kurz anhalten, falls negative Steps aktiv sind (sinken) da mit positven Steps entgegengewirkt wird 
-    //       }
-    //       depthCatchFloatDetected = true;
-    //       isWaitingForCatchMove = true;
-    //       numMoveSteps = stepsCatch;  // Wasser ausdrücken
-    //       controlIntervall = catchIntervall;  // 5–6s warten bis Bewegung durch ist
-    //       moveStepsFreigabe = true;
-    //       addLog(INFO, "Float Auffangen eingeleitet bei: " + String(currentPressure));
-    //   }
-
-      // // Zweipunktregelung --> außerkraftgesetzt wenn Float aufgefangen wird + Warten bis Bewegung vollendet wurde
-      // if (driveToNeutralBouyancyPositionCompleted && !surfacingActive && !isWaitingForCatchMove && !isStepperMoving && currentState == OperatingState::Idle) {
-      //   // Intervall nach Auffangen zurücksetzen
-      //   if (controlIntervall != innerControlIntervall) {
-      //     controlIntervall = innerControlIntervall;
-      //     addLog(INFO, "Control-Intervall auf " + String(controlIntervall) + " zurückgesetzt");
-      //   }
-
-      //   // Sinken oder Auftreiben je nach Richtung
-      //   if (currentPressure < schwelleOben && canPerformSteps(stepsSinken)) { 
-      //     if (deltaPressure > widthDeltaPressure) {
-      //       // Wir sinken --> reagier mit Auftreiben (Durchqueeren der Schwelle von oben nach unten)
-      //       numMoveSteps = stepsAuftreiben;
-      //       addLog(INFO, "Schwelle: "+ String(schwelleOben) + "--> Sinken erkannt --> Auftreiben eingeleitet");
-      //       addLog(INFO, "ΔP = " + String(deltaPressure, 3) + ", cur.P: " + String(currentPressure) + ", steps: " + String(numMoveSteps));
-      //     } else {
-      //       // Wir trieben auf --> reagier mit Sinken (Durchqueren der Schwelle von unten nach oben)
-      //       numMoveSteps = stepsSinken;
-      //       addLog(INFO, "Schwelle: "+ String(schwelleOben) + " --> Auftreiben erkannt --> Sinken eingeleitet");
-      //       addLog(INFO, "ΔP = " + String(deltaPressure, 3) + ", cur.P: " + String(currentPressure) + ", steps: " + String(numMoveSteps));
-      //     }
-      //     moveStepsFreigabe = true;
-      //     // Vorher
-      //     // numMoveSteps = stepsSinken;
-      //     // moveStepsFreigabe = true;
-      //     // addLog(INFO, "Sinken eingeleitet Druck: " + String(currentPressure) + " kPa → Schritte: " + String(numMoveSteps));
-      //   }
-      //   // Auftreiben oder Sinken je nach Richtung
-      //   else if (currentPressure > schwelleUnten) { 
-      //     if (deltaPressure < -widthDeltaPressure) {
-      //       // Wir treiben auf --> reagier mit Sinken (Durchqueeren der Schwelle von unten nach oben)
-      //       numMoveSteps = stepsSinken;
-      //       addLog(INFO, "Schwelle: "+ String(schwelleUnten) + " --> Auftreiben erkannt --> Sinken eingeleitet");
-      //       addLog(INFO, "ΔP = " + String(deltaPressure, 3) + ", cur.P: " + String(currentPressure) + ", steps: " + String(numMoveSteps));
-      //     } else {
-      //       // Wir sinken --> reagier mit Auftreiben (Durchqueren der Schwelle von oben nach unten)
-      //       numMoveSteps = stepsAuftreiben;
-      //       addLog(INFO, "Schwelle: "+ String(schwelleUnten) + " --> Sinken erkannt --> Auftreiben eingeleitet");
-      //       addLog(INFO, "ΔP = " + String(deltaPressure, 3) + ", cur.P: " + String(currentPressure) + ", steps: " + String(numMoveSteps));
-      //     }
-      //     moveStepsFreigabe = true;
-      //     // numMoveSteps = stepsAuftreiben;
-      //     // moveStepsFreigabe = true;
-      //     // addLog(INFO, "Auftreiben eingeleitet Druck: " + String(currentPressure) + " kPa → Schritte: " + String(numMoveSteps));
-      //   }
-      //   else {
-      //     // Innerhalb der Schwellen → keine Bewegung
-      //     if (currentPressure >= schwelleOben && currentPressure <= schwelleUnten) {
-      //       addLog(INFO, "Druck im Zielbereich --> keine Bewegung");
-      //     }
-      //     // Schwelle wurde über-/unterschritten, aber keine klare Bewegung
-      //     else if (abs(deltaPressure) < widthDeltaPressure) {
-      //       addLog(INFO, "Keine eindeutige Druckänderung --> keine Bewegung");
-      //     }
-      //     // Fehlerfall: Schwellen verletzt, aber keine Schritte erlaubt
-      //     else {
-      //       addLog(ERROR, "Grenzwerte verletzt, keine Bewegung möglich --> Druck: " + String(currentPressure) + " kPa, Pos: " + String(stepper.currentPosition()));
-      //     }
-      //   }
-      // }
-
 
       // Neu: PID - Automatikbetrieb
       currentControlMillis = millis();
@@ -841,6 +697,50 @@ void TaskMotorSteuerungCode(void * parameter) {
       if (launchActive && !sucessfullMeasurementCompleted && currentControlMillis - lastControlMillis >= controlIntervall) {
         lastControlMillis = currentControlMillis;
         
+        // --- NEU: MATE 2026 Sequenz Manager ---
+        if (enable2026Sequence && !surfacingActive) {
+            float depthTolerance = 3.3; // +/- 33cm in kPa (laut Regelwerk)
+
+            if (sequence2026State == 1) {
+                controlPressure = profile1Target; // Überschreibt die Zieltiefe für den PID
+                if (abs(currentPressure - profile1Target) <= depthTolerance) {
+                    sequence2026State = 2;
+                    holdTimerStart = millis();
+                    addLog(INFO, "2026: Ziel 1 (" + String(profile1Target) + " kPa) erreicht. 30s Timer startet.");
+                }
+            }
+            else if (sequence2026State == 2) {
+                if (abs(currentPressure - profile1Target) > depthTolerance) {
+                    holdTimerStart = millis(); // Reset Timer falls wir aus der Toleranz driften! (Regelwerk)
+                }
+                if (millis() - holdTimerStart >= profile1Hold * 1000UL) {
+                    sequence2026State = 3;
+                    controlPressure = profile2Target; // PID drückt automatisch Wasser raus um auf 40cm zu steigen
+                    addLog(INFO, "2026: Timer 1 fertig. Auftauchen zu Ziel 2 (" + String(profile2Target) + " kPa).");
+                }
+            }
+            else if (sequence2026State == 3) {
+                controlPressure = profile2Target;
+                if (abs(currentPressure - profile2Target) <= depthTolerance) {
+                    sequence2026State = 4;
+                    holdTimerStart = millis();
+                    addLog(INFO, "2026: Ziel 2 (" + String(profile2Target) + " kPa) erreicht. 30s Timer startet.");
+                }
+            }
+            else if (sequence2026State == 4) {
+                if (abs(currentPressure - profile2Target) > depthTolerance) {
+                    holdTimerStart = millis(); 
+                }
+                if (millis() - holdTimerStart >= profile2Hold * 1000UL) {
+                    sequence2026State = 5;
+                    addLog(INFO, "2026: Mission erfüllt! Reguläres Auftauchen eingeleitet.");
+                    // Gaukelt der alten Logik vor, dass die Messung erfolgreich war -> Float taucht auf
+                    sucessfullMeasurementCompleted = true; 
+                }
+            }
+        }
+        // --- ENDE MATE 2026 Sequenz Manager ---
+
         // Einmalig zu Beginn von der unteren Endlage zur neutralen Bouyancy Position verfahren
         if (!driveToNeutralBouyancyPositionCompleted) {
           numMoveSteps = neutralBouyancyPosition - stepper.currentPosition();
@@ -1317,6 +1217,13 @@ void sendJsonControlLoopParameters() {
   params["stepsAuftreiben"] = stepsAuftreiben;
   params["innerControlIntervall"] = innerControlIntervall;
 
+  // MATE 2026
+  params["profile1Target"] = profile1Target;
+  params["profile1Hold"] = profile1Hold;
+  params["profile2Target"] = profile2Target;
+  params["profile2Hold"] = profile2Hold;
+  params["enable2026Sequence"] = enable2026Sequence;
+
   params["controlParamStatus"] = controlParamStatus;
   
   String jsonString = "";
@@ -1754,6 +1661,13 @@ void handleControlLoopParameters(uint8_t num, const JsonDocument& doc) {
   controlPressure = params["controlPressure"];
   syringesUpperStepsLimit = params["syringesUpperStepsLimit"];
 
+  // MATE 2026 übernehmen (falls vom UI gesendet)
+  if (params.containsKey("profile1Target")) profile1Target = params["profile1Target"];
+  if (params.containsKey("profile1Hold")) profile1Hold = params["profile1Hold"];
+  if (params.containsKey("profile2Target")) profile2Target = params["profile2Target"];
+  if (params.containsKey("profile2Hold")) profile2Hold = params["profile2Hold"];
+  if (params.containsKey("enable2026Sequence")) enable2026Sequence = params["enable2026Sequence"];
+
   KP = params["KP"];
   KI = params["KI"];
   KD = params["KD"];
@@ -1911,7 +1825,14 @@ void handleControlFreigaben(uint8_t num, const JsonDocument& doc) {
     if (launchFreigabe && !launchActive) {
       resetAutomatikbetrieb(); // Reset Automatikbetrieb und allen Parametern
       launchActive = true;  
-      addLog(INFO, "Launch issued by user: " + String(num));
+      
+      if (enable2026Sequence) {
+        sequence2026State = 1;
+        controlPressure = profile1Target; // Setze erstes Ziel sofort
+        addLog(INFO, "Launch MATE 2026 Sequence! Ziel 1: " + String(controlPressure) + " kPa");
+      } else {
+        addLog(INFO, "Launch alter Modus issued by user: " + String(num));
+      }
     } 
 
     if (setBuoyancyPositionFreigabe) {
@@ -2024,7 +1945,6 @@ void resetAutomatikbetrieb() {
   stepDivingActive = false;
   pidActive = false;
   pingPongActive = false;
+  sequence2026State = 0; // Reset 2026 Sequence
   addLog(INFO, "Reset Automatikbetrieb, Parameter zurückgesetzt");
 }
-
-

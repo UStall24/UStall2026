@@ -4,18 +4,18 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Float Control Center</title>
+  <title>Float Control Center 2026</title>
   <link rel="stylesheet" href="/style.css">
   <script src="chart.js" defer></script>
   <script src="javascript.js" defer></script>
 </head>
 
-
 <body style="background-color: #dadada;">
-  <h1>Float Klara Control Center - MateROV Competition 2025 - U.Stall Esslingen University</h1>
+  <h1>Float Klara Control Center - MATE ROV Competition 2026 - U.Stall Esslingen University</h1>
 
   <div class="first-row-container">
 
+    <!-- FLOAT STATUS BOX -->
     <div class="status-box">
       <div class="status-title">Float Status</div>
         
@@ -38,18 +38,16 @@
         <button id="buttonName">Set Name</button>
       </div>
       
-      
       <div class="outerSetPressure-container">
         <div class="innerSetPressure-container">
           <div id="pressureStatus-led" class="pressureStatus-led pressureStatus-led-not-ready"></div>
           <span id="pressureStatus-text" class="status-text">Not Ready</span>
         </div>
-        <span class="status-text">Current Pressure:</span>
+        <span class="status-text" title="Aktueller bereinigter Druckwert">Aktueller Druck:</span>
         <span id="spanCurrentPressure" class="status-text"></span>
-        <span class="status-text">kPa:</span>
-        <button id="buttonPressure">Set Pressure</button>
+        <span class="status-text" title="10 kPa entsprechen ca. 1 Meter Tiefe">kPa (≈ m)</span>
+        <button id="buttonPressure" title="Druck auf 0 setzen (Oberfläche kalibrieren)">Set Pressure (Zero)</button>
       </div>
-      
       
       <div class="outerSetTime-container">
         <div class="innerSetTime-container">
@@ -61,6 +59,8 @@
         <button id="buttonTime">Set Time</button>
       </div>
 
+      <!-- SENSOR DATEN -->
+      <br>
       <div class="innerOverviewParameterStatus-container">
         <span class="status-text">Battery Voltage:</span>
         <span id="spanVoltageBattery" class="status-text"></span>
@@ -68,13 +68,11 @@
         <span id="spanVoltageBatteryPercent" class="status-text"></span>
       </div>
 
-
       <div class="innerOverviewParameterStatus-container">
-        <span class="status-text">Current Depth:</span>
-        <span id="spanCurrentDepth" class="status-text"></span>
-        <span class="status-text">m</span>
+        <span class="status-text" style="font-weight: bold; color: blue;">Berechnete Tiefe:</span>
+        <span id="spanCurrentDepth" class="status-text" style="font-weight: bold; color: blue;"></span>
+        <span class="status-text" style="font-weight: bold; color: blue;">m</span>
       </div>
-
 
       <div class="innerOverviewParameterStatus-container">
         <span class="status-text">Init Pressure Balluff:</span>
@@ -89,11 +87,10 @@
       </div>
 
       <div class="innerOverviewParameterStatus-container">
-        <span class="status-text">Balluff Pressure:</span>
+        <span class="status-text">Balluff Pressure absolut:</span>
         <span id="spanPressureBalluff" class="status-text"></span>
         <span class="status-text">kPa</span>
       </div>
-
       
       <div class="innerOverviewParameterStatus-container">
         <span class="status-text">BME280(1) inner Pressure:</span>
@@ -114,7 +111,7 @@
       </div>
 
       <div class="innerOverviewParameterStatus-container">
-        <span class="status-text">BME280(2) Electronics Temperature</span>
+        <span class="status-text">BME280(2) Electronics Temperature:</span>
         <span id="spanBME280temperatureElectronics" class="status-text"></span>
         <span class="status-text">°C</span>
       </div>
@@ -130,27 +127,27 @@
         <input class="status-text" type="number" id="numDatasetRun" min="0" max="4" value="0" step="1" style="width: 30px;"/>
         <button id="buttonSelectDatasetRun">Select Dataset</button>
       </div>
-      
 
       <div class="launch-button-container">
-        <button class="launch-button" id="buttonLaunch">Launch</button>
+        <button class="launch-button" id="buttonLaunch" title="Startet die automatische Tauchsequenz">LAUNCH SEQUENCE</button>
       </div>
     </div>
 
 
-    <div class="control-box">
-      <div class="control-title">Manual</div>
-        <div class="innerControl-container">
-          <button id="buttonUp">Up</button>
-          <button id="buttonStop">Stop</button> 
-          <button id="buttonDown">Down</button>
-        </div>
+    <!-- MANUAL CONTROL BOX -->
+<div class="control-box">
+  <div class="control-title">Manual Control</div>
+    <!-- Add flex column styling and a small gap here -->
+    <div class="innerControl-container" style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+      <button id="buttonUp" style="width: 100%;">Up (Ausdrücken)</button>
+      <button id="buttonStop" style="background-color: #ff4c4c; color: white; width: 100%;">EMERGENCY STOP</button> 
+      <button id="buttonDown" style="width: 100%;">Down (Ansaugen)</button>
+    </div>
 
         <div class="innerControl-container">
           <button id="buttonReferenzFahrt">Auto Ref-Drive</button>
           <div id="refDrive-led" class="refDrive-led refDrive-led-refDriveNotDone"></div>
         </div>
-
 
         <div class="innerControl-container">
           <button id="buttonSetBuoyancyPosition">Set Buoy. Pos.</button>
@@ -163,7 +160,6 @@
         </div>
 
         <div class="innerControl-container">
-          <!--<label class="status-text" for="numMoveSteps">Move Steps:</label>-->
           <button id="buttonMoveSteps">Move Steps</button>
           <input class="status-text" type="number" id="numMoveSteps" step="50" style="width: 80px;" />
         </div>
@@ -197,71 +193,98 @@
           <label class="status-text">Lower Limit Switch:</label>
           <div id="lowerLimit-led" class="lowerLimit-led lowerLimit-led-not-active"></div>
         </div>
-
-
-
     </div>
 
+    <!-- PARAMETER BOX -->
     <div class="controll-loop-box">
-        <div class="controll-loop-title">Parameters</div> 
+        <div class="controll-loop-title">Tauch-Parameter</div> 
+        
+          <!-- NEU: MATE 2026 Profiling Setup (Zur Vorbereitung auf den neuen Code) -->
+          <div style="background-color: #e6f2ff; padding: 5px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #b3d9ff;">
+            <h4 style="margin: 5px 0;">MATE 2026 Sequenz (Neu)</h4>
+            
+            <div class="innerParameter-container" style="margin-bottom: 5px;">
+              <label class="status-text" for="chkEnable2026" style="font-weight: bold; color: #0055cc;">2026 Sequenz aktivieren:</label>
+              <input type="checkbox" id="chkEnable2026" style="transform: scale(1.5); margin-left: 10px;" checked>
+            </div>
+
+            <div class="innerParameter-container">
+              <label class="status-text" for="numProfile1Target" title="10 kPa = 1m">Profil 1 Tiefe (kPa ≈ m):</label>
+              <input class="status-text" type="number" id="numProfile1Target" step="0.1" value="25.0" style="width: 75px;">
+            </div>
+            <div class="innerParameter-container">
+              <label class="status-text" for="numProfile1Hold">Profil 1 Haltezeit (sek):</label>
+              <input class="status-text" type="number" id="numProfile1Hold" step="1" value="30" style="width: 75px;">
+            </div>
+            <div class="innerParameter-container">
+              <label class="status-text" for="numProfile2Target" title="10 kPa = 1m">Profil 2 Tiefe (kPa ≈ m):</label>
+              <input class="status-text" type="number" id="numProfile2Target" step="0.1" value="4.0" style="width: 75px;">
+            </div>
+            <div class="innerParameter-container">
+              <label class="status-text" for="numProfile2Hold">Profil 2 Haltezeit (sek):</label>
+              <input class="status-text" type="number" id="numProfile2Hold" step="1" value="30" style="width: 75px;">
+            </div>
+          </div>
+
+          <!-- ALTE PARAMETER (Mit verständlicheren Labels) -->
+          <h4 style="margin: 5px 0;">Basis & PID Parameter</h4>
           <div class="innerParameter-container">
-            <label class="status-text" for="numControllPressure">Ctrl. Press. (kPa):</label>
+            <label class="status-text" for="numControllPressure" title="Beispiel: 25.0 kPa entspricht ca. 2.5m Wassertiefe">Zieltiefe (kPa ≈ m):</label>
             <input class="status-text" type="number" id="numControllPressure" step="0.1" style="width: 75px;">
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numSyringesUpperStepsLimit">Syr. Up-Lim. (Steps):</label>
+            <label class="status-text" for="numSyringesUpperStepsLimit" title="Maximaler Hub der Spritze">Spritzen-Limit (Steps):</label>
             <input class="status-text" type="number" id="numSyringesUpperStepsLimit" step="100" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numKP">KP:</label>
+            <label class="status-text" for="numKP">Regler KP (Proportional):</label>
             <input class="status-text" type="number" id="numKP" step="0.1" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numKI">KI:</label>
+            <label class="status-text" for="numKI">Regler KI (Integral):</label>
             <input class="status-text" type="number" id="numKI" step="0.1" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numKD">KD:</label>
+            <label class="status-text" for="numKD">Regler KD (Derivativ):</label>
             <input class="status-text" type="number" id="numKD" step="0.1" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numPidMaxStepsPos">Max Steps+:</label>
+            <label class="status-text" for="numPidMaxStepsPos" title="Max Schritte nach oben pro Takt">Max Schritte (Auf):</label>
             <input class="status-text" type="number" id="numPidMaxStepsPos" step="1" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numPidMaxStepsNeg">Max Steps-:</label>
+            <label class="status-text" for="numPidMaxStepsNeg" title="Max Schritte nach unten pro Takt">Max Schritte (Ab):</label>
             <input class="status-text" type="number" id="numPidMaxStepsNeg" step="1" style="width: 75px;"/>
           </div>
 
-
           <div class="innerParameter-container">
-            <label class="status-text" for="numWidthDeltaPressure">Tol. deltaP (kPa):</label>
+            <label class="status-text" for="numWidthDeltaPressure" title="Toleranzbereich für den Regler">Druck-Toleranz (kPa ≈ m):</label>
             <input class="status-text" type="number" id="numWidthDeltaPressure" step="0.01" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numSchwelleCatch">Schw. Catch: (kPa):</label>
+            <label class="status-text" for="numSchwelleCatch" title="Tiefe bei der das Absinken aktiv abgebremst wird">Abfang-Tiefe (kPa ≈ m):</label>
             <input class="status-text" type="number" id="numSchwelleCatch" step="0.1" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numStepsCatch">Catch (Steps):</label>
+            <label class="status-text" for="numStepsCatch">Abfang-Strecke (Steps):</label>
             <input class="status-text" type="number" id="numStepsCatch" step="10" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numCatchIntervall">Int. Catch (ms):</label>
+            <label class="status-text" for="numCatchIntervall">Abfang-Dauer (ms):</label>
             <input class="status-text" type="number" id="numCatchIntervall" step="100" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numSchwelleOben">Schw. Oben (kPa):</label>
+            <label class="status-text" for="numSchwelleOben">Obergrenze (kPa ≈ m):</label>
             <input class="status-text" type="number" id="numSchwelleOben" step="0.1" style="width: 75px;"/>
           </div>
 
@@ -271,12 +294,12 @@
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numOuterControlIntervall">Ctrl-Int. Outer (ms):</label>
+            <label class="status-text" for="numOuterControlIntervall">Regel-Intervall 1 (ms):</label>
             <input class="status-text" type="number" id="numOuterControlIntervall" step="100" style="width: 75px;"/>
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numSchwelleUnten">Schw. Unten (kPa):</label>
+            <label class="status-text" for="numSchwelleUnten">Untergrenze (kPa ≈ m):</label>
             <input class="status-text" type="number" id="numSchwelleUnten" step="0.1" style="width: 75px;"/>
           </div>
 
@@ -286,31 +309,32 @@
           </div>
 
           <div class="innerParameter-container">
-            <label class="status-text" for="numInnerControlIntervall">Ctrl-Int. inner (ms):</label>
+            <label class="status-text" for="numInnerControlIntervall">Regel-Intervall 2 (ms):</label>
             <input class="status-text" type="number" id="numInnerControlIntervall" step="100" style="width: 75px;"/>
           </div>
 
-          <div class="innerParameter-container">
-            <button id="buttonSendAllControlLoopParams" class="highlight-button">Send all CL-Parameters</button>
+          <div class="innerParameter-container" style="margin-top: 15px;">
+            <button id="buttonSendAllControlLoopParams" class="highlight-button">Send all Parameters</button>
             <div id="controlParam-led" class="controlParam-led controlParam-led-not-send"></div>
           </div>
       </div>
       
-      
+    <!-- DATA EXPORT BOX -->
     <div class="data-box">
-      <div class="data-title">Data</div> 
-        <label class="status-text" for="numDatasetPlot">Dataset:</label>
+      <div class="data-title">Data & Export</div> 
+        <label class="status-text" for="numDatasetPlot">View Dataset:</label>
         <input class="status-text" type="number" id="numDatasetPlot" min="0" max="4" value="0" step="1" style="width: 30px;"/>
         <button id="buttonSelectDatasetPlot">Select/Plot <br> Dataset</button>
         <button id="buttonExportData">Export Dataset</button>
-        <label class="status-text">Log:</label>
+        <hr style="margin: 10px 0; border: 0.5px solid #ccc;">
+        <label class="status-text">System Log:</label>
         <button id="buttonExportLog">Export Log</button>
         <button id="buttonClearLog">Clear Log</button>
     </div>
 
-  
+    <!-- INFO BOX -->
     <div class="info-box">
-      <div class="info-title">Information</div>
+      <div class="info-title">System Information</div>
         <div class="info-box-inner-container">
           <button id="buttonShowWelcomeMessage" style="margin-bottom: 5px;">Show Welcome Message</button>
           <button id="buttonClearTextboxInfo" style="margin-bottom: 5px;">Clear Info</button>
@@ -319,24 +343,17 @@
     </div>
   </div>
 
-
-
-  <!-- <div class="second-row-container"> -->
-    <div class="chart-container">
-      <div class="chart-title">Data Chart</div>
-      <canvas id="myChart"></canvas>
-    </div>
-  <!-- </div> -->
-
+  <div class="chart-container">
+    <div class="chart-title">Data Chart (Depth over Time)</div>
+    <canvas id="myChart"></canvas>
+  </div>
 
   <div class="table-container">
-    <div class="table-title">Data Package</div>
+    <div class="table-title">Data Package (Raw Data)</div>
     <div id="datapackageTableContainer">
       <!-- Tabellen werden hier dynamisch hinzugefügt -->
     </div>
   </div>
 
 </body>
-
-
 </html>

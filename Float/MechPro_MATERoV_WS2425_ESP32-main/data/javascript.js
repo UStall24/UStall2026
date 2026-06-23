@@ -37,6 +37,14 @@ let controlLoopParams = {
     schwelleUnten: 26,                  // 26
     stepsAuftreiben: 100,               // Steps
     innerControlIntervall: 2000,        // ms
+
+    // MATE 2026
+    profile1Target: 25.0,
+    profile1Hold: 30,
+    profile2Target: 4.0,
+    profile2Hold: 30,
+    enable2026Sequence: true,
+
     controlParamStatus: false
 };
 
@@ -367,6 +375,13 @@ function processCommand(event) {
                 numStepsAuftreiben.value = parseInt(controlLoopParams.stepsAuftreiben);
                 numInnerControlIntervall.value = parseInt(controlLoopParams.innerControlIntervall);
 
+                // MATE 2026 Parameter aus JSON empfangen und ins UI schreiben (falls vorhanden)
+                if (obj.params.profile1Target !== undefined && numProfile1Target) numProfile1Target.value = parseFloat(obj.params.profile1Target.toFixed(1));
+                if (obj.params.profile1Hold !== undefined && numProfile1Hold) numProfile1Hold.value = parseInt(obj.params.profile1Hold);
+                if (obj.params.profile2Target !== undefined && numProfile2Target) numProfile2Target.value = parseFloat(obj.params.profile2Target.toFixed(1));
+                if (obj.params.profile2Hold !== undefined && numProfile2Hold) numProfile2Hold.value = parseInt(obj.params.profile2Hold);
+                if (obj.params.enable2026Sequence !== undefined && chkEnable2026) chkEnable2026.checked = Boolean(obj.params.enable2026Sequence);
+
                 let controlParamStatus = Boolean(controlLoopParams.controlParamStatus);
                 const controlParamLED = document.getElementById("controlParam-led");
                 
@@ -671,6 +686,12 @@ const numInnerControlIntervall = document.getElementById("numInnerControlInterva
 
 const buttonSendAllControlLoopParams = document.getElementById("buttonSendAllControlLoopParams")
 
+// MATE 2026
+const numProfile1Target = document.getElementById("numProfile1Target");
+const numProfile1Hold = document.getElementById("numProfile1Hold");
+const numProfile2Target = document.getElementById("numProfile2Target");
+const numProfile2Hold = document.getElementById("numProfile2Hold");
+const chkEnable2026 = document.getElementById("chkEnable2026");
 
 
 /* Buttons, Textboxes, Spans from Info Box */
@@ -1160,6 +1181,13 @@ function sendAllControlLoopParams() {
     controlLoopParams.stepsAuftreiben = parseInt(numStepsAuftreiben.value);
     controlLoopParams.innerControlIntervall = parseInt(numInnerControlIntervall.value);
 
+    // MATE 2026 Parameters
+    if (numProfile1Target) controlLoopParams.profile1Target = parseFloat(numProfile1Target.value);
+    if (numProfile1Hold) controlLoopParams.profile1Hold = parseInt(numProfile1Hold.value);
+    if (numProfile2Target) controlLoopParams.profile2Target = parseFloat(numProfile2Target.value);
+    if (numProfile2Hold) controlLoopParams.profile2Hold = parseInt(numProfile2Hold.value);
+    if (chkEnable2026) controlLoopParams.enable2026Sequence = chkEnable2026.checked;
+
     let msg = {
     type: 'controlLoopParameters',
     params: controlLoopParams
@@ -1275,5 +1303,3 @@ const myChart = new Chart("myChart", {
         }
     }
 });
-
-  
