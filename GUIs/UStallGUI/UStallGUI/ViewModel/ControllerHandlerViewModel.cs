@@ -247,7 +247,8 @@ namespace UStallGUI.ViewModel
             {
                 ResolveMapping(ControllerMappings[0].SelectedIndex), // Forward/Backward
                 ResolveMapping(ControllerMappings[1].SelectedIndex), // Left/Right
-                ResolveMapping(ControllerMappings[2].SelectedIndex), // Up/Down
+               // ResolveMapping(ControllerMappings[2].SelectedIndex), // Up/Down
+                (byte)Math.Clamp(ResolveMapping(ControllerMappings[2].SelectedIndex)+ CurrentControllerModel.UpDownOffset,0,255),  // ofsett fun
                 ResolveMapping(ControllerMappings[3].SelectedIndex), // Yaw
                 ResolveMapping(ControllerMappings[4].SelectedIndex), // Pitch
                 ResolveMapping(ControllerMappings[5].SelectedIndex), // Roll

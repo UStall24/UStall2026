@@ -78,10 +78,16 @@ namespace UStallGUI.Model
 
         public event Action LeftJoystickDownPressed, RightJoystickDownPressed;
 
+        public event Action L1Pressed;
+        public event Action R1Pressed;
+        public int UpDownOffset { get; set; } = 0;
+
         private bool prevDPadUp, prevDPadDown, prevDPadLeft, prevDPadRight;
         private bool prevButtonA, prevButtonB, prevButtonX, prevButtonY;
         private bool prevButtonStart, prevButtonBack;
         private bool prevLeftJoystickDown, prevRightJoystickDown;
+        private bool prevL1, prevR1;
+        
 
         public void UpdateControllerValues()
         {
@@ -146,6 +152,15 @@ namespace UStallGUI.Model
                 prevButtonBack = ButtonBack = currentBack;
                 prevLeftJoystickDown = LeftJoystickDown = currentLeftJoyDown;
                 prevRightJoystickDown = RightJoystickDown = currentRightJoyDown;
+
+                //Offset
+                if (!prevL1 && L1Trigger) L1Pressed?.Invoke();
+                if (!prevR1 && R1Trigger) R1Pressed?.Invoke();
+                if (L1Trigger && R1Trigger) UpDownOffset = 0;
+                prevL1 = L1Trigger;
+                prevR1 = R1Trigger;
+
+               
             }
         }
 
@@ -201,6 +216,10 @@ namespace UStallGUI.Model
                 if (AltRightJoystickX - step >= 0)
                     AltRightJoystickX -= 21;
             };
+            //Offset
+            L1Pressed += () => { UpDownOffset = Math.Max(-127, UpDownOffset - 6); };
+            R1Pressed += () =>{UpDownOffset = Math.Min(127, UpDownOffset + 6);};
+            if (L1Trigger && R1Trigger) UpDownOffset = 127;
         }
     }
 }

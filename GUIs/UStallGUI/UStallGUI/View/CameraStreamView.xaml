@@ -21,12 +21,19 @@
         </Grid.RowDefinitions>
         <!--ping 192.168.0.3-->
         <!-- Camera Stream 1 -->
-        <GroupBox Header="Camera Stream 1" Margin="5">
-            <Grid Width="400" Height="300" ClipToBounds="True">
+        <GroupBox Grid.Column="0"
+          Grid.Row="0"
+          Header="Camera Stream 1"
+          Margin="5">
+
+            <Grid ClipToBounds="True">
 
                 <Image Source="{Binding CameraFrame1}"
                Stretch="Uniform"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
                RenderTransformOrigin="0.5,0.5">
+
                     <Image.RenderTransform>
                         <RotateTransform Angle="{Binding Rotation1}" />
                     </Image.RenderTransform>
@@ -58,13 +65,18 @@
         </GroupBox>
 
         <!-- Camera Stream 2 -->
-        <GroupBox Grid.Column="1" Header="Camera Stream 2" Margin="5">
-            
-            <Grid Width="400" Height="300" ClipToBounds="True">
+        <GroupBox Grid.Column="1"
+          Grid.Row="0"
+          Header="Camera Stream 2"
+          Margin="5">
+
+            <Grid ClipToBounds="True">
 
                 <Image Source="{Binding CameraFrame2}"
-                Stretch="Uniform"
-                RenderTransformOrigin="0.5,0.5">
+               Stretch="Uniform"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
+               RenderTransformOrigin="0.5,0.5">
                     <Image.RenderTransform>
                         <RotateTransform Angle="{Binding Rotation2}" />
                     </Image.RenderTransform>
