@@ -19,11 +19,14 @@
             <RowDefinition />
             <RowDefinition />
         </Grid.RowDefinitions>
-
+        <!--ping 192.168.0.3-->
         <!-- Camera Stream 1 -->
         <GroupBox Header="Camera Stream 1" Margin="5">
-            <Grid>
-                <Image Stretch="Uniform" Source="{Binding CameraFrame1}" Margin="0,0,0,8" RenderTransformOrigin="0.5,0.5">
+            <Grid Width="400" Height="300" ClipToBounds="True">
+
+                <Image Source="{Binding CameraFrame1}"
+               Stretch="Uniform"
+               RenderTransformOrigin="0.5,0.5">
                     <Image.RenderTransform>
                         <RotateTransform Angle="{Binding Rotation1}" />
                     </Image.RenderTransform>
@@ -40,15 +43,15 @@
                     </ToggleButton>
                 </StackPanel>
                 <Button ToolTip="Turn Camera"
-                        Width="40"
-                        Height="40"
+                        Width="20"
+                        Height="20"
                         Margin="0,0,8,8"
                         HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Command="{Binding TurnCameraCommand1}">
+                        VerticalAlignment="Top"
+                        Command="{Binding TurnCamera1Command}">
                     <materialDesign:PackIcon Kind="redo"
-                             Width="24"
-                             Height="24" />
+                             Width="12"
+                             Height="12" />
                 </Button>
             </Grid>
           
@@ -56,34 +59,40 @@
 
         <!-- Camera Stream 2 -->
         <GroupBox Grid.Column="1" Header="Camera Stream 2" Margin="5">
-            <Grid>
-                <Image Stretch="Uniform" Source="{Binding CameraFrame2}" Margin="0,0,0,8" RenderTransformOrigin="0.5,0.5">
+            
+            <Grid Width="400" Height="300" ClipToBounds="True">
+
+                <Image Source="{Binding CameraFrame2}"
+                Stretch="Uniform"
+                RenderTransformOrigin="0.5,0.5">
                     <Image.RenderTransform>
                         <RotateTransform Angle="{Binding Rotation2}" />
                     </Image.RenderTransform>
                 </Image>
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,5">
-                    <Button ToolTip="Connect Camera 2" Width="40" Height="40" Margin="0,0,8,0" Visibility="Hidden"
-                            Command="{Binding ConnectCamera2Command}">
+                    <Button ToolTip="Connect Camera 1" Width="40" Height="40" Margin="0,0,8,0" Visibility="Hidden"
+            Command="{Binding ConnectCamera2Command}">
                         <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
                     </Button>
-                    <ToggleButton ToolTip="Toggle Light 2" Width="40" Height="40" Visibility="Hidden"
-                                  IsChecked="{Binding IsLight2On, Mode=TwoWay}">
+                    <ToggleButton ToolTip="Toggle Light 1" Width="40" Height="40" Visibility="Hidden"
+                  IsChecked="{Binding IsLight1On, Mode=TwoWay}">
                         <materialDesign:PackIcon Kind="Lightbulb" Width="24" Height="24"
-                            Foreground="{Binding IsLight2On, Converter={StaticResource BoolToBrushConverter}}" />
+            Foreground="{Binding IsLight1On, Converter={StaticResource BoolToBrushConverter}}" />
                     </ToggleButton>
                 </StackPanel>
                 <Button ToolTip="Turn Camera"
-        Width="40"
-        Height="40"
+        Width="20"
+        Height="20"
         Margin="0,0,8,8"
         HorizontalAlignment="Right"
-        VerticalAlignment="Bottom"
-        Command="{Binding TurnCameraCommand}">
+        VerticalAlignment="Top"
+        Command="{Binding TurnCamera2Command}">
                     <materialDesign:PackIcon Kind="redo"
-             Width="24"
-             Height="24" />
-                </Button>
+             Width="12"
+             Height="12" />
+            </Button>
+                
             </Grid>
         </GroupBox>
 
@@ -107,15 +116,15 @@
                     </ToggleButton>
                 </StackPanel>
                 <Button ToolTip="Turn Camera"
-        Width="40"
-        Height="40"
+        Width="20"
+        Height="20"
         Margin="0,0,8,8"
         HorizontalAlignment="Right"
-        VerticalAlignment="Bottom"
-        Command="{Binding TurnCameraCommand3}">
+        VerticalAlignment="Top"
+        Command="{Binding TurnCamera3Command}">
     <materialDesign:PackIcon Kind="redo"
-             Width="24"
-             Height="24" />
+             Width="12"
+             Height="12" />
 </Button>
             </Grid>
         </GroupBox>
