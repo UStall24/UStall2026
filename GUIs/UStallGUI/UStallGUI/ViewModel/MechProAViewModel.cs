@@ -1,6 +1,7 @@
 ﻿using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
+using System.Linq;
 using UStallGUI.Helpers;
 
 namespace UStallGUI.ViewModel
@@ -16,6 +17,34 @@ namespace UStallGUI.ViewModel
 
         private const ushort GRIPPER_J2_J3_ID_RECV = 0x4B2;
 
+        private const ushort GRIPPER_J1_ID_SEND = 0x301;
+        private const ushort GRIPPER_J1_ID_RECV = 0x4B1;
+
+        private int _joint1Position = 0;
+
+        public int Joint1Position
+        {
+            get => _joint1Position;
+            set => Set(ref _joint1Position, value);
+        }
+
+        private int _joint1Speed = 5;
+
+        public int Joint1Speed
+        {
+            get => _joint1Speed;
+            set => Set(ref _joint1Speed, value);
+        }
+
+        // ================= HARDWARE FEEDBACK (J1 NEU) =================
+        private int _actualJoint1Position = 0;
+
+        public int ActualJoint1Position
+        {
+            get => _actualJoint1Position;
+            set => Set(ref _actualJoint1Position, value);
+        }
+
         public MechProAViewModel(UsbCANWrapper can)
         {
             this.can = can;
@@ -25,6 +54,7 @@ namespace UStallGUI.ViewModel
             {
                 // Register the single feedback ID that contains data for both joints
                 this.can.RegisterCallback(GRIPPER_J2_J3_ID_RECV, ProcessIncomingCanMessage);
+                this.can.RegisterCallback(GRIPPER_J1_ID_RECV, ProcessIncomingCanMessage);
             }
         }
 
@@ -107,20 +137,24 @@ namespace UStallGUI.ViewModel
         {
             if (rxId == GRIPPER_J2_J3_ID_RECV)
             {
-                // Assuming a 6-byte combined payload: [J2_H, J2_L, J3_H, J3_L, Temp, Hum]
                 if (payload.Length >= 6)
                 {
-                    ActualJoint2Position = (payload[0] << 8) | payload[1];
-                    ActualJoint3Position = (payload[2] << 8) | payload[3];
+                    // WICHTIG: Das (short) Casting erzwingt die Erkennung von negativen Zahlen!
+                    ActualJoint2Position = (short)((payload[0] << 8) | payload[1]);
+                    ActualJoint3Position = (short)((payload[2] << 8) | payload[3]);
                     Joint2and3Temperature = $"{payload[4]} °C";
                     Joint2and3Humidity = $"{payload[5]} %";
                 }
-                // Fallback: If it's only 4 bytes (e.g., [J2_H, J2_L, J3_H, J3_L] with no Temp/Hum)
                 else if (payload.Length >= 4)
                 {
-                    ActualJoint2Position = (payload[0] << 8) | payload[1];
-                    ActualJoint3Position = (payload[2] << 8) | payload[3];
+                    ActualJoint2Position = (short)((payload[0] << 8) | payload[1]);
+                    ActualJoint3Position = (short)((payload[2] << 8) | payload[3]);
                 }
+            }
+            if (rxId == GRIPPER_J1_ID_RECV && payload.Length >= 2)
+            {
+                // Hier ebenfalls das (short) hinzufügen
+                ActualJoint1Position = (short)((payload[0] << 8) | payload[1]);
             }
         }
 
@@ -130,6 +164,15 @@ namespace UStallGUI.ViewModel
         {
             switch (cmd)
             {
+                case "J1_INC":
+                    Joint1Position += Joint1Speed;
+                    SendGripper(GRIPPER_J1_ID_SEND, Joint1Position);
+                    break;
+
+                case "J1_DEC":
+                    Joint1Position -= Joint1Speed;
+                    SendGripper(GRIPPER_J1_ID_SEND, Joint1Position);
+                    break;
                 // J2 Commands using Joint2Speed as Step
                 case "J2_INC":
                     Joint2Position += Joint2Speed;
@@ -182,6 +225,7 @@ namespace UStallGUI.ViewModel
             };
 
             can.SendFrame(canId, payload);
+            Console.WriteLine($"Sending Gripper Data for ID: {canId:X3} with msg: {string.Join(" ", payload.Select(b => b.ToString("X2")))}");
         }
     }
 }

@@ -15,7 +15,7 @@ XL2515_INT_PIN = 8
 
 
 class RP2350_CAN:
-    def __init__(self, rate_kbps = "100KBPS", spi_cs = XL2515_CS_PIN, irq = XL2515_INT_PIN, spi_port = XL2515_SPI_PORT, spi_clk = XL2515_SCLK_PIN,spi_mosi = XL2515_MOSI_PIN, spi_miso = XL2515_MISO_PIN,  spi_freq=10_000_000):
+    def __init__(self, rate_kbps = "125KBPS", spi_cs = XL2515_CS_PIN, irq = XL2515_INT_PIN, spi_port = XL2515_SPI_PORT, spi_clk = XL2515_SCLK_PIN,spi_mosi = XL2515_MOSI_PIN, spi_miso = XL2515_MISO_PIN,  spi_freq=10_000_000):
         self.can_rate_arr = {
             "5KBPS"   : [0xA7, 0XBF, 0x07],
             "10KBPS"  : [0x31, 0XA4, 0X04],
