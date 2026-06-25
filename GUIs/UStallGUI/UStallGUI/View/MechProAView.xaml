@@ -30,38 +30,39 @@
                     <RowDefinition />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
+                    <ColumnDefinition Width="126*" />
+                    <ColumnDefinition Width="126*" />
+                    <ColumnDefinition Width="18*" />
+                    <ColumnDefinition Width="109*"/>
                 </Grid.ColumnDefinitions>
 
-                <Label Content="Position" Grid.Row="0" Grid.Column="0" />
+                <Label Content="Position" Grid.Row="0" Grid.Column="0" Margin="0,0,0,30" Grid.RowSpan="2" />
 
                 <Button Grid.Row="0" Grid.Column="1"
                         Content="J2 Step +"
-                        Margin="10,5"
+                        Margin="10,5,10,5"
                         Command="{Binding GripperCommand}"
                         CommandParameter="J2_INC" />
 
                 <Button Grid.Row="0" Grid.Column="2"
                         Content="J3 Step +"
-                        Margin="10,5"
+                        Margin="10,5,10,5"
                         Command="{Binding GripperCommand}"
-                        CommandParameter="J3_INC" />
+                        CommandParameter="J3_INC" Grid.ColumnSpan="2" />
 
                 <Button Grid.Row="1" Grid.Column="1"
                         Content="J2 Step -"
-                        Margin="10,5"
+                        Margin="10,5,10,5"
                         Command="{Binding GripperCommand}"
                         CommandParameter="J2_DEC" />
 
                 <Button Grid.Row="1" Grid.Column="2"
                         Content="J3 Step -"
-                        Margin="10,5"
+                        Margin="10,5,10,5"
                         Command="{Binding GripperCommand}"
-                        CommandParameter="J2_DEC" />
+                        CommandParameter="J2_DEC" Grid.ColumnSpan="2" />
 
-                <Label Content="Speed" Grid.Row="2" Grid.Column="0" />
+                <Label Content="Speed" Grid.Row="2" Grid.Column="0" Margin="0,0,0,26" Grid.RowSpan="2" />
                 <xctk:IntegerUpDown
                     Grid.Row="2"
                     Grid.Column="1"
@@ -70,23 +71,24 @@
                     Width="80"
                     Value="{Binding Joint2Speed, Mode=TwoWay}"
                     Increment="1"
-                    HorizontalAlignment="Stretch"
-                    Margin="5" />
+                    Margin="23,5,23,5" />
+
                 <Button Grid.Row="1" Grid.Column="2"
                 Content="J3 Step -"
-                Margin="10,5"
+                Margin="10,5,10,5"
                 Command="{Binding GripperCommand}"
-                CommandParameter="J3_DEC" />
-                <Label Content="Current Position J2" Grid.Row="3" Grid.Column="0" />
-                <Label Content="{Binding ActualJoint2Position, FallbackValue='XXX'}" Grid.Row="3" Grid.Column="2" />
+                CommandParameter="J3_DEC" Grid.ColumnSpan="2" />
 
-                <Label Content="Current Position J3" Grid.Row="4" Grid.Column="0" />
-                <Label Content="{Binding ActualJoint3Position, FallbackValue='XXX'}" Grid.Row="4" Grid.Column="2" />
-                <Label Content="Current Temperature" Grid.Row="5" Grid.Column="0" />
-                <Label Content="{Binding Joint2and3Temperature, FallbackValue='XX °C'}" Grid.Row="5" Grid.Column="2" />
+                <Label Content="Current Position J2" Grid.Row="3" Grid.Column="0" Margin="0,0,0,26" Grid.RowSpan="2" />
+                <Label Content="{Binding ActualJoint2Position, FallbackValue='XXX'}" Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,0,0,26" Grid.RowSpan="2" />
 
-                <Label Content="Current Humidity" Grid.Row="6" Grid.Column="0" />
-                <Label Content="{Binding Joint2and3Humidity, FallbackValue='XX %'}" Grid.Row="6" Grid.Column="2" />
+                <Label Content="Current Position J3" Grid.Row="4" Grid.Column="0" Margin="0,0,0,26" Grid.RowSpan="2" />
+                <Label Content="{Binding ActualJoint3Position, FallbackValue='XXX'}" Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,0,0,26" Grid.RowSpan="2" />
+                <Label Content="Current Temperature" Grid.Row="5" Grid.Column="0" Margin="0,0,0,26" Grid.RowSpan="2" />
+                <Label Content="{Binding Joint2and3Temperature, FallbackValue='XX °C'}" Grid.Row="5" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,0,0,26" Grid.RowSpan="2" />
+
+                <Label Content="Current Humidity" Grid.Row="6" Grid.Column="0" Grid.RowSpan="2" />
+                <Label Content="{Binding Joint2and3Humidity, FallbackValue='XX %'}" Grid.Row="6" Grid.Column="2" Grid.ColumnSpan="2" Grid.RowSpan="2" />
             </Grid>
         </GroupBox>
         <GroupBox Margin="5" Header="Joint 1" Grid.Row="0">

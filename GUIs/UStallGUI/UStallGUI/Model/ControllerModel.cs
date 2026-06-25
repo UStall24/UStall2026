@@ -54,6 +54,9 @@ namespace UStallGUI.Model
         public byte L2Trigger { get; set; } = 0;
         public byte R2Trigger { get; set; } = 0;
 
+        public byte Servo1Value { get; set; } = 127;
+
+
         // Free Variables
         public bool LeftJoystickDown { get; set; } = false;
 
@@ -80,6 +83,9 @@ namespace UStallGUI.Model
 
         public event Action L1Pressed;
         public event Action R1Pressed;
+
+        public event Action ButtonAHeld, ButtonXHeld;
+    
         public int UpDownOffset { get; set; } = 0;
 
         private bool prevDPadUp, prevDPadDown, prevDPadLeft, prevDPadRight;
@@ -87,7 +93,7 @@ namespace UStallGUI.Model
         private bool prevButtonStart, prevButtonBack;
         private bool prevLeftJoystickDown, prevRightJoystickDown;
         private bool prevL1, prevR1;
-        
+
 
         public void UpdateControllerValues()
         {
@@ -154,13 +160,24 @@ namespace UStallGUI.Model
                 prevRightJoystickDown = RightJoystickDown = currentRightJoyDown;
 
                 //Offset
-                if (!prevL1 && L1Trigger) L1Pressed?.Invoke();
-                if (!prevR1 && R1Trigger) R1Pressed?.Invoke();
-                if (L1Trigger && R1Trigger) UpDownOffset = 0;
+                if (L1Trigger && R1Trigger)
+                {
+                    UpDownOffset = 0;
+                }
+                else
+                {
+                    if (!prevL1 && L1Trigger) L1Pressed?.Invoke();
+                    if (!prevR1 && R1Trigger) R1Pressed?.Invoke();
+                }
+
                 prevL1 = L1Trigger;
                 prevR1 = R1Trigger;
 
-               
+                //Gripper_KD
+                if (currentA) ButtonAHeld?.Invoke();
+
+                if (currentX) ButtonXHeld?.Invoke();
+
             }
         }
 
@@ -217,9 +234,16 @@ namespace UStallGUI.Model
                     AltRightJoystickX -= 21;
             };
             //Offset
-            L1Pressed += () => { UpDownOffset = Math.Max(-127, UpDownOffset - 6); };
+            L1Pressed += () => {UpDownOffset = Math.Max(-127, UpDownOffset - 6); };
             R1Pressed += () =>{UpDownOffset = Math.Min(127, UpDownOffset + 6);};
-            if (L1Trigger && R1Trigger) UpDownOffset = 127;
+
+            
+            //Gripper_KD
+            ButtonAHeld += () => {if (Servo1Value < 255) Servo1Value++; Console.WriteLine($"Servo1Value: {Servo1Value}");
+            };
+
+            ButtonXHeld += () => {if (Servo1Value > 0) Servo1Value--; Console.WriteLine($"Servo1Value: {Servo1Value}");
+            };
         }
     }
 }
