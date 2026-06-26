@@ -200,8 +200,8 @@ namespace UStallGUI.ViewModel
                 7 => (byte)(127 + ((m.DPadRight ? 1 : 0) - (m.DPadLeft ? 1 : 0)) * 127),
 
                 // 8 (A/B)
-                //8 => (byte)(127 + ((m.ButtonA ? 1 : 0) - (m.ButtonB ? 1 : 0)) * 127),
-                8 => m.Servo1Value,
+                8 => (byte)(127 + ((m.ButtonA ? 1 : 0) - (m.ButtonB ? 1 : 0)) * 127),
+                //8 => m.Servo1Value,
 
                 // 9 (X/Y)
                 9 => (byte)(127 + ((m.ButtonX ? 1 : 0) - (m.ButtonY ? 1 : 0)) * 127),
