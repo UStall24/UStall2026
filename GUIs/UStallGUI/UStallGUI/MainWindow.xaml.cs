@@ -21,6 +21,8 @@ namespace UStallGUI
             InitializeComponent();
             DataContext = new MainWindowViewModel();
 
+            this.Closed += (s, e) => App.Instance.CameraStreamViewModelGetter?.Cleanup(); // Stop current running capturing tasks of the camera feed
+
             // Position the window in the right half of the screen
             PositionWindowInRightHalf();
         }
