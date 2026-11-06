@@ -10,6 +10,46 @@
              d:DataContext="{d:DesignInstance Type=viewmodel:CameraStreamViewModel}"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="800" Background="White">
+    <UserControl.Resources>
+        <Style x:Key="CustomSwitchStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Viewbox>
+                            <Border x:Name="Border" CornerRadius="10" Background="#FFFFFFFF" Width="40" Height="20">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="0.5" Direction="0" Opacity="0.3" />
+                                </Border.Effect>
+                                <Ellipse x:Name="Ellipse" Fill="#FFFFFFFF" Stretch="Uniform" Margin="2 1 2 1" Stroke="Gray" StrokeThickness="0.2" HorizontalAlignment="Stretch">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.3" Direction="260" />
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                            </Border>
+                        </Viewbox>
+                        <ControlTemplate.Triggers>
+                            <EventTrigger RoutedEvent="Checked">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="Border" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" To="#FF4CD661" Duration="0:0:0.1" />
+                                        <ThicknessAnimation Storyboard.TargetName="Ellipse" Storyboard.TargetProperty="Margin" To="20 1 2 1" Duration="0:0:0.1" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                            <EventTrigger RoutedEvent="Unchecked">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetName="Border" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" To="White" Duration="0:0:0.1" />
+                                        <ThicknessAnimation Storyboard.TargetName="Ellipse" Storyboard.TargetProperty="Margin" To="2 1 2 1" Duration="0:0:0.1" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />
@@ -61,7 +101,6 @@
                              Height="12" />
                 </Button>
             </Grid>
-          
         </GroupBox>
 
         <!-- Camera Stream 2 -->
@@ -103,8 +142,7 @@
                     <materialDesign:PackIcon Kind="redo"
              Width="12"
              Height="12" />
-            </Button>
-                
+                </Button>
             </Grid>
         </GroupBox>
 
@@ -134,10 +172,10 @@
         HorizontalAlignment="Right"
         VerticalAlignment="Top"
         Command="{Binding TurnCamera3Command}">
-    <materialDesign:PackIcon Kind="redo"
+                    <materialDesign:PackIcon Kind="redo"
              Width="12"
              Height="12" />
-</Button>
+                </Button>
             </Grid>
         </GroupBox>
 
@@ -150,26 +188,111 @@
             </Grid.RowDefinitions>
 
             <!-- All Cameras Control Box -->
-            <GroupBox Header="Camera Control" Margin="5" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Top">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,5">
-                    <Button ToolTip="Connect All Cameras" Width="40" Height="40" Margin="0,0,8,0"
-                            Command="{Binding ConnectAllCamerasCommand}">
-                        <materialDesign:PackIcon Kind="Plug" Width="24" Height="24" />
-                    </Button>
-                    <ToggleButton ToolTip="Toggle All Lights" Width="40" Height="40" IsEnabled="False"
-                                  IsChecked="{Binding AreAllLightsOn, Mode=TwoWay}"
-                                  Command="{Binding ToggleAllLightsCommand}">
-                        <materialDesign:PackIcon Kind="LightbulbGroup" Width="24" Height="24"
-                            Foreground="{Binding AreAllLightsOn, Converter={StaticResource BoolToBrushConverter}}" />
-                    </ToggleButton>
+            <!-- Control Boxes Container -->
+            <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,5,5,5">
 
-                    <Button ToolTip="Screenshot All Cameras" Width="40" Height="40" Margin="8,0,0,0"
-                            Command="{Binding TakeAllCamerasScreenshotCommand}">
-                        <materialDesign:PackIcon Kind="Camera" Width="24" Height="24" />
-                    </Button>
+                <!-- 1. Camera Control Box -->
+                <GroupBox Header="Camera Control" Margin="5,0,5,5" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
 
-                </StackPanel>
-            </GroupBox>
+                        <!-- Connect All Cameras -->
+                        <Button ToolTip="Connect All Cameras" Height="36" Margin="0,0,8,0"
+                                Command="{Binding ConnectAllCamerasCommand}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Plug" Width="20" Height="20" Margin="0,0,6,0" />
+                                <TextBlock Text="Connect" VerticalAlignment="Center" FontSize="13" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Toggle All Lights -->
+                        <ToggleButton ToolTip="Toggle All Lights" Height="36" Margin="0,0,8,0" IsEnabled="False"
+                                      IsChecked="{Binding AreAllLightsOn, Mode=TwoWay}"
+                                      Command="{Binding ToggleAllLightsCommand}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <materialDesign:PackIcon Kind="LightbulbGroup" Width="20" Height="20" Margin="0,0,6,0"
+                                    Foreground="{Binding AreAllLightsOn, Converter={StaticResource BoolToBrushConverter}}" />
+                                <TextBlock Text="Lights" VerticalAlignment="Center" FontSize="13" />
+                            </StackPanel>
+                        </ToggleButton>
+
+                        <!-- Screenshot All Cameras -->
+                        <Button ToolTip="Screenshot All Cameras" Height="36" Margin="0,0,0,0"
+                                Command="{Binding TakeAllCamerasScreenshotCommand}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Camera" Width="20" Height="20" Margin="0,0,6,0" />
+                                <TextBlock Text="Screenshot" VerticalAlignment="Center" FontSize="13" />
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </GroupBox>
+
+                <!-- 2. Video Recording Box -->
+                <GroupBox Header="Video Recording" Margin="5,0,5,5" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
+
+                        <!-- Manual Record / Stop Button -->
+                        <Button Height="36" Margin="0,0,12,0" Command="{Binding ToggleRecordingCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                    <Setter Property="ToolTip" Value="Start Video Recording" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                            <Setter Property="ToolTip" Value="Stop Video Recording" />
+                                            <Setter Property="Background" Value="#D32F2F" />
+                                            <Setter Property="BorderBrush" Value="#D32F2F" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <materialDesign:PackIcon Width="20" Height="20" Margin="0,0,6,0">
+                                    <materialDesign:PackIcon.Style>
+                                        <Style TargetType="materialDesign:PackIcon">
+                                            <Setter Property="Kind" Value="RecordCircle" />
+                                            <Setter Property="Foreground" Value="#FF5252" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                    <Setter Property="Kind" Value="Stop" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </materialDesign:PackIcon.Style>
+                                </materialDesign:PackIcon>
+                                <TextBlock VerticalAlignment="Center" FontSize="13">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Record" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                    <Setter Property="Text" Value="Stop" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Auto-Record ToggleButton -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0" ToolTip="Auto-Record when video stream arrives">
+                            <TextBlock Text="Auto-Rec:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#555" />
+                            <ToggleButton Style="{StaticResource CustomSwitchStyle}"
+                                          IsChecked="{Binding IsAutoRecordEnabled, Mode=TwoWay}"
+                                          VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Clip Length Input -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Clip (min):" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#555" />
+                            <TextBox Width="45" Height="26" Padding="2"
+                                     VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                     ToolTip="Length of each split video clip in minutes"
+                                     Text="{Binding ClipDurationMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </WrapPanel>
+                </GroupBox>
+            </WrapPanel>
             <view:QuickSetupView Grid.Row="1" Grid.RowSpan="2" />
             <!-- Logos (unchanged, now in Grid.Row=1) -->
             <Grid Grid.Row="2" Visibility="Hidden">
