@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO.Ports;
 using System.Threading.Tasks;
@@ -22,6 +22,8 @@ namespace UStallGUI.Helpers
         public static Dictionary<ushort, OnCanMessageArrival> canMessageArrivalEvents = new();
 
         private string comPort;
+
+        public string ComPort => comPort;
 
         public bool DebugMode { get; set; } = true;
 
@@ -144,18 +146,25 @@ namespace UStallGUI.Helpers
                 (ushort)RecieveAddressesControlUnit.Health,
                 OnHealthResponse);
 
-            // Transmit the request (empty payload)
-            Console.Clear();
-            _time_required = Environment.TickCount;
-            SendFrame((ushort)SendAddressesControlUnit.Health, Array.Empty<byte>());
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < timeoutMs && !_hasHealthResponse)
+            try
             {
-                await Task.Delay(10);
-            }
+                // Transmit the request (empty payload)
+                _time_required = Environment.TickCount;
+                SendFrame((ushort)SendAddressesControlUnit.Health, Array.Empty<byte>());
 
-            _isTestingConnection = false;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < timeoutMs && !_hasHealthResponse)
+                {
+                    await Task.Delay(10);
+                }
+            }
+            finally
+            {
+                UnregisterCallback(
+                    (ushort)RecieveAddressesControlUnit.Health,
+                    OnHealthResponse);
+                _isTestingConnection = false;
+            }
 
             if (_hasHealthResponse)
             {

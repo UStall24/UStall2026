@@ -1,4 +1,4 @@
-﻿namespace UStallGUI.Model
+namespace UStallGUI.Model
 {
     public class ConfigGUI
     {
@@ -10,6 +10,6 @@
 
         public int ControlStyle { get; set; } = 0;
 
-        public bool DynamicThrottleEnabled { get; set; } = false;
+        public bool DepthHoldEnabled { get; set; } = false;
     }
 }

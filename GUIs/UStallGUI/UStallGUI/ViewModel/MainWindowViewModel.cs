@@ -1,4 +1,4 @@
-﻿using GalaSoft.MvvmLight;
+using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
 using System.Collections.Generic;
@@ -110,7 +110,7 @@ namespace UStallGUI.ViewModel
 
         #endregion Public Properties
 
-        #region LCE Connection Status
+        #region Pixhawk Connection Status
 
         public void UpdateConnectionStatusLCE(LceConnectionStatus status)
         {
@@ -122,11 +122,11 @@ namespace UStallGUI.ViewModel
             if (LceStatusMessages.TryGetValue(status, out var message))
             {
                 ConnectionStatusLCE = message;
-                LogToControlBox($"LCE Connection Status: {message}");
+                LogToControlBox($"Pixhawk CAN Status: {message}");
             }
         }
 
-        #endregion LCE Connection Status
+        #endregion Pixhawk Connection Status
 
         #region Logging
 

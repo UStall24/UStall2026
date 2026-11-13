@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace UStallGUI.Helpers
@@ -70,82 +70,38 @@ namespace UStallGUI.Helpers
     }
 
     /// <summary>
-    /// IDs used when **sending** commands to the control unit.
-    /// Each value is a 16‑bit unsigned integer (ushort).
+    /// IDs used when **sending** commands to the Pixhawk CAN bridge.
+    /// Each value is a 16-bit unsigned integer (ushort).
     /// </summary>
     public enum SendAddressesControlUnit : ushort
     {
         Health = 40,
         InitConnection = 50,
-        InitThrusters = 60,
-        DeinitThrusters = 70,
-        ResetError = 80,
+        ArmThrusters = 60,
+        DisarmThrusters = 70,
+        ResetWatchdog = 80,
         ApplyManualControl = 90,
-        ApplyControllerValues = 100,
-        ApplyControllerValues_Dyn = 110,
-
-        // --- NEW: per DoF responses ---
-
-        Set_FB = 120,
-        Set_LR = 121,
-        Set_UD = 122,
-        Set_YAW = 123,
-        Set_ROLL = 124,
-        Set_PITCH = 125,
-
-        Get_FB = 130,
-        Get_LR = 131,
-        Get_UD = 132,
-        Get_YAW = 133,
-        Get_ROLL = 134,
-        Get_PITCH = 135,
-
-        PullPidValues = 140,
-        ApplyPidValues = 150,
+        ApplyControllerValues_Stabilize = 100,
+        ApplyControllerValues_DepthHold = 110,
         UpdateCycleTime = 160,
-
         TestMotor = 170
     }
 
     /// <summary>
-    /// IDs used when **receiving** responses from the control unit.
-    /// Each response ID is defined as the corresponding send ID + 1,
-    /// ensuring a simple, predictable mapping.
+    /// IDs used when **receiving** responses from the Pixhawk CAN bridge.
+    /// Each response ID is defined as the corresponding send ID + 1.
     /// </summary>
     public enum RecieveAddressesControlUnit : ushort
     {
         Health = 41,
         InitConnection = 51,
-        InitThrusters = 61,
-        DeinitThrusters = 71,
-        ResetError = 81,
+        ArmThrusters = 61,
+        DisarmThrusters = 71,
+        ResetWatchdog = 81,
         ApplyManualControl = 91,
-        ApplyControllerValues = 101,
-        ApplyControllerValues_Dyn = 111,
-
-        // --- NEW: per DoF direction values ---
-
-        Set_FB = 121,      // forwards_backwards
-        Set_LR = 122,      // left_right
-        Set_UD = 123,      // up_down
-        Set_YAW = 124,
-        Set_ROLL = 125,
-        Set_PITCH = 126,
-        All_DoF_Saved = 127,
-
-        // Pull values (optional, same structure)
-
-        Get_FB = 131,
-        Get_LR = 132,
-        Get_UD = 133,
-        Get_YAW = 134,
-        Get_ROLL = 135,
-        Get_PITCH = 136,
-
-        PullPidValues = 141,
-        ApplyPidValues = 151,
+        ApplyControllerValues_Stabilize = 101,
+        ApplyControllerValues_DepthHold = 111,
         UpdateCycleTime = 161,
-
         TestMotor = 171
     }
 }

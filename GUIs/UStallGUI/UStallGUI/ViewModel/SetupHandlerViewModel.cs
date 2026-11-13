@@ -1,11 +1,8 @@
-﻿using GalaSoft.MvvmLight;
+using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
-using System.Windows.Input;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
 using Timer = System.Timers.Timer;
@@ -15,14 +12,22 @@ namespace UStallGUI.ViewModel
     public class SetupHandlerViewModel : ObservableObject
     {
         public static SetupHandlerViewModel Instance { get; private set; }
-        #region LCE Setup
 
-        private byte _updateInterval;
-        private int _controlType = 0;
+        #region Pixhawk Setup
+
+        private byte _updateInterval = 10;
+        private int _controlType = 2;
+        private string _comPort = "Auto";
 
         private ConfigGUI currentConfig;
 
         private UsbCANWrapper can;
+
+        public string ComPort
+        {
+            get => _comPort;
+            set => Set(ref _comPort, value);
+        }
 
         public byte UpdateInterval // in ms
         {
@@ -33,42 +38,45 @@ namespace UStallGUI.ViewModel
         /// <summary>
         /// 1 = Manual control, 2 = Controller, others = off
         /// </summary>
-        //public int ControlType
-        //{
-        //    get => _controlType;
-        //    set
-        //    {
-        //        if (!Set(ref _controlType, value))
-        //            return;
+        public int ControlType
+        {
+            get => _controlType;
+            set
+            {
+                if (!Set(ref _controlType, value))
+                    return;
 
-        //        switch (_controlType)
-        //        {
-        //            case 1:
-        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
-        //                InitManualControl();
-        //                break;
+                switch (_controlType)
+                {
+                    case 1:
+                        if (ControllerHandlerViewModel.Instance != null)
+                            ControllerHandlerViewModel.Instance.SendControllerValues = false;
+                        InitManualControl();
+                        break;
 
-        //            case 2:
-        //                ControllerHandlerViewModel.Instance.SendControllerValues = true;
-        //                StopManualControl();
-        //                break;
+                    case 2:
+                        if (ControllerHandlerViewModel.Instance != null)
+                            ControllerHandlerViewModel.Instance.SendControllerValues = true;
+                        StopManualControl();
+                        break;
 
-        //            default:
-        //                ControllerHandlerViewModel.Instance.SendControllerValues = false;
-        //                StopManualControl();
-        //                break;
-        //        }
-        //    }
-        //}
+                    default:
+                        if (ControllerHandlerViewModel.Instance != null)
+                            ControllerHandlerViewModel.Instance.SendControllerValues = false;
+                        StopManualControl();
+                        break;
+                }
+            }
+        }
 
-        public RelayCommand ConnectToLCE_Command { get; }
-        public RelayCommand InitThrusters_Command { get; }
-        public RelayCommand DeinitThrusters_Command { get; }
+        public RelayCommand ConnectToPixhawk_Command { get; }
+        public RelayCommand ArmThrusters_Command { get; }
+        public RelayCommand DisarmThrusters_Command { get; }
         public RelayCommand ApplyUpdateInterval_Command { get; }
-        public RelayCommand ResetErrorLCE_Command { get; }
+        public RelayCommand ResetWatchdog_Command { get; }
         public RelayCommand HealthCommand { get; }
 
-        #endregion LCE Setup
+        #endregion Pixhawk Setup
 
         #region Manual Control
 
@@ -141,106 +149,93 @@ namespace UStallGUI.ViewModel
 
         #endregion Manual Control
 
-        #region Gyro
+        #region Flight Mode Options
 
-        private bool _gyroEnabled;
-        private float _gyroPValue;
-        private float _gyroDValue;
+        private bool _depthHoldEnabled;
 
-        public bool GyroEnabled
+        public bool DepthHoldEnabled
         {
-            get => _gyroEnabled;
+            get => currentConfig.DepthHoldEnabled;
             set
             {
-                if (Set(ref _gyroEnabled, value))
-                {
-                    currentConfig.GyroEnabled = value;
-                    UpdateConfig();
-                }
-            }
-        }
-
-        public float GyroPValue
-        {
-            get => _gyroPValue;
-            set => Set(ref _gyroPValue, Clamp255Float(value));
-        }
-
-        public float GyroDValue
-        {
-            get => _gyroDValue;
-            set => Set(ref _gyroDValue, Clamp255Float(value));
-        }
-
-        // Method to clamp the value between 0 and 2.55
-        private static float Clamp255Float(float value)
-        {
-            if (value < 0f) return 0f;
-            if (value > 2.55f) return 2.55f;
-            return value;
-        }
-
-        public RelayCommand PullGyroValues_Command { get; }
-        public RelayCommand ApplyGyroValues_Command { get; }
-
-        #endregion Gyro
-
-        #region Options
-
-        private bool _dynamicThrottleEnabled;
-        private byte _maxCurrent;
-
-        public bool DynamicThrottleEnabled
-        {
-            get => currentConfig.DynamicThrottleEnabled;
-            set
-            {
-                if (!Set(ref _dynamicThrottleEnabled, value))
+                if (!Set(ref _depthHoldEnabled, value))
                     return;
 
-                currentConfig.DynamicThrottleEnabled = value;
-                ControllerHandlerViewModel.UseDynamicThrottle = value;
+                currentConfig.DepthHoldEnabled = value;
+                ControllerHandlerViewModel.UseDepthHold = value;
                 UpdateConfig();
+                QuickSetupViewModel.Instance?.NotifyDepthHoldChanged();
+                MainWindowViewModel.Instance?.LogToControlBox(
+                    value
+                        ? "Flight Mode set to ALT_HOLD (Automatic Depth + Attitude Hold)"
+                        : "Flight Mode set to STABILIZE (Attitude Hold)");
             }
         }
 
-        public byte MaxCurrent
-        {
-            get => _maxCurrent;
-            set => Set(ref _maxCurrent, value);
-        }
-
-        #endregion Options
+        #endregion Flight Mode Options
 
         public SetupHandlerViewModel()
         {
             Instance = this;
             can = new UsbCANWrapper();
+            ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
+            _depthHoldEnabled = currentConfig.DepthHoldEnabled;
+            ControllerHandlerViewModel.UseDepthHold = _depthHoldEnabled;
 
-            //ControlType = 2; // default to controller
-
-            //InitThrusters_Command = new RelayCommand(() => _ = InitThrustersAsync());
-            //DeinitThrusters_Command = new RelayCommand(() => _ = DeinitThrustersAsync());
-            //ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
-            //ResetErrorLCE_Command = new RelayCommand(() => _ = ResetErrorLCEAsync());
+            ArmThrusters_Command = new RelayCommand(() => _ = ArmThrustersAsync());
+            DisarmThrusters_Command = new RelayCommand(() => _ = DisarmThrustersAsync());
+            ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
+            ResetWatchdog_Command = new RelayCommand(() => _ = ResetWatchdogAsync());
             //PullGyroValues_Command = new RelayCommand(() => _ = PullGyroValuesAsync());
             //ApplyGyroValues_Command = new RelayCommand(() => _ = ApplyGyroValuesAsync());
             ManualControlReset_Command = new RelayCommand(ManualControlReset);
 
-            ConnectToLCE_Command = new RelayCommand(ConnectToControlUnit);
+            ConnectToPixhawk_Command = new RelayCommand(ConnectToControlUnit);
             HealthCommand = new RelayCommand(SendHealthMessage);
+        }
+
+        private async Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
+        {
+            if (can == null || !can.IsOpen)
+                return Array.Empty<byte>();
+
+            var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Handler(ushort id, byte[] data)
+            {
+                if (id == recvId)
+                    tcs.TrySetResult(data ?? Array.Empty<byte>());
+            }
+
+            can.RegisterCallback(recvId, Handler);
+            try
+            {
+                can.SendFrame(sendId, payload);
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+                return completed == tcs.Task ? await tcs.Task : Array.Empty<byte>();
+            }
+            finally
+            {
+                can.UnregisterCallback(recvId, Handler);
+            }
         }
 
         public async void SendHealthMessage()
         {
-            MainWindowViewModel.Instance.LogToControlBox("Checking Health...");
-            bool ok = await can.TestConnectionAsync(100);
+            MainWindowViewModel.Instance.LogToControlBox("Checking Pixhawk CAN link...");
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("CAN adapter is not open.");
+                return;
+            }
+
+            bool ok = await can.TestConnectionAsync(300);
             if (ok)
-                MainWindowViewModel.Instance.LogToControlBox("Health Update ok");
-            else MainWindowViewModel.Instance.LogToControlBox("Health Update not ok");
+                MainWindowViewModel.Instance.LogToControlBox("Health Ping OK (Pixhawk responded)");
+            else
+                MainWindowViewModel.Instance.LogToControlBox("Health Ping failed (no response from Pixhawk)");
         }
 
         #region Config helpers
@@ -249,23 +244,39 @@ namespace UStallGUI.ViewModel
 
         public async void ConnectToControlUnit()
         {
-            can.ConnectToCanAdapter();
+            if (can == null)
+                can = new UsbCANWrapper();
+            else
+                can.ConnectToCanAdapter();
+
+            ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
             // Check if the adapter is connected before proceeding
             if (can == null || !can.IsOpen)
             {
-                MainWindowViewModel.Instance.LogToControlBox("USB serial adapter not connected.");
+                MainWindowViewModel.Instance.LogToControlBox("USB serial CAN adapter not connected.");
                 MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
                 return;
             }
 
             MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
-            can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
-            bool ok = await can.TestConnectionAsync();
+            var initResp = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.InitConnection,
+                (ushort)RecieveAddressesControlUnit.InitConnection,
+                null,
+                500);
+
+            bool ok = (initResp.Length > 0 && initResp[0] == 1) || await can.TestConnectionAsync(500);
             if (ok)
+            {
                 MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+                MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} (Disarmed - click Arm Thrusters when ready).");
+            }
             else
+            {
                 MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                MainWindowViewModel.Instance.LogToControlBox("CAN adapter open, but no reply from Pixhawk.");
+            }
         }
 
         public void DisconnectFromLCE()
@@ -284,6 +295,7 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance.LogToControlBox("CAN interface is currently closed");
             }
 
+            ComPort = "Disconnected";
             can = null;
         }
 
@@ -294,55 +306,69 @@ namespace UStallGUI.ViewModel
 
         #endregion Config helpers
 
-        #region Thruster Init/Deinit (stubs – fill in your protocol)
+        #region Arm / Disarm Thrusters
 
-        //private async Task InitThrustersAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
+        public async Task ArmThrustersAsync()
+        {
+            if (can == null)
+                can = new UsbCANWrapper();
+            else if (!can.IsOpen)
+                can.ConnectToCanAdapter();
 
-        //    // Example pattern – change IDs to your real protocol
-        //    can.SendFrame((ushort)SendAddressesControlUnit.InitThrusters);
+            ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
-        //    var response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.InitThrusters_Response,
-        //        200
-        //    ).ConfigureAwait(false);
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot arm thrusters: USB-CAN adapter not connected.");
+                return;
+            }
 
-        //    if (response.Length > 0)
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters init successful.");
-        //    }
-        //    else
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters init failed.");
-        //    }
-        //}
+            var response = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.ArmThrusters,
+                (ushort)RecieveAddressesControlUnit.ArmThrusters,
+                null,
+                500);
 
-        //private async Task DeinitThrustersAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
+            if (response.Length > 0 && response[0] == 1)
+            {
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+                MainWindowViewModel.Instance.LogToControlBox("Thrusters ARMED successfully.");
+            }
+            else if (response.Length > 0 && response[0] == 0)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Thrusters arming REJECTED by Pixhawk (check pre-arm checks / safety switch).");
+            }
+            else
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Arming failed (no CAN response from Pixhawk).");
+            }
+        }
 
-        //    // Example pattern – adjust IDs
-        //    can.SendFrame((ushort)SendAddressesControlUnit.DeinitThrusters);
+        public async Task DisarmThrustersAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot disarm thrusters: USB-CAN adapter not connected.");
+                return;
+            }
 
-        //    var response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.DeinitThrusters_Response,
-        //        200
-        //    ).ConfigureAwait(false);
+            var response = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.DisarmThrusters,
+                (ushort)RecieveAddressesControlUnit.DisarmThrusters,
+                null,
+                500);
 
-        //    if (response.Length > 0)
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters deinit successful.");
-        //    }
-        //    else
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Thrusters deinit failed.");
-        //    }
-        //}
+            if (response.Length > 0 && response[0] == 1)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Thrusters DISARMED safely.");
+            }
+            else
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Thrusters disarm failed or timed out.");
+            }
+        }
 
-        #endregion Thruster Init/Deinit (stubs – fill in your protocol)
+        #endregion Arm / Disarm Thrusters
 
         #region Manual Control Timer
 
@@ -384,140 +410,66 @@ namespace UStallGUI.ViewModel
             ManualControlAll = 0f;
         }
 
-        private void Health(object commandParameter)
-        {
-        }
-
         #endregion Manual Control Timer
 
         #region Update Interval
 
-        //private async Task ApplyUpdateIntervalAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
+        private async Task ApplyUpdateIntervalAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot update cycle time: CAN not open.");
+                return;
+            }
 
-        //    byte oldCycleInterval = await PullUpdateInterval().ConfigureAwait(false);
-        //    if (oldCycleInterval == 0)
-        //        return;
+            byte targetInterval = Math.Clamp(UpdateInterval, (byte)5, (byte)100);
+            UpdateInterval = targetInterval;
 
-        //    can.SendFrame((ushort)SendAddressesControlUnit.UpdateCylceTime, new byte[] { UpdateInterval });
+            byte[] resp = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.UpdateCycleTime,
+                (ushort)RecieveAddressesControlUnit.UpdateCycleTime,
+                new byte[] { targetInterval },
+                300);
 
-        //    byte[] resp = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.UpdateCycleTime_Response,
-        //        100
-        //    ).ConfigureAwait(false);
-
-        //    if (resp.Length > 0)
-        //    {
-        //        string result = oldCycleInterval == resp[0] ? "Failed!" : "was Successful!";
-        //        MainWindowViewModel.Instance.LogToControlBox($"Updating Cycle Time from {oldCycleInterval} to {resp[0]} {result}");
-        //    }
-        //}
-
-        //private async Task<byte> PullUpdateInterval()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return 0x00;
-
-        //    can.SendFrame((ushort)SendAddressesControlUnit.UpdateCylceTime, new byte[] { 0x00 });
-
-        //    byte[] response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.UpdateCycleTime_Response,
-        //        100
-        //    ).ConfigureAwait(false);
-
-        //    return response.Length > 0 ? response[0] : (byte)0x00;
-        //}
+            if (resp.Length > 0)
+            {
+                UpdateInterval = resp[0];
+                MainWindowViewModel.Instance.LogToControlBox($"Pixhawk CAN bridge cycle time updated to {resp[0]} ms.");
+            }
+            else
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Updating cycle time failed (no response).");
+            }
+        }
 
         #endregion Update Interval
 
-        #region Error Reset
+        #region Watchdog Reset
 
-        //private async Task ResetErrorLCEAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
+        private async Task ResetWatchdogAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot reset watchdog: CAN not open.");
+                return;
+            }
 
-        //    can.SendFrame((ushort)SendAddressesControlUnit.ResetError);
+            byte[] response = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.ResetWatchdog,
+                (ushort)RecieveAddressesControlUnit.ResetWatchdog,
+                null,
+                300);
 
-        //    byte[] response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.ResetError_Response,
-        //        100
-        //    ).ConfigureAwait(false);
+            if (response.Length != 0 && response[0] == 0x01)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Pixhawk Watchdog reset successful.");
+            }
+            else
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Watchdog reset failed.");
+            }
+        }
 
-        //    if (response.Length != 0 && response[0] == 0x01)
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Resetting Error was successful");
-        //    }
-        //    else
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Resetting Error failed");
-        //    }
-        //}
-
-        #endregion Error Reset
-
-        #region Gyro Commands
-
-        //private async Task PullGyroValuesAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
-
-        //    can.SendFrame((ushort)SendAddressesControlUnit.PullPidValues);
-
-        //    byte[] response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.PullPidValues_Response,
-        //        100
-        //    ).ConfigureAwait(false);
-
-        //    if (response.Length > 0)
-        //    {
-        //        if (response.Length >= 2)
-        //        {
-        //            GyroPValue = LCECommunicationHelper.ConvertByteTo255Float(response[0]);
-        //            GyroDValue = LCECommunicationHelper.ConvertByteTo255Float(response[1]);
-        //        }
-
-        //        if (response.Length >= 3)
-        //        {
-        //            GyroEnabled = response[2] == 1;
-        //        }
-
-        //        MainWindowViewModel.Instance.LogToControlBox("Pulling PID values was Successful!");
-        //    }
-        //    else
-        //    {
-        //        MainWindowViewModel.Instance.LogToControlBox("Pulling PID values failed!");
-        //    }
-        //}
-
-        //private async Task ApplyGyroValuesAsync()
-        //{
-        //    if (can == null || !can.IsOpen)
-        //        return;
-
-        //    byte[] payload =
-        //    {
-        //        LCECommunicationHelper.Convert255FloatToByte(GyroPValue),
-        //        LCECommunicationHelper.Convert255FloatToByte(GyroDValue),
-        //        (byte)(GyroEnabled ? 0x01 : 0x00)
-        //    };
-
-        //    can.SendFrame((ushort)SendAddressesControlUnit.ApplyPidValues, payload);
-
-        //    byte[] response = await WaitForResponseAsync(
-        //        (ushort)RecieveAddressesControlUnit.ApplyPidValues_Response,
-        //        100
-        //    ).ConfigureAwait(false);
-
-        //    MainWindowViewModel.Instance.LogToControlBox(
-        //        response.Length > 0
-        //            ? "Applying PID values was Successful!"
-        //            : "Applying PID values failed!");
-        //}
-
-        #endregion Gyro Commands
+        #endregion Watchdog Reset
     }
 }

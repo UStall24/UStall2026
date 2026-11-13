@@ -1,4 +1,4 @@
-﻿using GalaSoft.MvvmLight;
+using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using SharpDX.XInput;
 using System;
@@ -58,9 +58,14 @@ namespace UStallGUI.ViewModel
             }
         }
 
-        public static bool UseDynamicThrottle = false;
+        /// <summary>
+        /// When true, sends CAN ID 110 (ALT_HOLD / Depth Hold mode).
+        /// When false, sends CAN ID 100 (STABILIZE / Attitude Hold mode).
+        /// </summary>
+        public static bool UseDepthHold = false;
 
-        private readonly int pollingFrequency = 200;
+        // 50 Hz (20 ms interval) matches ArduSub update rate without saturating the 125 kbps CAN bus
+        private readonly int pollingFrequency = 50;
         private readonly int sendingDividor = 1;
         private bool keepPolling = false;
 
@@ -91,7 +96,7 @@ namespace UStallGUI.ViewModel
         private async Task ControllerTimerCallback()
         {
             keepPolling = true;
-            int delayMs = pollingFrequency > 0 ? 1000 / pollingFrequency : 10;
+            int delayMs = pollingFrequency > 0 ? 1000 / pollingFrequency : 20;
             int dividorCounter = 0;
 
             try
@@ -102,9 +107,9 @@ namespace UStallGUI.ViewModel
 
                     if (dividorCounter == 0)
                     {
-                        var command = UseDynamicThrottle
-                            ? SendAddressesControlUnit.ApplyControllerValues_Dyn
-                            : SendAddressesControlUnit.ApplyControllerValues;
+                        var command = UseDepthHold
+                            ? SendAddressesControlUnit.ApplyControllerValues_DepthHold
+                            : SendAddressesControlUnit.ApplyControllerValues_Stabilize;
 
                         var payload = GetMappedPayload();
 
@@ -112,11 +117,6 @@ namespace UStallGUI.ViewModel
                         if (sendControllerValues || EnableKeyboardInput)
                         {
                             can.SendFrame((ushort)command, payload);
-                            Console.WriteLine($"[TX: Driving] {string.Join(", ", payload)}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[Not sending: Driving] {string.Join(", ", payload)}");
                         }
                         dividorCounter = sendingDividor;
                     }
