@@ -13,22 +13,40 @@ namespace UStallGUI.ViewModel
         public RelayCommand CheckConnection_Command { get; }
         public RelayCommand ConnectToController_Command { get; }
 
-        public bool DepthHoldEnabled
+        public int SelectedFlightModeIndex
         {
-            get => SetupHandlerViewModel.Instance != null && SetupHandlerViewModel.Instance.DepthHoldEnabled;
+            get => SetupHandlerViewModel.Instance != null ? SetupHandlerViewModel.Instance.SelectedFlightModeIndex : 1;
             set
             {
                 if (SetupHandlerViewModel.Instance != null)
                 {
-                    SetupHandlerViewModel.Instance.DepthHoldEnabled = value;
-                    RaisePropertyChanged(nameof(DepthHoldEnabled));
+                    SetupHandlerViewModel.Instance.SelectedFlightModeIndex = value;
+                    RaisePropertyChanged(nameof(SelectedFlightModeIndex));
                 }
             }
         }
 
-        public void NotifyDepthHoldChanged()
+        public void NotifyFlightModeChanged()
         {
-            RaisePropertyChanged(nameof(DepthHoldEnabled));
+            RaisePropertyChanged(nameof(SelectedFlightModeIndex));
+        }
+
+        public int MaxThrusterSpeedPercent
+        {
+            get => SetupHandlerViewModel.Instance != null ? SetupHandlerViewModel.Instance.MaxThrusterSpeedPercent : 100;
+            set
+            {
+                if (SetupHandlerViewModel.Instance != null)
+                {
+                    SetupHandlerViewModel.Instance.MaxThrusterSpeedPercent = value;
+                    RaisePropertyChanged(nameof(MaxThrusterSpeedPercent));
+                }
+            }
+        }
+
+        public void NotifyMaxThrusterSpeedChanged()
+        {
+            RaisePropertyChanged(nameof(MaxThrusterSpeedPercent));
         }
 
         public QuickSetupViewModel()

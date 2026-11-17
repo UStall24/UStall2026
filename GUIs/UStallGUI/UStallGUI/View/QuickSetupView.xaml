@@ -6,14 +6,15 @@
              xmlns:local="clr-namespace:UStallGUI.View"
              xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
              mc:Ignorable="d"
-             d:DesignHeight="650" d:DesignWidth="400" Background="White"
+             d:DesignHeight="650" d:DesignWidth="400" Background="Transparent"
              d:DataContext="{d:DesignInstance Type=viewmodel:QuickSetupViewModel}">
-    <StackPanel Margin="10" VerticalAlignment="Top">
+    <StackPanel Margin="0" VerticalAlignment="Top">
 
         <!-- Pixhawk Quick Setup -->
-        <GroupBox Header="Pixhawk Quick Setup" Margin="0,0,0,10">
+        <GroupBox Header="Pixhawk Quick Setup" Margin="0,0,0,6">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -26,27 +27,38 @@
                 <Button Content="Health Ping" Command="{Binding CheckConnection_Command}" Margin="5" Grid.Row="0" Grid.Column="1" />
                 <Button Content="Arm Thrusters" Command="{Binding ArmThrusters_Command}" Margin="5" Grid.Row="1" Grid.Column="0" />
                 <Button Content="Disarm Thrusters" Command="{Binding DisarmThrusters_Command}" Margin="5" Grid.Row="1" Grid.Column="1" />
-                <CheckBox Content="Depth Hold" IsChecked="{Binding DepthHoldEnabled}"
-                          Margin="5,8,5,4" Grid.Row="2" Grid.ColumnSpan="2" VerticalContentAlignment="Center"
-                          ToolTip="Unchecked = STABILIZE (Attitude Hold). Checked = ALT_HOLD (Automatic Depth + Attitude Hold)." />
+                <Label Content="Flight Mode:" Grid.Row="2" Grid.Column="0" Margin="5,6,5,4" VerticalAlignment="Center"
+                       ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold." />
+                <ComboBox Grid.Row="2" Grid.Column="1" Margin="5,6,5,4"
+                          SelectedIndex="{Binding SelectedFlightModeIndex, Mode=TwoWay}"
+                          ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold.">
+                    <ComboBoxItem Content="MANUAL" />
+                    <ComboBoxItem Content="STABILIZE" />
+                    <ComboBoxItem Content="DEPTH_HOLD" />
+                </ComboBox>
+                <Label Content="Speed Limit:"
+                       Grid.Row="3" Grid.Column="0" Margin="5,4,5,4" VerticalAlignment="Center"
+                       ToolTip="Global max thruster speed limit (0-100%) applied to all thruster outputs." />
+                <Grid Grid.Row="3" Grid.Column="1" Margin="5,4,5,4" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" VerticalAlignment="Center"
+                            Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False"
+                            Value="{Binding MaxThrusterSpeedPercent, Mode=TwoWay}"
+                            ToolTip="Global max thruster speed limit (0-100%) applied to all thruster outputs." />
+                    <TextBlock Grid.Column="1" Margin="6,0,0,0" MinWidth="36" VerticalAlignment="Center" TextAlignment="Right"
+                               Text="{Binding MaxThrusterSpeedPercent, StringFormat={}{0}%}" />
+                </Grid>
             </Grid>
         </GroupBox>
 
         <!-- Controller Quick Setup -->
-        <GroupBox Header="Controller Quick Setup">
+        <GroupBox Header="Controller Quick Setup" Margin="0">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
                 <Button Content="Connect to Controller"
-                        Command="{Binding ConnectToController_Command}" Margin="5" Grid.ColumnSpan="99" />
+                        Command="{Binding ConnectToController_Command}" Margin="5" />
             </Grid>
         </GroupBox>
     </StackPanel>

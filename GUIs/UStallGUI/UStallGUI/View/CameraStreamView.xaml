@@ -148,8 +148,12 @@
 
         <!-- Camera Stream 3 -->
         <GroupBox Grid.Column="0" Grid.Row="1" Header="Camera Stream 3" Margin="5">
-            <Grid>
-                <Image Stretch="Uniform" Source="{Binding CameraFrame3}" Margin="0,0,0,8" RenderTransformOrigin="0.5,0.5">
+            <Grid ClipToBounds="True">
+                <Image Source="{Binding CameraFrame3}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       RenderTransformOrigin="0.5,0.5">
                     <Image.RenderTransform>
                         <RotateTransform Angle="{Binding Rotation3}" />
                     </Image.RenderTransform>
@@ -179,59 +183,68 @@
             </Grid>
         </GroupBox>
 
-        <!-- Logos (unchanged) -->
-        <Grid Grid.Row="1" Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
-            <!-- All Cameras Control Box -->
-            <!-- Control Boxes Container -->
-            <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,5,5,5">
+        <!-- Camera Controls, Recording & Quick Setup (Bottom-Right Quadrant) -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1"
+                      Margin="5"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Vertical">
 
                 <!-- 1. Camera Control Box -->
-                <GroupBox Header="Camera Control" Margin="5,0,5,5" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
+                <GroupBox Header="Camera Control" Margin="0,0,0,6">
+                    <Grid Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
                         <!-- Connect All Cameras -->
-                        <Button ToolTip="Connect All Cameras" Height="36" Margin="0,0,8,0"
+                        <Button Grid.Column="0" ToolTip="Connect All Cameras" Height="36" Margin="0,0,3,0"
+                                HorizontalAlignment="Stretch"
                                 Command="{Binding ConnectAllCamerasCommand}">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <materialDesign:PackIcon Kind="Plug" Width="20" Height="20" Margin="0,0,6,0" />
-                                <TextBlock Text="Connect" VerticalAlignment="Center" FontSize="13" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Plug" Width="18" Height="18" Margin="0,0,5,0" />
+                                <TextBlock Text="Connect" VerticalAlignment="Center" FontSize="12" />
                             </StackPanel>
                         </Button>
 
                         <!-- Toggle All Lights -->
-                        <ToggleButton ToolTip="Toggle All Lights" Height="36" Margin="0,0,8,0" IsEnabled="False"
+                        <ToggleButton Grid.Column="1" ToolTip="Toggle All Lights" Height="36" Margin="3,0,3,0"
+                                      HorizontalAlignment="Stretch" IsEnabled="False"
                                       IsChecked="{Binding AreAllLightsOn, Mode=TwoWay}"
                                       Command="{Binding ToggleAllLightsCommand}">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <materialDesign:PackIcon Kind="LightbulbGroup" Width="20" Height="20" Margin="0,0,6,0"
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="LightbulbGroup" Width="18" Height="18" Margin="0,0,5,0"
                                     Foreground="{Binding AreAllLightsOn, Converter={StaticResource BoolToBrushConverter}}" />
-                                <TextBlock Text="Lights" VerticalAlignment="Center" FontSize="13" />
+                                <TextBlock Text="Lights" VerticalAlignment="Center" FontSize="12" />
                             </StackPanel>
                         </ToggleButton>
 
                         <!-- Screenshot All Cameras -->
-                        <Button ToolTip="Screenshot All Cameras" Height="36" Margin="0,0,0,0"
+                        <Button Grid.Column="2" ToolTip="Screenshot All Cameras" Height="36" Margin="3,0,0,0"
+                                HorizontalAlignment="Stretch"
                                 Command="{Binding TakeAllCamerasScreenshotCommand}">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <materialDesign:PackIcon Kind="Camera" Width="20" Height="20" Margin="0,0,6,0" />
-                                <TextBlock Text="Screenshot" VerticalAlignment="Center" FontSize="13" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Camera" Width="18" Height="18" Margin="0,0,5,0" />
+                                <TextBlock Text="Screenshot" VerticalAlignment="Center" FontSize="12" />
                             </StackPanel>
                         </Button>
-                    </WrapPanel>
+                    </Grid>
                 </GroupBox>
 
                 <!-- 2. Video Recording Box -->
-                <GroupBox Header="Video Recording" Margin="5,0,5,5" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
+                <GroupBox Header="Video Recording" Margin="0,0,0,6">
+                    <Grid Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
                         <!-- Manual Record / Stop Button -->
-                        <Button Height="36" Margin="0,0,12,0" Command="{Binding ToggleRecordingCommand}">
+                        <Button Grid.Column="0" Height="36" Margin="0,0,3,0" HorizontalAlignment="Stretch"
+                                Command="{Binding ToggleRecordingCommand}">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                     <Setter Property="ToolTip" Value="Start Video Recording" />
@@ -244,8 +257,8 @@
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <materialDesign:PackIcon Width="20" Height="20" Margin="0,0,6,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,5,0">
                                     <materialDesign:PackIcon.Style>
                                         <Style TargetType="materialDesign:PackIcon">
                                             <Setter Property="Kind" Value="RecordCircle" />
@@ -259,7 +272,7 @@
                                         </Style>
                                     </materialDesign:PackIcon.Style>
                                 </materialDesign:PackIcon>
-                                <TextBlock VerticalAlignment="Center" FontSize="13">
+                                <TextBlock VerticalAlignment="Center" FontSize="12">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Text" Value="Record" />
@@ -275,43 +288,32 @@
                         </Button>
 
                         <!-- Auto-Record ToggleButton -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0" ToolTip="Auto-Record when video stream arrives">
-                            <TextBlock Text="Auto-Rec:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#555" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Margin="3,0,3,0" ToolTip="Auto-Record when video stream arrives">
+                            <TextBlock Text="Auto-Rec:" VerticalAlignment="Center" Margin="0,0,6,0"
+                                       FontSize="12" FontWeight="SemiBold" Foreground="#555" />
                             <ToggleButton Style="{StaticResource CustomSwitchStyle}"
+                                          Width="36" Height="18"
                                           IsChecked="{Binding IsAutoRecordEnabled, Mode=TwoWay}"
                                           VerticalAlignment="Center" />
                         </StackPanel>
 
                         <!-- Clip Length Input -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Clip (min):" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#555" />
-                            <TextBox Width="45" Height="26" Padding="2"
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Margin="3,0,0,0">
+                            <TextBlock Text="Clip (min):" VerticalAlignment="Center" Margin="0,0,6,0"
+                                       FontSize="12" FontWeight="SemiBold" Foreground="#555" />
+                            <TextBox Width="40" Height="26" Padding="2"
                                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                                      ToolTip="Length of each split video clip in minutes"
                                      Text="{Binding ClipDurationMinutes, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
-                    </WrapPanel>
+                    </Grid>
                 </GroupBox>
-            </WrapPanel>
-            <view:QuickSetupView Grid.Row="1" Grid.RowSpan="2" />
-            <!-- Logos (unchanged, now in Grid.Row=1) -->
-            <Grid Grid.Row="2" Visibility="Hidden">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="auto" />
-                    <RowDefinition Height="10" />
-                </Grid.RowDefinitions>
-                <Viewbox Stretch="Uniform" Grid.Row="1">
-                    <Image Source="/ustall_logo.png" Margin="20" />
-                </Viewbox>
-                <Viewbox Stretch="Uniform" Grid.Column="1" Grid.Row="1">
-                    <Image Source="/andritz_logo.png" />
-                </Viewbox>
-            </Grid>
-        </Grid>
+
+                <!-- 3. Quick Setup -->
+                <view:QuickSetupView />
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

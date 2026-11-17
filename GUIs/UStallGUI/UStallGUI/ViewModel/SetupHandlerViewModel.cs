@@ -151,24 +151,57 @@ namespace UStallGUI.ViewModel
 
         #region Flight Mode Options
 
-        private bool _depthHoldEnabled;
+        private FlightMode _selectedFlightMode;
 
-        public bool DepthHoldEnabled
+        public FlightMode SelectedFlightMode
         {
-            get => currentConfig.DepthHoldEnabled;
+            get => _selectedFlightMode;
             set
             {
-                if (!Set(ref _depthHoldEnabled, value))
+                if (!Set(ref _selectedFlightMode, value))
                     return;
 
-                currentConfig.DepthHoldEnabled = value;
-                ControllerHandlerViewModel.UseDepthHold = value;
+                currentConfig.FlightMode = value;
+                ControllerHandlerViewModel.CurrentFlightMode = value;
                 UpdateConfig();
-                QuickSetupViewModel.Instance?.NotifyDepthHoldChanged();
-                MainWindowViewModel.Instance?.LogToControlBox(
-                    value
-                        ? "Flight Mode set to ALT_HOLD (Automatic Depth + Attitude Hold)"
-                        : "Flight Mode set to STABILIZE (Attitude Hold)");
+                RaisePropertyChanged(nameof(SelectedFlightModeIndex));
+                QuickSetupViewModel.Instance?.NotifyFlightModeChanged();
+
+                string modeMessage = value switch
+                {
+                    FlightMode.Manual => "Flight Mode set to MANUAL (Direct Control, No Attitude/Depth Hold)",
+                    FlightMode.DepthHold => "Flight Mode set to DEPTH_HOLD (Automatic Depth + Attitude Hold)",
+                    _ => "Flight Mode set to STABILIZE (Attitude Hold)",
+                };
+                MainWindowViewModel.Instance?.LogToControlBox(modeMessage);
+            }
+        }
+
+        public int SelectedFlightModeIndex
+        {
+            get => (int)SelectedFlightMode;
+            set
+            {
+                if (Enum.IsDefined(typeof(FlightMode), value))
+                    SelectedFlightMode = (FlightMode)value;
+            }
+        }
+
+        private int _maxThrusterSpeedPercent = 100;
+
+        public int MaxThrusterSpeedPercent
+        {
+            get => _maxThrusterSpeedPercent;
+            set
+            {
+                int clamped = Math.Clamp(value, 0, 100);
+                if (!Set(ref _maxThrusterSpeedPercent, clamped))
+                    return;
+
+                currentConfig.MaxThrusterSpeedPercent = clamped;
+                ControllerHandlerViewModel.MaxThrusterSpeedPercent = clamped;
+                UpdateConfig();
+                QuickSetupViewModel.Instance?.NotifyMaxThrusterSpeedChanged();
             }
         }
 
@@ -182,8 +215,10 @@ namespace UStallGUI.ViewModel
 
             ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
-            _depthHoldEnabled = currentConfig.DepthHoldEnabled;
-            ControllerHandlerViewModel.UseDepthHold = _depthHoldEnabled;
+            _selectedFlightMode = currentConfig.FlightMode;
+            ControllerHandlerViewModel.CurrentFlightMode = _selectedFlightMode;
+            _maxThrusterSpeedPercent = Math.Clamp(currentConfig.MaxThrusterSpeedPercent, 0, 100);
+            ControllerHandlerViewModel.MaxThrusterSpeedPercent = _maxThrusterSpeedPercent;
 
             ArmThrusters_Command = new RelayCommand(() => _ = ArmThrustersAsync());
             DisarmThrusters_Command = new RelayCommand(() => _ = DisarmThrustersAsync());
@@ -399,7 +434,12 @@ namespace UStallGUI.ViewModel
         {
             if (can != null && can.IsOpen && ManualControlValues != null)
             {
-                can.SendFrame((ushort)SendAddressesControlUnit.ApplyManualControl, ManualControlValues.GetAsByte());
+                byte[] payload = ManualControlValues.GetAsByte();
+                for (int i = 0; i < payload.Length; i++)
+                {
+                    payload[i] = LCECommunicationHelper.ScaleCenteredByte(payload[i], MaxThrusterSpeedPercent);
+                }
+                can.SendFrame((ushort)SendAddressesControlUnit.ApplyManualControl, payload);
             }
         }
 

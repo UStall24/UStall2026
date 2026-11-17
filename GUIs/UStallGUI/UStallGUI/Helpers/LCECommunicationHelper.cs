@@ -60,6 +60,13 @@ namespace UStallGUI.Helpers
 
         public static byte Convert255FloatToByte(float value) => (byte)(value * 100);
 
+        public static byte ScaleCenteredByte(byte value, int maxPercent)
+        {
+            double factor = Math.Clamp(maxPercent, 0, 100) / 100.0;
+            int scaled = (int)Math.Round(127.0 + (value - 127.0) * factor);
+            return (byte)Math.Clamp(scaled, 0, 255);
+        }
+
         public static readonly Dictionary<byte, string> LCE_MessageAddresses = new Dictionary<byte, string>
         {
             { 0x00, "Error" },
@@ -84,12 +91,14 @@ namespace UStallGUI.Helpers
         ApplyControllerValues_Stabilize = 100,
         ApplyControllerValues_DepthHold = 110,
         UpdateCycleTime = 160,
-        TestMotor = 170
+        TestMotor = 170,
+        ApplyControllerValues_Manual = 180
     }
 
     /// <summary>
     /// IDs used when **receiving** responses from the Pixhawk CAN bridge.
     /// Each response ID is defined as the corresponding send ID + 1.
+    /// The ControllerValues don't have a response.
     /// </summary>
     public enum RecieveAddressesControlUnit : ushort
     {
@@ -99,8 +108,6 @@ namespace UStallGUI.Helpers
         DisarmThrusters = 71,
         ResetWatchdog = 81,
         ApplyManualControl = 91,
-        ApplyControllerValues_Stabilize = 101,
-        ApplyControllerValues_DepthHold = 111,
         UpdateCycleTime = 161,
         TestMotor = 171
     }

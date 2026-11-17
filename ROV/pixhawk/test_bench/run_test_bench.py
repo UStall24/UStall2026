@@ -279,6 +279,21 @@ class TestBench:
         self.assert_equal(self.harness.get_rc_override(3), 1900, "RC3 (Throttle) must be 1900 us")
         self.assert_equal(self.harness.get_rc_override(5), 1500, "RC5 (Forward) must be neutral 1500 us")
 
+    def test_23_driving_manual_mode(self):
+        # Arm first (starts in STABILIZE mode 0)
+        self.harness.push_can_rx("dev1", 60, [])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+
+        # Send Manual pilot drive packet (ID 180): Forward (+100%)
+        payload = [255, 127, 127, 127, 127, 127]
+        self.harness.push_can_rx("dev1", 180, payload)
+        self.harness.step_update()
+
+        self.assert_equal(self.harness.get_mode(), 19, "Flight mode must switch to MANUAL (19)")
+        self.assert_equal(self.harness.get_rc_override(5), 1900, "RC5 (Forward) must be 1900 us")
+        self.assert_equal(self.harness.get_rc_override(3), 1500, "RC3 (Throttle) must be neutral 1500 us")
+
     def test_07_watchdog_pilot_timeout(self):
         # Arm and stream one packet
         self.harness.push_can_rx("dev1", 60, [])
@@ -663,6 +678,7 @@ class TestBench:
             ("Test 20: Dynamic RCMAP Auto-Detection", self.test_20_dynamic_rc_parameter_auto_detection),
             ("Test 21: Multi-Packet Calibration Stream Auto-Disarm", self.test_21_manual_calibration_multi_packet_stream_disarm),
             ("Test 22: Concurrent Motor Test Overlap Rejection", self.test_22_concurrent_motor_test_rejection),
+            ("Test 23: Pilot Drive Manual Mode (ID 180 -> MANUAL)", self.test_23_driving_manual_mode),
         ]
 
         for name, fn in tests:

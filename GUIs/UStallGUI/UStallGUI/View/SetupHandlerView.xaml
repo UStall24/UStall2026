@@ -51,18 +51,42 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="1" Margin="5" Header="Flight Mode">
+        <GroupBox Grid.Row="1" Margin="5" Header="Flight Mode &amp; Speed Limit">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="150" />
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Label Content="Enable Depth Hold:" VerticalAlignment="Center"
-                       ToolTip="Unchecked = STABILIZE (Attitude Hold). Checked = ALT_HOLD (Automatic Depth + Attitude Hold)." />
-                <CheckBox Margin="5" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                          IsChecked="{Binding DepthHoldEnabled}"
-                          ToolTip="Unchecked = STABILIZE (Attitude Hold). Checked = ALT_HOLD (Automatic Depth + Attitude Hold)." />
+                <Label Content="Flight Mode:" VerticalAlignment="Center"
+                       ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold." />
+                <ComboBox Margin="5" Grid.Column="1"
+                          SelectedIndex="{Binding SelectedFlightModeIndex, Mode=TwoWay}"
+                          ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold.">
+                    <ComboBoxItem Content="MANUAL" />
+                    <ComboBoxItem Content="STABILIZE" />
+                    <ComboBoxItem Content="DEPTH_HOLD" />
+                </ComboBox>
+
+                <Label Grid.Row="1" Content="Speed Limit:"
+                       VerticalAlignment="Center"
+                       ToolTip="Global max thruster speed limit (0-100%) applied to all thruster outputs." />
+                <Grid Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" VerticalAlignment="Center"
+                            Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False"
+                            Value="{Binding MaxThrusterSpeedPercent, Mode=TwoWay}"
+                            ToolTip="Global max thruster speed limit (0-100%) applied to all thruster outputs." />
+                    <TextBlock Grid.Column="1" Margin="6,0,0,0" MinWidth="36" VerticalAlignment="Center" TextAlignment="Right"
+                               Text="{Binding MaxThrusterSpeedPercent, StringFormat={}{0}%}" />
+                </Grid>
             </Grid>
         </GroupBox>
     </Grid>

@@ -59,10 +59,17 @@ namespace UStallGUI.ViewModel
         }
 
         /// <summary>
-        /// When true, sends CAN ID 110 (ALT_HOLD / Depth Hold mode).
-        /// When false, sends CAN ID 100 (STABILIZE / Attitude Hold mode).
+        /// Active flight mode sent with controller frames:
+        /// Manual (CAN ID 180 -> ArduSub MANUAL),
+        /// Stabilize (CAN ID 100 -> ArduSub STABILIZE),
+        /// DepthHold (CAN ID 110 -> ArduSub ALT_HOLD).
         /// </summary>
-        public static bool UseDepthHold = false;
+        public static FlightMode CurrentFlightMode = FlightMode.Stabilize;
+
+        /// <summary>
+        /// Global max thruster speed limit (0..100%) applied to all outgoing thruster commands.
+        /// </summary>
+        public static int MaxThrusterSpeedPercent = 100;
 
         // 50 Hz (20 ms interval) matches ArduSub update rate without saturating the 125 kbps CAN bus
         private readonly int pollingFrequency = 50;
@@ -107,9 +114,12 @@ namespace UStallGUI.ViewModel
 
                     if (dividorCounter == 0)
                     {
-                        var command = UseDepthHold
-                            ? SendAddressesControlUnit.ApplyControllerValues_DepthHold
-                            : SendAddressesControlUnit.ApplyControllerValues_Stabilize;
+                        var command = CurrentFlightMode switch
+                        {
+                            FlightMode.Manual => SendAddressesControlUnit.ApplyControllerValues_Manual,
+                            FlightMode.DepthHold => SendAddressesControlUnit.ApplyControllerValues_DepthHold,
+                            _ => SendAddressesControlUnit.ApplyControllerValues_Stabilize,
+                        };
 
                         var payload = GetMappedPayload();
 
@@ -244,7 +254,7 @@ namespace UStallGUI.ViewModel
 
         private byte[] GetMappedPayload()
         {
-            return new byte[]
+            byte[] payload = new byte[]
             {
                 ResolveMapping(ControllerMappings[0].SelectedIndex), // Forward/Backward
                 ResolveMapping(ControllerMappings[1].SelectedIndex), // Left/Right
@@ -254,6 +264,13 @@ namespace UStallGUI.ViewModel
                 ResolveMapping(ControllerMappings[4].SelectedIndex), // Pitch
                 ResolveMapping(ControllerMappings[5].SelectedIndex), // Roll
             };
+
+            for (int i = 0; i < payload.Length; i++)
+            {
+                payload[i] = LCECommunicationHelper.ScaleCenteredByte(payload[i], MaxThrusterSpeedPercent);
+            }
+
+            return payload;
         }
     }
 

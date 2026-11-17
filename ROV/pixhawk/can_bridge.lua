@@ -36,7 +36,7 @@
 -- ==============================================================================
 
 local SCRIPT_NAME    = "ROV CAN bridge"
-local SCRIPT_VERSION = "1.0"
+local SCRIPT_VERSION = "1.1"
 
 -- CAN Driver handles (lazy initialized in update loop to prevent boot race conditions)
 local can_dev1        = nil
@@ -55,8 +55,8 @@ local RX_INIT_THRUSTERS  = 60
 local RX_DEINIT_THRUST   = 70
 local RX_RESET_ERR       = 80
 local RX_MANUAL_CTRL     = 90
-local RX_CTRL_STATIC     = 100
-local RX_CTRL_DYN        = 110
+local RX_CTRL_STABILIZE  = 100
+local RX_CTRL_DEPTH_HOLD = 110
 local RX_SET_FB          = 120
 local RX_SET_PITCH       = 125
 local RX_GET_FB          = 130
@@ -65,6 +65,7 @@ local RX_PULL_PID        = 140
 local RX_APPLY_PID       = 150
 local RX_UPDATE_CYCLE    = 160
 local RX_TEST_MOTOR      = 170
+local RX_CTRL_MANUAL     = 180
 
 -- IDs sent to PC Topside GUI (Pixhawk -> GUI)
 local TX_HEALTH          = 41
@@ -548,13 +549,19 @@ local function handle_frame(frame)
             send_can(TX_MANUAL_CTRL, tx_resp_single)
         end
 
-    -- 7. Driving / Controller Values (Static or Dynamic Throttle)
-    elseif rx_id == RX_CTRL_STATIC or rx_id == RX_CTRL_DYN then
+    -- 7. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
+    elseif rx_id == RX_CTRL_STABILIZE or rx_id == RX_CTRL_DEPTH_HOLD or rx_id == RX_CTRL_MANUAL then
         if arming:is_armed() and not motor_test_active and not manual_ctrl_active and dlc >= CONTROL_DLC then
-            -- Flight mode selection via Dynamic Throttle toggle:
-            -- RX_CTRL_DYN (110) switches to ALT_HOLD (depth hold, mode 2)
-            -- RX_CTRL_STATIC (100) switches to STABILIZE (attitude hold, mode 0)
-            local target_mode = (rx_id == RX_CTRL_DYN) and 2 or 0
+            -- Flight mode selection from GUI:
+            -- RX_CTRL_MANUAL     (180) switches to MANUAL (direct open-loop, mode 19)
+            -- RX_CTRL_STABILIZE  (100) switches to STABILIZE (attitude hold, mode 0)
+            -- RX_CTRL_DEPTH_HOLD (110) switches to ALT_HOLD (depth + attitude hold, mode 2)
+            local target_mode = 0
+            if rx_id == RX_CTRL_DEPTH_HOLD then
+                target_mode = 2
+            elseif rx_id == RX_CTRL_MANUAL then
+                target_mode = 19
+            end
             local cur_mode = vehicle:get_mode()
 
             if target_mode ~= cur_mode then

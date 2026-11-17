@@ -76,8 +76,9 @@ namespace UStallGUI.ViewModel
                     for (int i = 0; i < values.Length; i++)
                         values[i] = 1500;
 
-                    // Override the selected motor
-                    values[motorIndex] = TestThrust;
+                    // Override the selected motor (scaled by global MaxThrusterSpeedPercent)
+                    double factor = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100) / 100.0;
+                    values[motorIndex] = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
                     byte[] motorBytes = PwmArrayToByteArray(values);
                     byte[] payload = new byte[motorBytes.Length + 1];
                     Array.Copy(motorBytes, payload, motorBytes.Length);
