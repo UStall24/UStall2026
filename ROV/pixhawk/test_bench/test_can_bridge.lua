@@ -106,6 +106,18 @@ run_case("Pilot Drive Dynamic Throttle (ID 110 -> Mode 2 ALT_HOLD)", function()
     assert_eq(rc:get_channel(3).override_pwm, 1900, "RC3 Throttle Heave")
 end)
 
+run_case("Pilot Drive Manual Mode (ID 180 -> Mode 19 MANUAL)", function()
+    CAN.dev1:push_rx(60, {})
+    update()
+    CAN.dev1.tx_queue = {}
+
+    CAN.dev1:push_rx(180, {255, 127, 127, 127, 127, 127})
+    update()
+
+    assert_eq(vehicle:get_mode(), 19, "Flight mode must switch to MANUAL")
+    assert_eq(rc:get_channel(5).override_pwm, 1900, "RC5 Forward")
+end)
+
 run_case("Watchdog Timeout Neutralizes Controls (500ms)", function()
     CAN.dev1:push_rx(60, {})
     update()

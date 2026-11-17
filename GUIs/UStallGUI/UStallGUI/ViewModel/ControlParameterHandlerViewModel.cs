@@ -98,7 +98,14 @@ namespace UStallGUI.ViewModel
 
         public void TestMotorCommandCallback(ushort id, byte[] data)
         {
-            MainWindowViewModel.Instance.LogToControlBox("Testing Motor Successful");
+            if (data != null && data.Length > 0 && data[0] == 1)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Testing Motor Successful");
+            }
+            else
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Testing Motor Rejected or Failed (check Pixhawk status)");
+            }
         }
     }
 }

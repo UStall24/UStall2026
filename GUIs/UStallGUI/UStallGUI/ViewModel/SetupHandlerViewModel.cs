@@ -2,10 +2,8 @@ using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
 using System.Threading.Tasks;
-using System.Timers;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
-using Timer = System.Timers.Timer;
 
 namespace UStallGUI.ViewModel
 {
@@ -16,7 +14,7 @@ namespace UStallGUI.ViewModel
         #region Pixhawk Setup
 
         private byte _updateInterval = 10;
-        private int _controlType = 2;
+        private int _controlType = 1;
         private string _comPort = "Auto";
 
         private ConfigGUI currentConfig;
@@ -36,7 +34,7 @@ namespace UStallGUI.ViewModel
         }
 
         /// <summary>
-        /// 1 = Manual control, 2 = Controller, others = off
+        /// 0 = Off, 1 = Controller
         /// </summary>
         public int ControlType
         {
@@ -46,26 +44,20 @@ namespace UStallGUI.ViewModel
                 if (!Set(ref _controlType, value))
                     return;
 
-                switch (_controlType)
+                if (ControllerHandlerViewModel.Instance != null)
                 {
-                    case 1:
-                        if (ControllerHandlerViewModel.Instance != null)
-                            ControllerHandlerViewModel.Instance.SendControllerValues = false;
-                        InitManualControl();
-                        break;
-
-                    case 2:
-                        if (ControllerHandlerViewModel.Instance != null)
-                            ControllerHandlerViewModel.Instance.SendControllerValues = true;
-                        StopManualControl();
-                        break;
-
-                    default:
-                        if (ControllerHandlerViewModel.Instance != null)
-                            ControllerHandlerViewModel.Instance.SendControllerValues = false;
-                        StopManualControl();
-                        break;
+                    ControllerHandlerViewModel.Instance.SendControllerValues = (_controlType == 1);
                 }
+            }
+        }
+
+        public void NotifyControllerSendStateChanged(bool isEnabled)
+        {
+            int targetIndex = isEnabled ? 1 : 0;
+            if (_controlType != targetIndex)
+            {
+                _controlType = targetIndex;
+                RaisePropertyChanged(nameof(ControlType));
             }
         }
 
@@ -77,77 +69,6 @@ namespace UStallGUI.ViewModel
         public RelayCommand HealthCommand { get; }
 
         #endregion Pixhawk Setup
-
-        #region Manual Control
-
-        private Timer _manualControlTimer;
-        private MotorValues _manualControlValues;
-
-        public MotorValues ManualControlValues
-        {
-            get => _manualControlValues;
-            set => Set(ref _manualControlValues, value);
-        }
-
-        private float _manualControlAllVertical;
-
-        public float ManualControlAllVertical
-        {
-            get => _manualControlAllVertical;
-            set
-            {
-                var clamped = Math.Clamp(value, -1f, 1f);
-                if (!Set(ref _manualControlAllVertical, clamped))
-                    return;
-
-                if (ManualControlValues != null)
-                {
-                    ManualControlValues.M1 = clamped;
-                    ManualControlValues.M2 = clamped;
-                    ManualControlValues.M3 = clamped;
-                }
-            }
-        }
-
-        private float _manualControlAllHorizontal;
-
-        public float ManualControlAllHorizontal
-        {
-            get => _manualControlAllHorizontal;
-            set
-            {
-                var clamped = Math.Clamp(value, -1f, 1f);
-                if (!Set(ref _manualControlAllHorizontal, clamped))
-                    return;
-
-                if (ManualControlValues != null)
-                {
-                    ManualControlValues.M4 = clamped;
-                    ManualControlValues.M5 = clamped;
-                    ManualControlValues.M6 = clamped;
-                }
-            }
-        }
-
-        private float _manualControlAll;
-
-        public float ManualControlAll
-        {
-            get => _manualControlAll;
-            set
-            {
-                var clamped = Math.Clamp(value, -1f, 1f);
-                if (!Set(ref _manualControlAll, clamped))
-                    return;
-
-                ManualControlAllVertical = clamped;
-                ManualControlAllHorizontal = clamped;
-            }
-        }
-
-        public RelayCommand ManualControlReset_Command { get; }
-
-        #endregion Manual Control
 
         #region Flight Mode Options
 
@@ -213,7 +134,6 @@ namespace UStallGUI.ViewModel
             can = new UsbCANWrapper();
             ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
-            ManualControlValues = new MotorValues([0, 0, 0, 0, 0, 0]);
             currentConfig = ConfigLoader.LoadConfigGUI();
             _selectedFlightMode = currentConfig.FlightMode;
             ControllerHandlerViewModel.CurrentFlightMode = _selectedFlightMode;
@@ -224,9 +144,6 @@ namespace UStallGUI.ViewModel
             DisarmThrusters_Command = new RelayCommand(() => _ = DisarmThrustersAsync());
             ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
             ResetWatchdog_Command = new RelayCommand(() => _ = ResetWatchdogAsync());
-            //PullGyroValues_Command = new RelayCommand(() => _ = PullGyroValuesAsync());
-            //ApplyGyroValues_Command = new RelayCommand(() => _ = ApplyGyroValuesAsync());
-            ManualControlReset_Command = new RelayCommand(ManualControlReset);
 
             ConnectToPixhawk_Command = new RelayCommand(ConnectToControlUnit);
             HealthCommand = new RelayCommand(SendHealthMessage);
@@ -316,8 +233,6 @@ namespace UStallGUI.ViewModel
 
         public void DisconnectFromLCE()
         {
-            StopManualControl();
-
             if (can != null && can.IsOpen)
             {
                 bool closingSuccessful = can.Close();
@@ -403,53 +318,6 @@ namespace UStallGUI.ViewModel
         }
 
         #endregion Arm / Disarm Thrusters
-
-        #region Manual Control Timer
-
-        private void InitManualControl()
-        {
-            StopManualControl();
-
-            if (UpdateInterval == 0)
-                UpdateInterval = 10; // fallback
-
-            _manualControlTimer = new Timer(UpdateInterval * 2); // interval in ms
-            _manualControlTimer.Elapsed += ApplyManualControl;
-            _manualControlTimer.AutoReset = true;
-            _manualControlTimer.Enabled = true;
-        }
-
-        private void StopManualControl()
-        {
-            if (_manualControlTimer != null)
-            {
-                _manualControlTimer.Elapsed -= ApplyManualControl;
-                _manualControlTimer.Stop();
-                _manualControlTimer.Dispose();
-                _manualControlTimer = null;
-            }
-        }
-
-        private void ApplyManualControl(object sender, ElapsedEventArgs e)
-        {
-            if (can != null && can.IsOpen && ManualControlValues != null)
-            {
-                byte[] payload = ManualControlValues.GetAsByte();
-                for (int i = 0; i < payload.Length; i++)
-                {
-                    payload[i] = LCECommunicationHelper.ScaleCenteredByte(payload[i], MaxThrusterSpeedPercent);
-                }
-                can.SendFrame((ushort)SendAddressesControlUnit.ApplyManualControl, payload);
-            }
-        }
-
-        private void ManualControlReset()
-        {
-            ManualControlValues?.UpdateAsArray([0, 0, 0, 0, 0, 0]);
-            ManualControlAll = 0f;
-        }
-
-        #endregion Manual Control Timer
 
         #region Update Interval
 

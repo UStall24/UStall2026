@@ -22,15 +22,15 @@ This directory contains the translation layer, test bench, and configuration doc
 |   (CAN_P2_DRIVER=1, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
 |   |                                                          |
 |   v                                                          |
-| Lua Script: /APM/scripts/can_bridge.lua (v1.0)               |
+| Lua Script: /APM/scripts/can_bridge.lua (v1.1)               |
 |   - Auto-detects active CAN port (CAN 1 or CAN 2)            |
 |   - Zero-allocation high-frequency CAN parsing (100 Hz)      |
 |   - Auto-detects ArduSub RCMAP parameters dynamically        |
-|   - Manages Arming / Disarming / Flight Modes (STABILIZE/ALT)|
+|   - Manages Arming / Disarming / Flight Modes (MAN/STAB/ALT) |
 |   - Direct motor bench test with immediate neutral cutoff    |
 |   |                                                          |
 |   v                                                          |
-| ArduSub Flight Controller Core (STABILIZE / ALT_HOLD)        |
+| ArduSub Flight Controller Core (MANUAL / STABILIZE / ALT)    |
 |   - IMU (Gyros + Accelerometers) for auto-leveling (400 Hz)  |
 |   - External Bar30 / MS5837 Pressure Sensor for Depth Hold   |
 |   - AP_Motors6DOF Thruster Matrix Mixer                      |
@@ -85,27 +85,7 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 
 ---
 
-## 3. Addressing Root Issues from the Old Pico Setup
-
-### Issue 1: "ROV tips over when driving forwards"
-* **Cause in old system:** Forward thrust vectors produce a pitch torque around the center of mass/drag that open-loop Pico scripts could not counteract.
-* **ArduSub Solution:** In `STABILIZE` mode (mode 0) or `ALT_HOLD` mode (mode 2), ArduSub's internal IMU (gyro + accel) runs a closed-loop PID controller at 400 Hz. When forward thrust causes pitch angle error, ArduSub automatically adds corrective vertical thrust to thrusters, keeping the ROV level.
-
-### Issue 2: "ROV twists with Tether"
-* **Cause in old system:** Tether torque rotates the hull along the yaw/roll axis.
-* **ArduSub Solution:** ArduSub's rate and heading controllers actively oppose external torque. In `STABILIZE` and `ALT_HOLD`, releasing the yaw stick locks the current heading, continuously applying differential horizontal thrust to prevent tether twisting.
-
-### Issue 3: "Hard to hold depth by hand"
-* **Cause in old system:** Manual joystick heave commands without closed-loop pressure feedback.
-* **ArduSub Solution:** Connect an external I2C pressure sensor (e.g., **Bar30 / Keller / MS5837**) to the Pixhawk 4 `I2C` port. Switch to `ALT_HOLD` (mode 2, accessible via GUI Dynamic Throttle toggle). ArduSub maintains target depth automatically; pilot stick inputs change target depth at a controlled ascent/descent rate. Returning sticks to center locks the current depth.
-
-### Issue 4: "Not all available power for thrusters utilized"
-* **Cause in old system:** Open-loop fixed motor weights and simple clipping in `calculator.py`.
-* **ArduSub Solution:** ArduSub includes full 6-DOF dynamic mixer allocation (`AP_Motors6DOF`) that scales and prioritizes attitude stabilization (roll/pitch/yaw) over translation (forward/lateral/throttle) when thrusters saturate, utilizing 100% of available ESC headroom safely.
-
----
-
-## 4. Recompiling ArduSub with UStall Custom Thruster Layout
+## 3. Recompiling ArduSub with UStall Custom Thruster Layout
 
 ArduSub supports custom thruster geometries by configuring `SUB_FRAME_CUSTOM` (frame type 7) in `libraries/AP_Motors/AP_Motors6DOF.cpp`.
 
@@ -164,7 +144,7 @@ case SUB_FRAME_CUSTOM:
 
 ---
 
-## 5. File Location on Pixhawk SD Card
+## 4. File Location on Pixhawk SD Card
 
 Place `can_bridge.lua` on the Pixhawk's micro-SD card at:
 ```
@@ -173,19 +153,77 @@ Place `can_bridge.lua` on the Pixhawk's micro-SD card at:
 
 Reboot the Pixhawk. Monitor the GCS (QGroundControl / Mission Planner) message window for:
 ```
-ROV CAN bridge v1.0 loaded
+ROV CAN bridge v1.1 loaded
 CAN bridge: driver ready on CAN1 (buffer 25)
 ```
 
 ---
 
-## 6. Running the Automated Test Bench
+## 5. CAN ID Protocol Reference
 
-An automated test bench has been developed in `ROV/pixhawk/test_bench/` to verify every CAN frame, RC override, motor test, mode switch, and failsafe without needing physical hardware connected.
+All communication uses **11-bit standard CAN frames** at **125 kbps** between the topside PC (`LCECommunicationHelper.cs`) and `can_bridge.lua`.
+
+| Command | TX ID (GUI -> Pixhawk) | RX ID (Pixhawk -> GUI) | TX Payload | RX Payload | Description / ArduSub Action |
+| :--- | :---: | :---: | :--- | :--- | :--- |
+| **Health Ping** | `40` | `41` | Empty (`0 B`) | `[1]` | Connection heartbeat probe. |
+| **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
+| **Arm Thrusters** | `60` | `61` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets `STABILIZE` (`0`) if in `MANUAL`, and arms (`arm()` / `arm_force()`). |
+| **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
+| **Reset Watchdog** | `80` | `81` | Empty (`0 B`) | `[1]` | Clears pilot timeout watchdog flag and resets timer. |
+| **Drive (Stabilize)** | `100` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `STABILIZE` (mode `0`) and updates RC overrides (`1100..1900 µs`). |
+| **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
+| **Drive (Manual)** | `180` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `MANUAL` (mode `19`) for direct open-loop control and updates RC overrides. |
+| **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
+| **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
+| **Legacy Calibration / DoF / PID** | `90`, `120–150` | `91`, `120–151` | `0–6 B` | `0–6 B` | Backwards-compatible handlers for legacy Pico calibration (`90`), DoF RAM table (`120–135`, delayed `127`), and PID queries (`140–150`). |
+
+* **Stick & Motor Byte Encoding:** `0` -> `1100 µs` (full reverse), `127`/`128` -> `1500 µs` (neutral with deadband), `255` -> `1900 µs` (full forward).
+
+---
+
+## 6. Topside GUI Operating Checklist
+
+1. **Connect CAN Adapter:**
+   * Plug in the USB-CAN adapter (`USB-SERIAL CH340`) and power on the ROV.
+   * In **Pixhawk Quick Setup** (bottom-right of Camera View) or the **Pixhawk Setup** tab, click **Connect CAN**.
+   * Verify the console logs `Connected to Pixhawk on COMx (Disarmed - click Arm Thrusters when ready).`
+2. **Connect Controller / Enable Input:**
+   * Plug in the Xbox controller and click **Connect to Controller** (or enable **Keyboard** in the **Controller Settings** tab).
+   * Ensure **Control Input** is set to `Controller`.
+3. **Select Flight Mode & Speed Limit:**
+   * Choose the desired **Flight Mode**:
+     * `STABILIZE` *(Default)*: Active IMU roll/pitch leveling and heading hold.
+     * `DEPTH_HOLD`: Automatic depth hold (via external pressure sensor) + attitude hold.
+     * `MANUAL`: Direct open-loop thruster control without sensor stabilization.
+   * Adjust the **Speed Limit** slider (`0–100%`) to cap maximum thruster output for indoor tank testing or precision maneuvers.
+4. **Arm & Drive:**
+   * Click **Arm Thrusters** when the water around the ROV is clear.
+   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog automatically neutralizes all thrusters to `1500 µs`.
+   * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
+5. **Bench Motor Testing (Optional):**
+   * Open the **Motor Test** tab, enter a target PWM (`1100–1900 µs`, default `1560 µs`), and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
+
+---
+
+## 7. Running the Automated Test Bench
+
+An automated test bench is located in `ROV/pixhawk/test_bench/` to verify every CAN frame, RC override, motor test, mode switch, and failsafe without needing physical hardware connected.
+
+### How to Run:
+
+From the repository root, run the Python test harness (requires 64-bit Lua 5.5 DLL at `C:\Program Files\lua-5.5.0_Win64_bin\lua55.dll`):
+```powershell
+python ROV/pixhawk/test_bench/run_test_bench.py
+```
+
+Or run the standalone pure-Lua suite directly with a standard `lua` interpreter:
+```powershell
+lua ROV/pixhawk/test_bench/test_can_bridge.lua
+```
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 22 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 23 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -193,8 +231,8 @@ An automated test bench has been developed in `ROV/pixhawk/test_bench/` to verif
 2. **Health Ping (ID 40 -> 41):** Topside connection probe and ACK payload `[1]`.
 3. **Init Connection (ID 50 -> 51):** Handshake confirmation.
 4. **Init Thrusters Arming (ID 60 -> 61, Mode 0):** Force-arm and default `STABILIZE` mode entry.
-5. **Pilot Drive Static Throttle (ID 100):** Correct RC overrides on channels 1..6, attitude stabilization active.
-6. **Pilot Drive Dynamic Throttle (ID 110):** Mode transition to `ALT_HOLD` (mode 2) for automatic depth hold.
+5. **Pilot Drive Stabilize Mode (ID 100):** Correct RC overrides on channels 1..6, attitude stabilization (`STABILIZE`, mode 0) active.
+6. **Pilot Drive Depth Hold Mode (ID 110):** Mode transition to `ALT_HOLD` (mode 2) for automatic depth + attitude hold.
 7. **Watchdog Timeout Failsafe:** Pilot packet loss > 500ms immediately neutralizes all thrusters to 1500 us.
 8. **Watchdog Error Reset & Resume (ID 80 -> 81):** Resumes control on error reset or new stick stream.
 9. **Deinit Thrusters Disarming (ID 70 -> 71):** Disarms vehicle and releases RC overrides back to autopilot (0 us).
@@ -211,3 +249,4 @@ An automated test bench has been developed in `ROV/pixhawk/test_bench/` to verif
 20. **Dynamic RCMAP Auto-Detection:** Dynamically adapts to both ArduSub factory defaults (`RCMAP_PITCH=1`, `RCMAP_ROLL=2`) and custom maps.
 21. **Multi-Packet Calibration Stream Auto-Disarm:** Prevents state pollution during GUI slider drag streams and guarantees safe disarm.
 22. **Concurrent Motor Test Overlap Rejection:** Guards active bench test from accidental overlapping test pulses and mode corruption.
+23. **Pilot Drive Manual Mode (ID 180):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.

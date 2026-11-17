@@ -37,8 +37,7 @@
                 <Label Grid.Row="2" Content="Control Input:" VerticalAlignment="Center" />
                 <ComboBox Grid.Row="2" Grid.Column="1" Margin="5" SelectedIndex="{Binding ControlType, Mode=TwoWay}">
                     <ComboBoxItem Content="Off" Tag="0" />
-                    <ComboBoxItem Content="Manual" Tag="1" />
-                    <ComboBoxItem Content="Controller" Tag="2" />
+                    <ComboBoxItem Content="Controller" Tag="1" />
                 </ComboBox>
 
                 <Label Grid.Row="3" Content="Cycle Time [ms]:" VerticalAlignment="Center" />

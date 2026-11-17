@@ -54,7 +54,10 @@ namespace UStallGUI.ViewModel
             get => sendControllerValues;
             set
             {
-                Set(ref sendControllerValues, value);
+                if (Set(ref sendControllerValues, value))
+                {
+                    SetupHandlerViewModel.Instance?.NotifyControllerSendStateChanged(value);
+                }
             }
         }
 
