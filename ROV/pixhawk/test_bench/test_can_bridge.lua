@@ -133,6 +133,41 @@ run_case("Watchdog Timeout Neutralizes Controls (500ms)", function()
     end
 end)
 
+run_case("Auto-Surface on 2 Missed Health Pings & Recovery (ID 41/40 [2])", function()
+    CAN.dev1:push_rx(60, {})
+    update()
+    CAN.dev1:push_rx(180, {255, 127, 127, 127, 127, 127})
+    update()
+    assert_eq(vehicle:get_mode(), 19)
+    CAN.dev1.tx_queue = {}
+
+    -- Ping #1 at 2000ms (ID 41, payload [2])
+    mock.advance_time(2000)
+    update()
+    local p1 = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(p1 ~= nil and p1:id_signed() == 41 and p1:data(0) == 2, "Ping #1 sent on ID 41 [2]")
+
+    -- Ping #2 at 4000ms (1 missed)
+    mock.advance_time(2000)
+    update()
+    local p2 = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(p2 ~= nil and p2:id_signed() == 41 and p2:data(0) == 2, "Ping #2 sent on ID 41 [2]")
+    assert_eq(rc:get_channel(3).override_pwm, 1500, "Still neutral after 1 missed ping")
+
+    -- At 6000ms (2 missed) -> Auto-Surface in STABILIZE (0) at 1580 us
+    mock.advance_time(2000)
+    update()
+    assert_eq(vehicle:get_mode(), 0, "Switched to STABILIZE")
+    assert_eq(rc:get_channel(3).override_pwm, 1580, "RC3 gentle upward thrust 1580 us")
+
+    -- Topside replies ID 40 [2] -> cancels auto-surface without echoing ID 41
+    CAN.dev1.tx_queue = {}
+    CAN.dev1:push_rx(40, {2})
+    update()
+    assert_eq(rc:get_channel(3).override_pwm, 1500, "Returned to neutral on link recovery")
+    assert_eq(#CAN.dev1.tx_queue, 0, "No echo on ID 40 [2]")
+end)
+
 run_case("Deinit Thrusters Disarms & Releases RC Overrides (ID 70)", function()
     CAN.dev1:push_rx(60, {})
     update()

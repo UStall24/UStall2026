@@ -34,9 +34,21 @@ namespace UStallGUI.Helpers
                 Console.WriteLine(msg);
         }
 
+        private static readonly byte[] HeartbeatAckPayload = new byte[] { 2 };
+
         public UsbCANWrapper()
         {
+            RegisterCallback((ushort)RecieveAddressesControlUnit.Health, OnHealthFrameReceived);
             ConnectToCanAdapter();
+        }
+
+        private void OnHealthFrameReceived(ushort rxId, byte[] data)
+        {
+            // Payload [2] indicates a Pixhawk-initiated periodic health ping -> reply with [2] on ID 40
+            if (data != null && data.Length > 0 && data[0] == 2 && IsOpen)
+            {
+                SendFrame((ushort)SendAddressesControlUnit.Health, HeartbeatAckPayload);
+            }
         }
 
         public bool IsOpen => sp != null && sp.IsOpen;

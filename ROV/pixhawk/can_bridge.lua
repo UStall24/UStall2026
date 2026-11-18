@@ -80,16 +80,24 @@ local TX_APPLY_PID       = 151
 local TX_UPDATE_CYCLE    = 161
 local TX_TEST_MOTOR      = 171
 
+-- Health payload markers (avoids ping-pong loops on IDs 40/41)
+local HEALTH_GUI_PROBE   = 1
+local HEALTH_ROV_PING    = 2
+
 -- Timing & Safety Limits
-local CONTROL_DLC           = 6
-local MOTOR_TEST_DLC        = 7
-local MAX_FRAMES_PER_DEVICE = 25
-local WATCHDOG_TIMEOUT_MS   = 500
-local MAX_MOTOR_TEST_MS     = 2000
-local MANUAL_CTRL_TIMEOUT_MS= 300
-local MIN_CYCLE_TIME_MS     = 5
-local MAX_CYCLE_TIME_MS     = 100
-local MODE_RETRY_INTERVAL_MS= 1000
+local CONTROL_DLC             = 6
+local MOTOR_TEST_DLC          = 7
+local MAX_FRAMES_PER_DEVICE   = 25
+local WATCHDOG_TIMEOUT_MS     = 500
+local HEARTBEAT_INTERVAL_MS   = 2000
+local MAX_MISSED_HEARTBEATS   = 2
+local SURFACE_THROTTLE_PWM    = 1580
+local MAX_SURFACE_DURATION_MS = 30000
+local MAX_MOTOR_TEST_MS       = 2000
+local MANUAL_CTRL_TIMEOUT_MS  = 300
+local MIN_CYCLE_TIME_MS       = 5
+local MAX_CYCLE_TIME_MS       = 100
+local MODE_RETRY_INTERVAL_MS  = 1000
 
 -- ==============================================================================
 -- Channel Mapping: CAN Payload Bytes -> ArduSub RC Channels
@@ -233,6 +241,11 @@ local cycle_time_ms             = 10
 local last_ctrl_ms              = now_ms()
 local watchdog_tripped          = true
 local watchdog_warned           = false
+local last_heartbeat_tx_ms      = 0
+local missed_heartbeats         = 0
+local heartbeat_awaiting        = false
+local auto_surface_active       = false
+local auto_surface_start_ms     = 0
 local motor_test_active         = false
 local motor_test_start_ms       = 0
 local motor_test_dur_ms         = 0
@@ -296,6 +309,29 @@ end
 local function neutralize_controls()
     for i = 1, #control_channels do
         set_override(control_channels[i], 1500)
+    end
+end
+
+-- Apply gentle upward heave (SURFACE_THROTTLE_PWM) while keeping all other axes neutral
+local function apply_surface_controls()
+    init_rc_channels()
+    for i = 1, #control_channels do
+        if i == 3 then
+            set_override(control_channels[i], SURFACE_THROTTLE_PWM)
+        else
+            set_override(control_channels[i], 1500)
+        end
+    end
+end
+
+-- Record valid communication from topside PC and cancel auto-surface if active
+local function on_topside_activity()
+    heartbeat_awaiting = false
+    missed_heartbeats = 0
+    if auto_surface_active then
+        auto_surface_active = false
+        neutralize_controls()
+        gcs:send_text(6, "CAN failsafe: link restored, auto-surface cancelled")
     end
 end
 
@@ -454,18 +490,25 @@ local function handle_frame(frame)
         rx_data[i + 1] = frame:data(i)
     end
 
-    -- 1. Health Ping / Connection Check
+    -- 1. Health Ping / Heartbeat ACK / Connection Check
     if rx_id == RX_HEALTH then
-        tx_resp_single[1] = 1
-        send_can(TX_HEALTH, tx_resp_single)
+        on_topside_activity()
+        -- Only reply with TX_HEALTH (41) if this is a GUI-initiated probe (empty or payload ~= 2).
+        -- Payload [2] is the GUI's ACK to a Pixhawk-initiated heartbeat ping and must not echo back.
+        if dlc == 0 or rx_data[1] ~= HEALTH_ROV_PING then
+            tx_resp_single[1] = HEALTH_GUI_PROBE
+            send_can(TX_HEALTH, tx_resp_single)
+        end
 
     -- 2. Init Connection to Frontend
     elseif rx_id == RX_INIT_CONN then
+        on_topside_activity()
         tx_resp_single[1] = 1
         send_can(TX_INIT_CONN, tx_resp_single)
 
     -- 3. Arm Thrusters / Init Motors
     elseif rx_id == RX_INIT_THRUSTERS then
+        on_topside_activity()
         neutralize_controls()
         pcall(function()
             -- Switch to STABILIZE mode (0) by default upon arming if currently MANUAL
@@ -481,7 +524,12 @@ local function handle_frame(frame)
 
         local armed = arming:is_armed()
         if armed then
-            last_ctrl_ms = now_ms()
+            local now = now_ms()
+            last_ctrl_ms = now
+            last_heartbeat_tx_ms = now
+            missed_heartbeats = 0
+            heartbeat_awaiting = false
+            auto_surface_active = false
             watchdog_tripped = false
             watchdog_warned = false
             was_armed = true
@@ -494,6 +542,7 @@ local function handle_frame(frame)
 
     -- 4. Disarm Thrusters
     elseif rx_id == RX_DEINIT_THRUST then
+        on_topside_activity()
         neutralize_controls()
         pcall(function()
             arming:disarm()
@@ -512,6 +561,7 @@ local function handle_frame(frame)
 
     -- 5. Reset Error
     elseif rx_id == RX_RESET_ERR then
+        on_topside_activity()
         watchdog_tripped = false
         watchdog_warned = false
         last_ctrl_ms = now_ms()
@@ -520,6 +570,7 @@ local function handle_frame(frame)
 
     -- 6. Manual Individual Motor Control (Setup / Calibration view)
     elseif rx_id == RX_MANUAL_CTRL then
+        on_topside_activity()
         if dlc >= 6 then
             init_motor_channels()
             if not manual_ctrl_active then
@@ -551,6 +602,7 @@ local function handle_frame(frame)
 
     -- 7. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
     elseif rx_id == RX_CTRL_STABILIZE or rx_id == RX_CTRL_DEPTH_HOLD or rx_id == RX_CTRL_MANUAL then
+        on_topside_activity()
         if arming:is_armed() and not motor_test_active and not manual_ctrl_active and dlc >= CONTROL_DLC then
             -- Flight mode selection from GUI:
             -- RX_CTRL_MANUAL     (180) switches to MANUAL (direct open-loop, mode 19)
@@ -700,12 +752,13 @@ local function update_body()
     drain_device(can_dev1)
     drain_device(can_dev2)
 
-    -- Safety Watchdog and Disarm State Tracking
+    -- Safety Watchdog, Periodic Topside Heartbeat & Auto-Surface Failsafe
     -- (Suppressed during direct motor tests or manual calibration to prevent override conflicts)
     local is_armed = arming:is_armed()
     if is_armed then
         was_armed = true
         if not motor_test_active and not manual_ctrl_active then
+            -- 1. Pilot Input Watchdog (500ms): Neutralize controls on stick stream stop
             if not watchdog_tripped and elapsed_ms(last_ctrl_ms) > WATCHDOG_TIMEOUT_MS then
                 watchdog_tripped = true
                 if not watchdog_warned then
@@ -713,8 +766,44 @@ local function update_body()
                     gcs:send_text(4, "CAN watchdog: pilot timeout, controls neutralized")
                 end
             end
-            -- Continually refresh neutral overrides to prevent ArduSub timeout reversion
-            if watchdog_tripped then
+
+            -- 2. Periodic Topside Heartbeat Ping (every 2000ms) & Missed-Ping Counter
+            if elapsed_ms(last_heartbeat_tx_ms) >= HEARTBEAT_INTERVAL_MS then
+                if heartbeat_awaiting then
+                    missed_heartbeats = missed_heartbeats + 1
+                    if missed_heartbeats >= MAX_MISSED_HEARTBEATS and not auto_surface_active then
+                        auto_surface_active = true
+                        auto_surface_start_ms = now_ms()
+                        pcall(function() vehicle:set_mode(0) end) -- STABILIZE to keep level while surfacing
+                        gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
+                    end
+                end
+                tx_resp_single[1] = HEALTH_ROV_PING
+                send_can(TX_HEALTH, tx_resp_single)
+                heartbeat_awaiting = true
+                last_heartbeat_tx_ms = now_ms()
+            end
+
+            -- 3. Apply Failsafe Output (Auto-Surface or Neutral Hold)
+            if auto_surface_active then
+                if elapsed_ms(auto_surface_start_ms) >= MAX_SURFACE_DURATION_MS then
+                    auto_surface_active = false
+                    missed_heartbeats = 0
+                    heartbeat_awaiting = false
+                    neutralize_controls()
+                    pcall(function() arming:disarm() end)
+                    clear_control_overrides()
+                    was_armed = false
+                    watchdog_tripped = true
+                    gcs:send_text(4, "CAN failsafe: auto-surface max duration reached, disarmed")
+                else
+                    if vehicle:get_mode() ~= 0 and elapsed_ms(last_mode_change_ms) >= MODE_RETRY_INTERVAL_MS then
+                        last_mode_change_ms = now_ms()
+                        pcall(function() vehicle:set_mode(0) end)
+                    end
+                    apply_surface_controls()
+                end
+            elseif watchdog_tripped then
                 neutralize_controls()
             end
         end
@@ -725,6 +814,9 @@ local function update_body()
             was_armed = false
             watchdog_tripped = true
             watchdog_warned = false
+            auto_surface_active = false
+            missed_heartbeats = 0
+            heartbeat_awaiting = false
         end
     end
 

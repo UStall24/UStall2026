@@ -651,6 +651,74 @@ class TestBench:
         self.assert_equal(self.harness.is_armed(), False, "Must cleanly disarm after test 1 completes")
         self.assert_equal(self.harness.get_srv_output(0), 1500)
 
+    def test_24_auto_surface_on_missed_heartbeats_and_recovery(self):
+        # Arm and switch to MANUAL mode (19) with forward thrust
+        self.harness.push_can_rx("dev1", 60, [])
+        self.harness.step_update()
+        self.harness.push_can_rx("dev1", 180, [255, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 19, "Should be in MANUAL mode (19)")
+        self.harness.clear_tx_queues()
+
+        # 1. Advance 2000ms -> Ping #1 (ID 41, payload [2]) sent, watchdog tripped (neutral 1500 us)
+        self.harness.advance_time(2000)
+        self.harness.step_update()
+        ping1 = self.harness.pop_can_tx("dev1")
+        self.assert_true(ping1 is not None and ping1["id"] == 41 and ping1["data"] == [2], "Expected Health Ping #1 (ID 41, data [2])")
+        self.assert_equal(self.harness.get_rc_override(3), 1500, "Throttle still neutral after Ping #1")
+
+        # 2. Advance another 2000ms without reply -> Ping #1 missed (missed=1), Ping #2 (ID 41, payload [2]) sent
+        self.harness.advance_time(2000)
+        self.harness.step_update()
+        ping2 = self.harness.pop_can_tx("dev1")
+        self.assert_true(ping2 is not None and ping2["id"] == 41 and ping2["data"] == [2], "Expected Health Ping #2 (ID 41, data [2])")
+        self.assert_equal(self.harness.get_rc_override(3), 1500, "Throttle still neutral before Ping #2 times out")
+
+        # 3. Advance another 2000ms without reply -> Ping #2 missed (missed=2) -> Auto-Surface triggers!
+        self.harness.advance_time(2000)
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 0, "Must switch to STABILIZE (0) for level ascent")
+        self.assert_equal(self.harness.get_rc_override(3), 1580, "RC3 (Throttle) must command gentle ascent (1580 us)")
+        for ch in [1, 2, 4, 5, 6]:
+            self.assert_equal(self.harness.get_rc_override(ch), 1500, f"RC{ch} must remain neutral (1500 us)")
+
+        # 4. Topside link recovers and sends Health ACK (ID 40, payload [2]) -> Auto-Surface cancelled immediately
+        self.harness.clear_tx_queues()
+        self.harness.push_can_rx("dev1", 40, [2])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(3), 1500, "RC3 must return to neutral 1500 us on link recovery")
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "ID 40 with payload [2] must not echo back ID 41")
+
+    def test_25_heartbeat_ack_prevents_surface_and_max_duration_disarm(self):
+        # Arm
+        self.harness.push_can_rx("dev1", 60, [])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+
+        # Simulate 5 heartbeat cycles (10 seconds) with no stick input, but GUI replying ID 40 [2] to each ID 41 [2] ping
+        for _ in range(5):
+            self.harness.advance_time(2000)
+            self.harness.step_update()
+            ping = self.harness.pop_can_tx("dev1")
+            self.assert_true(ping is not None and ping["id"] == 41 and ping["data"] == [2], "Expected ID 41 [2] ping")
+            # Topside GUI auto-replies ID 40 [2]
+            self.harness.push_can_rx("dev1", 40, [2])
+            self.harness.step_update()
+            self.assert_equal(self.harness.pop_can_tx("dev1"), None, "ID 40 [2] must not trigger an echo")
+            self.assert_equal(self.harness.get_rc_override(3), 1500, "Must stay neutral when Health ACK is received")
+
+        # Now cut communication completely -> wait for 2 missed pings (3 intervals = 6000 ms) to enter auto-surface
+        for _ in range(3):
+            self.harness.advance_time(2000)
+            self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(3), 1580, "Auto-surface active at 1580 us")
+
+        # Advance 30,000 ms (MAX_SURFACE_DURATION_MS) -> must auto-disarm safely at surface
+        self.harness.advance_time(30000)
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), False, "Must auto-disarm after max surface duration (30s)")
+        self.assert_equal(self.harness.get_rc_override(3), 0, "RC overrides must be released (0 us) upon disarm")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -679,6 +747,8 @@ class TestBench:
             ("Test 21: Multi-Packet Calibration Stream Auto-Disarm", self.test_21_manual_calibration_multi_packet_stream_disarm),
             ("Test 22: Concurrent Motor Test Overlap Rejection", self.test_22_concurrent_motor_test_rejection),
             ("Test 23: Pilot Drive Manual Mode (ID 180 -> MANUAL)", self.test_23_driving_manual_mode),
+            ("Test 24: Auto-Surface on 2 Missed Heartbeat Pings & Recovery", self.test_24_auto_surface_on_missed_heartbeats_and_recovery),
+            ("Test 25: Heartbeat ACK Idle Keep-Alive & Max-Surface Disarm", self.test_25_heartbeat_ack_prevents_surface_and_max_duration_disarm),
         ]
 
         for name, fn in tests:

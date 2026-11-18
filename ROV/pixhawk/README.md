@@ -165,7 +165,8 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 
 | Command | TX ID (GUI -> Pixhawk) | RX ID (Pixhawk -> GUI) | TX Payload | RX Payload | Description / ArduSub Action |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| **Health Ping** | `40` | `41` | Empty (`0 B`) | `[1]` | Connection heartbeat probe. |
+| **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1]` | Manual connection probe initiated by GUI. |
+| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2]` | Sent by Pixhawk every `2 s` while armed; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1580 µs` heave in `STABILIZE`). |
 | **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
 | **Arm Thrusters** | `60` | `61` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets `STABILIZE` (`0`) if in `MANUAL`, and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
@@ -198,7 +199,7 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
    * Adjust the **Speed Limit** slider (`0–100%`) to cap maximum thruster output for indoor tank testing or precision maneuvers.
 4. **Arm & Drive:**
    * Click **Arm Thrusters** when the water around the ROV is clear.
-   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog automatically neutralizes all thrusters to `1500 µs`.
+   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1580 µs` upward throttle) for up to `30 s` (or until communication returns).
    * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
 5. **Bench Motor Testing (Optional):**
    * Open the **Motor Test** tab, enter a target PWM (`1100–1900 µs`, default `1560 µs`), and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
@@ -223,7 +224,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 23 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 25 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -250,3 +251,5 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 21. **Multi-Packet Calibration Stream Auto-Disarm:** Prevents state pollution during GUI slider drag streams and guarantees safe disarm.
 22. **Concurrent Motor Test Overlap Rejection:** Guards active bench test from accidental overlapping test pulses and mode corruption.
 23. **Pilot Drive Manual Mode (ID 180):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.
+24. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1580 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
+25. **Health ACK Idle Keep-Alive & Max-Surface Disarm:** Verifies `ID 40 [2]` auto-replies prevent surfacing while idle, and verifies automatic disarm after `30 s` of surfacing.
