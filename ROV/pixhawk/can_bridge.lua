@@ -57,18 +57,11 @@ local C = {
     RX_INIT_THRUSTERS      = 60,
     RX_DEINIT_THRUST       = 70,
     RX_RESET_ERR           = 80,
-    RX_MANUAL_CTRL         = 90,
+    RX_CTRL_MANUAL         = 90,
     RX_CTRL_STABILIZE      = 100,
     RX_CTRL_DEPTH_HOLD     = 110,
-    RX_SET_FB              = 120,
-    RX_SET_PITCH           = 125,
-    RX_GET_FB              = 130,
-    RX_GET_PITCH           = 135,
-    RX_PULL_PID            = 140,
-    RX_APPLY_PID           = 150,
     RX_UPDATE_CYCLE        = 160,
     RX_TEST_MOTOR          = 170,
-    RX_CTRL_MANUAL         = 180,
 
     -- IDs sent to PC Topside GUI (Pixhawk -> GUI)
     TX_HEALTH              = 41,
@@ -76,10 +69,6 @@ local C = {
     TX_INIT_THRUSTERS      = 61,
     TX_DEINIT_THRUST       = 71,
     TX_RESET_ERR           = 81,
-    TX_MANUAL_CTRL         = 91,
-    TX_ALL_DOF_SAVED       = 127,
-    TX_PULL_PID            = 141,
-    TX_APPLY_PID           = 151,
     TX_UPDATE_CYCLE        = 161,
     TX_TEST_MOTOR          = 171,
 
@@ -97,7 +86,6 @@ local C = {
     SURFACE_THROTTLE_PWM   = 1580,
     MAX_SURFACE_DURATION_MS= 30000,
     MAX_MOTOR_TEST_MS      = 2000,
-    MANUAL_CTRL_TIMEOUT_MS = 300,
     MIN_CYCLE_TIME_MS      = 5,
     MAX_CYCLE_TIME_MS      = 100,
     MODE_RETRY_INTERVAL_MS = 1000,
@@ -193,29 +181,12 @@ local function init_motor_channels()
     return false
 end
 
--- Direction Values storage in RAM (initialized with default ROV layout from directionValuesDefault.json)
--- Byte values: 0 = -1.0 thrust, 127 = 0.0 thrust, 255 = +1.0 thrust
-local received_dofs = {false, false, false, false, false, false}
-local dof_table = {
-    {255,   0, 127, 127, 127, 127}, -- Forward/back: M1=+1.0, M2=-1.0
-    {127, 127, 255,   0, 127, 127}, -- Left/right:   M3=+1.0, M4=-1.0
-    {127, 127, 127, 127, 255,   0}, -- Up/down:      M5=+1.0, M6=-1.0
-    {  0, 255, 127, 127, 127, 127}, -- Yaw:          M1=-1.0, M2=+1.0
-    {127, 127,   0, 255, 127, 127}, -- Roll:         M3=-1.0, M4=+1.0
-    {127, 127, 127, 127,   0, 255}, -- Pitch:        M5=-1.0, M6=+1.0
-}
-
 -- Reusable static buffer for frame reception (zero heap allocations during streaming)
 local rx_data = {0, 0, 0, 0, 0, 0, 0, 0}
 
 -- Pre-allocated static response buffers (zero heap allocations during TX)
 local tx_ack_payload  = {}
 local tx_resp_single  = {0}
-local tx_resp_pid     = {5, 2, 1}
-
--- Delayed frame scheduling (prevents race condition with GUI callback registration)
-local dofs_saved_pending  = false
-local dofs_saved_timer_ms = 0
 
 -- ==============================================================================
 -- Helper Functions & State
@@ -255,9 +226,6 @@ local motor_test_start_ms       = 0
 local motor_test_dur_ms         = 0
 local saved_mode_before_test    = 0
 local was_armed_before_test     = false
-local manual_ctrl_active        = false
-local manual_ctrl_last_ms       = 0
-local was_armed_before_manual   = false
 local was_armed                 = false
 local last_mode_change_ms       = 0
 
@@ -464,15 +432,6 @@ local function handle_motor_test(data)
     end
 end
 
-local function all_dofs_received()
-    for i = 1, 6 do
-        if not received_dofs[i] then
-            return false
-        end
-    end
-    return true
-end
-
 -- ==============================================================================
 -- Frame Dispatcher
 -- ==============================================================================
@@ -571,44 +530,12 @@ local function handle_frame(frame)
         tx_resp_single[1] = 1
         send_can(C.TX_RESET_ERR, tx_resp_single)
 
-    -- 6. Manual Individual Motor Control (Setup / Calibration view)
-    elseif rx_id == C.RX_MANUAL_CTRL then
-        on_topside_activity()
-        if dlc >= 6 then
-            init_motor_channels()
-            if not manual_ctrl_active then
-                manual_ctrl_active = true
-                was_armed_before_manual = arming:is_armed()
-                -- Ensure outputs are enabled for bench calibration in MANUAL mode (mode 19)
-                if not was_armed_before_manual then
-                    pcall(function()
-                        vehicle:set_mode(19) -- MANUAL mode prevents IMU closed-loop fighting
-                        if not arming:arm() then
-                            arming:arm_force()
-                        end
-                    end)
-                end
-            end
-            manual_ctrl_last_ms = now_ms()
-
-            for channel = 0, 5 do
-                local out_ch = motor_channels[channel + 1]
-                SRV_Channels:set_output_pwm_chan_timeout(
-                    out_ch,
-                    byte_to_motor_pwm(rx_data[channel + 1]),
-                    150
-                )
-            end
-            tx_resp_single[1] = 1
-            send_can(C.TX_MANUAL_CTRL, tx_resp_single)
-        end
-
-    -- 7. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
+    -- 6. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
     elseif rx_id == C.RX_CTRL_STABILIZE or rx_id == C.RX_CTRL_DEPTH_HOLD or rx_id == C.RX_CTRL_MANUAL then
         on_topside_activity()
-        if arming:is_armed() and not motor_test_active and not manual_ctrl_active and dlc >= C.CONTROL_DLC then
+        if arming:is_armed() and not motor_test_active and dlc >= C.CONTROL_DLC then
             -- Flight mode selection from GUI:
-            -- RX_CTRL_MANUAL     (180) switches to MANUAL (direct open-loop, mode 19)
+            -- RX_CTRL_MANUAL     (90) switches to MANUAL (direct open-loop, mode 19)
             -- RX_CTRL_STABILIZE  (100) switches to STABILIZE (attitude hold, mode 0)
             -- RX_CTRL_DEPTH_HOLD (110) switches to ALT_HOLD (depth + attitude hold, mode 2)
             local target_mode = 0
@@ -629,7 +556,7 @@ local function handle_frame(frame)
             handle_controller_values(rx_data)
         end
 
-    -- 8. Direct Motor Test (Bench Thruster Test)
+    -- 7. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
         if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
@@ -639,45 +566,7 @@ local function handle_frame(frame)
             send_can(C.TX_TEST_MOTOR, tx_resp_single)
         end
 
-    -- 9. Set Direction Values (RAM table compatibility with GUI)
-    elseif rx_id >= C.RX_SET_FB and rx_id <= C.RX_SET_PITCH then
-        if dlc >= C.CONTROL_DLC then
-            local idx = rx_id - C.RX_SET_FB + 1
-            for motor = 1, 6 do
-                dof_table[idx][motor] = rx_data[motor]
-            end
-            received_dofs[idx] = true
-
-            -- GUI awaits identical ID as ACK for each DoF
-            send_can(rx_id, tx_ack_payload)
-
-            if all_dofs_received() then
-                -- Schedule TX_ALL_DOF_SAVED after 100ms non-blocking delay so C# GUI has time
-                -- to complete its DoF loop and register the callback for ID 127
-                dofs_saved_pending = true
-                dofs_saved_timer_ms = now_ms()
-                for i = 1, 6 do
-                    received_dofs[i] = false
-                end
-            end
-        end
-
-    -- 10. Get Direction Values
-    elseif rx_id >= C.RX_GET_FB and rx_id <= C.RX_GET_PITCH then
-        local idx = rx_id - C.RX_GET_FB + 1
-        send_can(rx_id + 1, dof_table[idx])
-
-    -- 11. Pull PID Values (Return default/current values so GUI reports success)
-    elseif rx_id == C.RX_PULL_PID then
-        -- Returns Kp=0.05 (byte 5), Kd=0.02 (byte 2), GyroEnabled=1
-        send_can(C.TX_PULL_PID, tx_resp_pid)
-
-    -- 12. Apply PID Values
-    elseif rx_id == C.RX_APPLY_PID then
-        tx_resp_single[1] = 1
-        send_can(C.TX_APPLY_PID, tx_resp_single)
-
-    -- 13. Update Cycle Time
+    -- 8. Update Cycle Time
     elseif rx_id == C.RX_UPDATE_CYCLE then
         local candidate = (dlc >= 2) and rx_data[2] or rx_data[1]
         if candidate and candidate >= C.MIN_CYCLE_TIME_MS and candidate <= C.MAX_CYCLE_TIME_MS then
@@ -728,38 +617,16 @@ local function update_body()
         end_motor_test()
     end
 
-    -- Check if manual control slider sequence timed out (auto-disarm safety)
-    if manual_ctrl_active and elapsed_ms(manual_ctrl_last_ms) > C.MANUAL_CTRL_TIMEOUT_MS then
-        manual_ctrl_active = false
-        for channel = 0, 5 do
-            local out_ch = motor_channels[channel + 1]
-            SRV_Channels:set_output_pwm_chan_timeout(out_ch, 1500, 50)
-        end
-        if not was_armed_before_manual then
-            pcall(function() arming:disarm() end)
-            gcs:send_text(6, "CAN bridge: manual calibration stopped, disarmed")
-        else
-            neutralize_controls()
-        end
-    end
-
-    -- Check if delayed TX_ALL_DOF_SAVED is ready to transmit
-    if dofs_saved_pending and elapsed_ms(dofs_saved_timer_ms) >= 100 then
-        dofs_saved_pending = false
-        tx_resp_single[1] = 1
-        send_can(C.TX_ALL_DOF_SAVED, tx_resp_single)
-    end
-
     -- Process pending incoming CAN frames from both drivers up to device limit
     drain_device(can_dev1)
     drain_device(can_dev2)
 
     -- Safety Watchdog, Periodic Topside Heartbeat & Auto-Surface Failsafe
-    -- (Suppressed during direct motor tests or manual calibration to prevent override conflicts)
+    -- (Suppressed during direct motor tests to prevent override conflicts)
     local is_armed = arming:is_armed()
     if is_armed then
         was_armed = true
-        if not motor_test_active and not manual_ctrl_active then
+        if not motor_test_active then
             -- 1. Pilot Input Watchdog (500ms): Neutralize controls on stick stream stop
             if not watchdog_tripped and elapsed_ms(last_ctrl_ms) > C.WATCHDOG_TIMEOUT_MS then
                 watchdog_tripped = true

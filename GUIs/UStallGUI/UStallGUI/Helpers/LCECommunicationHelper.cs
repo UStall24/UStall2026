@@ -87,12 +87,11 @@ namespace UStallGUI.Helpers
         ArmThrusters = 60,
         DisarmThrusters = 70,
         ResetWatchdog = 80,
-        ApplyManualControl = 90,
+        ApplyControllerValues_Manual = 90,
         ApplyControllerValues_Stabilize = 100,
         ApplyControllerValues_DepthHold = 110,
         UpdateCycleTime = 160,
-        TestMotor = 170,
-        ApplyControllerValues_Manual = 180
+        TestMotor = 170
     }
 
     /// <summary>
@@ -107,7 +106,6 @@ namespace UStallGUI.Helpers
         ArmThrusters = 61,
         DisarmThrusters = 71,
         ResetWatchdog = 81,
-        ApplyManualControl = 91,
         UpdateCycleTime = 161,
         TestMotor = 171
     }

@@ -290,9 +290,9 @@ class TestBench:
         self.harness.step_update()
         self.harness.clear_tx_queues()
 
-        # Send Manual pilot drive packet (ID 180): Forward (+100%)
+        # Send Manual pilot drive packet (ID 90): Forward (+100%)
         payload = [255, 127, 127, 127, 127, 127]
-        self.harness.push_can_rx("dev1", 180, payload)
+        self.harness.push_can_rx("dev1", 90, payload)
         self.harness.step_update()
 
         self.assert_equal(self.harness.get_mode(), 19, "Flight mode must switch to MANUAL (19)")
@@ -397,78 +397,6 @@ class TestBench:
         self.assert_equal(resp["id"], 171, "Response ID must be 171")
         self.assert_equal(resp["data"], [1], "Response payload must be [1]")
 
-    def test_11_manual_calibration_slider_timeout(self):
-        # Topside sends manual control frame (ID 90)
-        # Motor 3 set to 200 (~1727 us)
-        payload = [127, 127, 200, 127, 127, 127]
-        self.harness.push_can_rx("dev1", 90, payload)
-        self.harness.step_update()
-
-        self.assert_equal(self.harness.is_armed(), True, "Vehicle must arm for calibration")
-        self.assert_equal(self.harness.get_mode(), 19, "Mode must be MANUAL (19)")
-        self.assert_true(abs(self.harness.get_srv_output(2) - 1727) <= 5, "Motor 3 PWM should be ~1727 us")
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_true(resp is not None, "Expected TX_MANUAL_CTRL response")
-        self.assert_equal(resp["id"], 91, "Response ID must be 91")
-
-        # Wait past MANUAL_CTRL_TIMEOUT_MS (300ms) -> advance 350ms
-        self.harness.advance_time(350)
-        self.harness.step_update()
-
-        # Must auto-disarm for safety
-        self.assert_equal(self.harness.is_armed(), False, "Vehicle must auto-disarm when calibration stream stops")
-        self.assert_equal(self.harness.get_srv_output(2), 1500, "Motor 3 must be returned to neutral 1500 us")
-
-    def test_12_direction_values_table(self):
-        # Set all 6 DoF tables with custom values
-        custom_fb = [200, 50, 127, 127, 127, 127]
-        custom_lr = [127, 127, 210, 45, 127, 127]
-        custom_ud = [127, 127, 127, 127, 220, 35]
-        custom_yaw = [50, 200, 127, 127, 127, 127]
-        custom_roll = [127, 127, 45, 210, 127, 127]
-        custom_pitch = [127, 127, 127, 127, 35, 220]
-
-        dofs = [
-            (120, custom_fb),
-            (121, custom_lr),
-            (122, custom_ud),
-            (123, custom_yaw),
-            (124, custom_roll),
-            (125, custom_pitch),
-        ]
-
-        for rx_id, data in dofs:
-            self.harness.push_can_rx("dev1", rx_id, data)
-            self.harness.step_update()
-            resp = self.harness.pop_can_tx("dev1")
-            self.assert_true(resp is not None, f"Expected immediate ACK for Set DoF {rx_id}")
-            self.assert_equal(resp["id"], rx_id, f"ACK ID must match send ID {rx_id}")
-
-        # ID 127 (All_DoF_Saved) must be delayed by 100ms
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_equal(resp, None, "All_DoF_Saved must not be sent immediately")
-
-        # Advance by 120ms
-        self.harness.advance_time(120)
-        self.harness.step_update()
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_true(resp is not None, "Expected TX_ALL_DOF_SAVED after 100ms delay")
-        self.assert_equal(resp["id"], 127, "Response ID must be 127")
-
-        # Now test Get requests (IDs 130..135)
-        self.harness.push_can_rx("dev1", 130, [])
-        self.harness.step_update()
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_true(resp is not None)
-        self.assert_equal(resp["id"], 131, "Get_FB response ID must be 131")
-        self.assert_equal(resp["data"], custom_fb, "Get_FB data must match custom values set")
-
-        self.harness.push_can_rx("dev1", 131, [])
-        self.harness.step_update()
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_equal(resp["id"], 132, "Get_LR response ID must be 132")
-        self.assert_equal(resp["data"], custom_lr, "Get_LR data must match custom values set")
-
     def test_13_update_cycle_time(self):
         # Update cycle time to 20 ms
         self.harness.push_can_rx("dev1", 160, [20])
@@ -566,22 +494,6 @@ class TestBench:
         self.assert_equal(self.harness.get_mode(), 19, "Driving frame must not knock motor test out of MANUAL mode")
         self.assert_true(abs(self.harness.get_srv_output(0) - 1560) <= 5, "Motor 1 must continue test pulse")
 
-    def test_19_all_dof_saved_payload_compatibility(self):
-        # Send all 6 DoF frames
-        for rx_id in range(120, 126):
-            self.harness.push_can_rx("dev1", rx_id, [127, 127, 127, 127, 127, 127])
-            self.harness.step_update()
-        self.harness.clear_tx_queues()
-
-        # Advance 120ms
-        self.harness.advance_time(120)
-        self.harness.step_update()
-        resp = self.harness.pop_can_tx("dev1")
-        self.assert_true(resp is not None, "Expected TX_ALL_DOF_SAVED")
-        self.assert_equal(resp["id"], 127)
-        # Pico sent payload [1] with DLC 1
-        self.assert_equal(resp["data"], [1], "TX_ALL_DOF_SAVED should include payload [1] for Pico compatibility")
-
     def test_20_dynamic_rc_parameter_auto_detection(self):
         # Re-initialize with ArduSub factory defaults (Pitch=1, Roll=2)
         self.harness.reset()
@@ -605,27 +517,6 @@ class TestBench:
         # With RCMAP_PITCH = 1, Channel 1 must receive 1900 us!
         self.assert_equal(self.harness.get_rc_override(1), 1900, "RC1 (Pitch) must be 1900 us under factory RCMAP_PITCH=1")
         self.assert_equal(self.harness.get_rc_override(2), 1500, "RC2 (Roll) must be neutral 1500 us under factory RCMAP_ROLL=2")
-
-    def test_21_manual_calibration_multi_packet_stream_disarm(self):
-        # Starts disarmed
-        self.assert_equal(self.harness.is_armed(), False, "Must start disarmed")
-
-        # Stream 10 calibration frames simulating an active UI slider drag
-        for step in range(10):
-            payload = [127, 127, 180 + step, 127, 127, 127]
-            self.harness.push_can_rx("dev1", 90, payload)
-            self.harness.advance_time(20)
-            self.harness.step_update()
-            self.assert_equal(self.harness.is_armed(), True, "Must stay armed during active slider drag")
-            self.harness.clear_tx_queues()
-
-        # Advance past MANUAL_CTRL_TIMEOUT_MS (300 ms)
-        self.harness.advance_time(350)
-        self.harness.step_update()
-
-        # Vehicle MUST reliably return to disarmed state because it was disarmed prior to slider
-        self.assert_equal(self.harness.is_armed(), False, "Vehicle must auto-disarm after multi-packet stream timeout")
-        self.assert_equal(self.harness.get_srv_output(2), 1500, "Motor 3 output must be neutral 1500 us")
 
     def test_22_concurrent_motor_test_rejection(self):
         # Start a motor test of duration 1000ms
@@ -660,7 +551,7 @@ class TestBench:
         # Arm and switch to MANUAL mode (19) with forward thrust
         self.harness.push_can_rx("dev1", 60, [])
         self.harness.step_update()
-        self.harness.push_can_rx("dev1", 180, [255, 127, 127, 127, 127, 127])
+        self.harness.push_can_rx("dev1", 90, [255, 127, 127, 127, 127, 127])
         self.harness.step_update()
         self.assert_equal(self.harness.get_mode(), 19, "Should be in MANUAL mode (19)")
         self.harness.clear_tx_queues()
@@ -739,19 +630,15 @@ class TestBench:
             ("Test 08: Watchdog Error Reset & Resume (ID 80 -> 81)", self.test_08_watchdog_recovery),
             ("Test 09: Deinit Thrusters Disarming (ID 70 -> 71, Release RC)", self.test_09_deinit_thrusters_disarm),
             ("Test 10: Direct Motor Bench Test (ID 170 -> 171, Manual Mode)", self.test_10_direct_motor_bench_test),
-            ("Test 11: Manual Motor Calibration Timeout & Safety", self.test_11_manual_calibration_slider_timeout),
-            ("Test 12: Direction Values RAM Table & Delayed ACK (IDs 120-135)", self.test_12_direction_values_table),
             ("Test 13: Loop Cycle Time Adjustment (ID 160 -> 161)", self.test_13_update_cycle_time),
             ("Test 14: Dual CAN Port Redundancy (CAN1 <-> CAN2)", self.test_14_dual_can_port_switching),
             ("Test 15: DroneCAN Extended Frame & RTR Filtering", self.test_15_filtering_dronecan_extended_and_rtr_frames),
             ("Test 16: Long-Run Streaming Stability & Heap Growth", self.test_16_long_run_streaming_stability),
             ("Test 17: Mode Switch Retry on Sensor Delay", self.test_17_mode_switch_retry_when_initially_rejected),
             ("Test 18: Isolation of Active Bench Motor Test", self.test_18_driving_frame_during_active_motor_test_ignored),
-            ("Test 19: All_DoF_Saved Payload Compatibility", self.test_19_all_dof_saved_payload_compatibility),
             ("Test 20: Dynamic RCMAP Auto-Detection", self.test_20_dynamic_rc_parameter_auto_detection),
-            ("Test 21: Multi-Packet Calibration Stream Auto-Disarm", self.test_21_manual_calibration_multi_packet_stream_disarm),
             ("Test 22: Concurrent Motor Test Overlap Rejection", self.test_22_concurrent_motor_test_rejection),
-            ("Test 23: Pilot Drive Manual Mode (ID 180 -> MANUAL)", self.test_23_driving_manual_mode),
+            ("Test 23: Pilot Drive Manual Mode (ID 90 -> MANUAL)", self.test_23_driving_manual_mode),
             ("Test 24: Auto-Surface on 2 Missed Heartbeat Pings & Recovery", self.test_24_auto_surface_on_missed_heartbeats_and_recovery),
             ("Test 25: Heartbeat ACK Idle Keep-Alive & Max-Surface Disarm", self.test_25_heartbeat_ack_prevents_surface_and_max_duration_disarm),
         ]

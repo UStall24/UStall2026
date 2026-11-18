@@ -106,12 +106,12 @@ run_case("Pilot Drive Dynamic Throttle (ID 110 -> Mode 2 ALT_HOLD)", function()
     assert_eq(rc:get_channel(3).override_pwm, 1900, "RC3 Throttle Heave")
 end)
 
-run_case("Pilot Drive Manual Mode (ID 180 -> Mode 19 MANUAL)", function()
+run_case("Pilot Drive Manual Mode (ID 90 -> Mode 19 MANUAL)", function()
     CAN.dev1:push_rx(60, {})
     update()
     CAN.dev1.tx_queue = {}
 
-    CAN.dev1:push_rx(180, {255, 127, 127, 127, 127, 127})
+    CAN.dev1:push_rx(90, {255, 127, 127, 127, 127, 127})
     update()
 
     assert_eq(vehicle:get_mode(), 19, "Flight mode must switch to MANUAL")
@@ -136,7 +136,7 @@ end)
 run_case("Auto-Surface on 2 Missed Health Pings & Recovery (ID 41/40 [2])", function()
     CAN.dev1:push_rx(60, {})
     update()
-    CAN.dev1:push_rx(180, {255, 127, 127, 127, 127, 127})
+    CAN.dev1:push_rx(90, {255, 127, 127, 127, 127, 127})
     update()
     assert_eq(vehicle:get_mode(), 19)
     CAN.dev1.tx_queue = {}
@@ -205,47 +205,6 @@ run_case("Direct Motor Test Execution & Safety Restore (ID 170)", function()
     assert_true(f ~= nil)
     assert_eq(f:id_signed(), 171)
     assert_eq(f:data(0), 1)
-end)
-
-run_case("Manual Slider Calibration Auto-Disarms on Timeout (300ms)", function()
-    CAN.dev1:push_rx(90, {127, 127, 200, 127, 127, 127})
-    update()
-    assert_eq(arming:is_armed(), true)
-    assert_eq(vehicle:get_mode(), 19)
-
-    mock.advance_time(350)
-    update()
-
-    assert_eq(arming:is_armed(), false, "Auto-disarmed")
-    assert_eq(SRV_Channels.outputs[2].pwm, 1500, "M3 neutralized")
-end)
-
-run_case("Direction Values RAM Table & Delayed ACK (IDs 120-135)", function()
-    local custom = {200, 50, 127, 127, 127, 127}
-    for id = 120, 125 do
-        CAN.dev1:push_rx(id, custom)
-        update()
-        local ack = table.remove(CAN.dev1.tx_queue, 1)
-        assert_true(ack ~= nil, "Immediate ACK")
-        assert_eq(ack:id_signed(), id, "ACK ID")
-    end
-
-    assert_eq(#CAN.dev1.tx_queue, 0, "No premature All_DoF_Saved")
-
-    mock.advance_time(120)
-    update()
-    local saved = table.remove(CAN.dev1.tx_queue, 1)
-    assert_true(saved ~= nil, "TX_ALL_DOF_SAVED")
-    assert_eq(saved:id_signed(), 127)
-    assert_eq(saved:data(0), 1)
-
-    -- Query back Get_FB (130)
-    CAN.dev1:push_rx(130, {})
-    update()
-    local get_resp = table.remove(CAN.dev1.tx_queue, 1)
-    assert_eq(get_resp:id_signed(), 131)
-    assert_eq(get_resp:data(0), 200)
-    assert_eq(get_resp:data(1), 50)
 end)
 
 run_case("Dual CAN Port Redundancy (CAN1 <-> CAN2)", function()

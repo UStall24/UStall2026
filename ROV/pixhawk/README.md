@@ -171,12 +171,11 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **Arm Thrusters** | `60` | `61` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets `STABILIZE` (`0`) if in `MANUAL`, and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
 | **Reset Watchdog** | `80` | `81` | Empty (`0 B`) | `[1]` | Clears pilot timeout watchdog flag and resets timer. |
+| **Drive (Manual)** | `90` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `MANUAL` (mode `19`) for direct open-loop control and updates RC overrides. |
 | **Drive (Stabilize)** | `100` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `STABILIZE` (mode `0`) and updates RC overrides (`1100..1900 µs`). |
 | **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
-| **Drive (Manual)** | `180` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `MANUAL` (mode `19`) for direct open-loop control and updates RC overrides. |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
 | **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
-| **Legacy Calibration / DoF / PID** | `90`, `120–150` | `91`, `120–151` | `0–6 B` | `0–6 B` | Backwards-compatible handlers for legacy Pico calibration (`90`), DoF RAM table (`120–135`, delayed `127`), and PID queries (`140–150`). |
 
 * **Stick & Motor Byte Encoding:** `0` -> `1100 µs` (full reverse), `127`/`128` -> `1500 µs` (neutral with deadband), `255` -> `1900 µs` (full forward).
 
@@ -224,7 +223,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 25 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 21 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -238,18 +237,14 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 8. **Watchdog Error Reset & Resume (ID 80 -> 81):** Resumes control on error reset or new stick stream.
 9. **Deinit Thrusters Disarming (ID 70 -> 71):** Disarms vehicle and releases RC overrides back to autopilot (0 us).
 10. **Direct Motor Bench Test (ID 170 -> 171):** Isolated pulse in `MANUAL` mode (19), automatic neutral restoration and disarm return.
-11. **Manual Motor Calibration Timeout:** Auto-disarms after 300ms if GUI calibration slider drops.
-12. **Direction Values Table & Delayed ACK (IDs 120-135):** Immediate DoF ACKs + 100ms non-blocking delayed `All_DoF_Saved` (127).
-13. **Loop Cycle Time Adjustment (ID 160 -> 161):** Dynamic cycle tuning (clamped to 5..100 ms).
-14. **Dual CAN Port Redundancy:** Automatic port switching and reply routing between CAN1 and CAN2.
-15. **DroneCAN & RTR Filtering:** Rejection of 29-bit extended frames, RTRs, and error frames.
-16. **Long-Run Streaming Heap Stability:** Verifies zero memory leaks or GC churn during high-frequency streaming.
-17. **Mode Switch Retry on Sensor Delay:** Recovers gracefully if pressure sensor is delayed during startup.
-18. **Isolation of Active Bench Motor Test:** Prevents driving frames from knocking vehicle out of test mode.
-19. **All_DoF_Saved Payload Compatibility:** Preserves byte `[1]` payload matching Pi Pico behavior.
-20. **Dynamic RCMAP Auto-Detection:** Dynamically adapts to both ArduSub factory defaults (`RCMAP_PITCH=1`, `RCMAP_ROLL=2`) and custom maps.
-21. **Multi-Packet Calibration Stream Auto-Disarm:** Prevents state pollution during GUI slider drag streams and guarantees safe disarm.
-22. **Concurrent Motor Test Overlap Rejection:** Guards active bench test from accidental overlapping test pulses and mode corruption.
-23. **Pilot Drive Manual Mode (ID 180):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.
-24. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1580 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
-25. **Health ACK Idle Keep-Alive & Max-Surface Disarm:** Verifies `ID 40 [2]` auto-replies prevent surfacing while idle, and verifies automatic disarm after `30 s` of surfacing.
+11. **Loop Cycle Time Adjustment (ID 160 -> 161):** Dynamic cycle tuning (clamped to 5..100 ms).
+12. **Dual CAN Port Redundancy:** Automatic port switching and reply routing between CAN1 and CAN2.
+13. **DroneCAN & RTR Filtering:** Rejection of 29-bit extended frames, RTRs, and error frames.
+14. **Long-Run Streaming Heap Stability:** Verifies zero memory leaks or GC churn during high-frequency streaming.
+15. **Mode Switch Retry on Sensor Delay:** Recovers gracefully if pressure sensor is delayed during startup.
+16. **Isolation of Active Bench Motor Test:** Prevents driving frames from knocking vehicle out of test mode.
+17. **Dynamic RCMAP Auto-Detection:** Dynamically adapts to both ArduSub factory defaults (`RCMAP_PITCH=1`, `RCMAP_ROLL=2`) and custom maps.
+18. **Concurrent Motor Test Overlap Rejection:** Guards active bench test from accidental overlapping test pulses and mode corruption.
+19. **Pilot Drive Manual Mode (ID 90):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.
+20. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1580 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
+21. **Health ACK Idle Keep-Alive & Max-Surface Disarm:** Verifies `ID 40 [2]` auto-replies prevent surfacing while idle, and verifies automatic disarm after `30 s` of surfacing.

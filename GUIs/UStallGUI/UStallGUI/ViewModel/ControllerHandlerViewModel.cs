@@ -63,7 +63,7 @@ namespace UStallGUI.ViewModel
 
         /// <summary>
         /// Active flight mode sent with controller frames:
-        /// Manual (CAN ID 180 -> ArduSub MANUAL),
+        /// Manual (CAN ID 90 -> ArduSub MANUAL),
         /// Stabilize (CAN ID 100 -> ArduSub STABILIZE),
         /// DepthHold (CAN ID 110 -> ArduSub ALT_HOLD).
         /// </summary>
