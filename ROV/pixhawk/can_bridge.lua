@@ -36,68 +36,72 @@
 -- ==============================================================================
 
 local SCRIPT_NAME    = "ROV CAN bridge"
-local SCRIPT_VERSION = "1.1"
+local SCRIPT_VERSION = "1.3"
 
 -- CAN Driver handles (lazy initialized in update loop to prevent boot race conditions)
-local can_dev1        = nil
-local can_dev2        = nil
-local active_can_dev  = nil
-local tx_frame        = nil
-local CAN_BUFFER_SIZE = 25
+local can_dev1       = nil
+local can_dev2       = nil
+local active_can_dev = nil
+local tx_frame       = nil
 
 -- ==============================================================================
--- CAN Arbitration IDs (11-bit standard IDs matching UStall GUI LCECommunicationHelper)
+-- CAN Arbitration IDs & Safety Constants
+-- (Grouped in a single table to stay well below ArduPilot Lua's 100-local limit)
 -- ==============================================================================
--- IDs received from PC Topside GUI (GUI -> Pixhawk)
-local RX_HEALTH          = 40
-local RX_INIT_CONN       = 50
-local RX_INIT_THRUSTERS  = 60
-local RX_DEINIT_THRUST   = 70
-local RX_RESET_ERR       = 80
-local RX_MANUAL_CTRL     = 90
-local RX_CTRL_STABILIZE  = 100
-local RX_CTRL_DEPTH_HOLD = 110
-local RX_SET_FB          = 120
-local RX_SET_PITCH       = 125
-local RX_GET_FB          = 130
-local RX_GET_PITCH       = 135
-local RX_PULL_PID        = 140
-local RX_APPLY_PID       = 150
-local RX_UPDATE_CYCLE    = 160
-local RX_TEST_MOTOR      = 170
-local RX_CTRL_MANUAL     = 180
+local C = {
+    CAN_BUFFER_SIZE        = 25,
 
--- IDs sent to PC Topside GUI (Pixhawk -> GUI)
-local TX_HEALTH          = 41
-local TX_INIT_CONN       = 51
-local TX_INIT_THRUSTERS  = 61
-local TX_DEINIT_THRUST   = 71
-local TX_RESET_ERR       = 81
-local TX_MANUAL_CTRL     = 91
-local TX_ALL_DOF_SAVED   = 127
-local TX_PULL_PID        = 141
-local TX_APPLY_PID       = 151
-local TX_UPDATE_CYCLE    = 161
-local TX_TEST_MOTOR      = 171
+    -- IDs received from PC Topside GUI (GUI -> Pixhawk)
+    RX_HEALTH              = 40,
+    RX_INIT_CONN           = 50,
+    RX_INIT_THRUSTERS      = 60,
+    RX_DEINIT_THRUST       = 70,
+    RX_RESET_ERR           = 80,
+    RX_MANUAL_CTRL         = 90,
+    RX_CTRL_STABILIZE      = 100,
+    RX_CTRL_DEPTH_HOLD     = 110,
+    RX_SET_FB              = 120,
+    RX_SET_PITCH           = 125,
+    RX_GET_FB              = 130,
+    RX_GET_PITCH           = 135,
+    RX_PULL_PID            = 140,
+    RX_APPLY_PID           = 150,
+    RX_UPDATE_CYCLE        = 160,
+    RX_TEST_MOTOR          = 170,
+    RX_CTRL_MANUAL         = 180,
 
--- Health payload markers (avoids ping-pong loops on IDs 40/41)
-local HEALTH_GUI_PROBE   = 1
-local HEALTH_ROV_PING    = 2
+    -- IDs sent to PC Topside GUI (Pixhawk -> GUI)
+    TX_HEALTH              = 41,
+    TX_INIT_CONN           = 51,
+    TX_INIT_THRUSTERS      = 61,
+    TX_DEINIT_THRUST       = 71,
+    TX_RESET_ERR           = 81,
+    TX_MANUAL_CTRL         = 91,
+    TX_ALL_DOF_SAVED       = 127,
+    TX_PULL_PID            = 141,
+    TX_APPLY_PID           = 151,
+    TX_UPDATE_CYCLE        = 161,
+    TX_TEST_MOTOR          = 171,
 
--- Timing & Safety Limits
-local CONTROL_DLC             = 6
-local MOTOR_TEST_DLC          = 7
-local MAX_FRAMES_PER_DEVICE   = 25
-local WATCHDOG_TIMEOUT_MS     = 500
-local HEARTBEAT_INTERVAL_MS   = 2000
-local MAX_MISSED_HEARTBEATS   = 2
-local SURFACE_THROTTLE_PWM    = 1580
-local MAX_SURFACE_DURATION_MS = 30000
-local MAX_MOTOR_TEST_MS       = 2000
-local MANUAL_CTRL_TIMEOUT_MS  = 300
-local MIN_CYCLE_TIME_MS       = 5
-local MAX_CYCLE_TIME_MS       = 100
-local MODE_RETRY_INTERVAL_MS  = 1000
+    -- Health payload markers (avoids ping-pong loops on IDs 40/41)
+    HEALTH_GUI_PROBE       = 1,
+    HEALTH_ROV_PING        = 2,
+
+    -- Timing & Safety Limits
+    CONTROL_DLC            = 6,
+    MOTOR_TEST_DLC         = 7,
+    MAX_FRAMES_PER_DEVICE  = 25,
+    WATCHDOG_TIMEOUT_MS    = 500,
+    HEARTBEAT_INTERVAL_MS  = 2000,
+    MAX_MISSED_HEARTBEATS  = 2,
+    SURFACE_THROTTLE_PWM   = 1580,
+    MAX_SURFACE_DURATION_MS= 30000,
+    MAX_MOTOR_TEST_MS      = 2000,
+    MANUAL_CTRL_TIMEOUT_MS = 300,
+    MIN_CYCLE_TIME_MS      = 5,
+    MAX_CYCLE_TIME_MS      = 100,
+    MODE_RETRY_INTERVAL_MS = 1000,
+}
 
 -- ==============================================================================
 -- Channel Mapping: CAN Payload Bytes -> ArduSub RC Channels
@@ -255,7 +259,6 @@ local manual_ctrl_active        = false
 local manual_ctrl_last_ms       = 0
 local was_armed_before_manual   = false
 local was_armed                 = false
-local last_requested_mode       = -1
 local last_mode_change_ms       = 0
 
 local function to_uint32(val)
@@ -317,7 +320,7 @@ local function apply_surface_controls()
     init_rc_channels()
     for i = 1, #control_channels do
         if i == 3 then
-            set_override(control_channels[i], SURFACE_THROTTLE_PWM)
+            set_override(control_channels[i], C.SURFACE_THROTTLE_PWM)
         else
             set_override(control_channels[i], 1500)
         end
@@ -367,7 +370,7 @@ end
 -- Process incoming pilot controller inputs
 local function handle_controller_values(data)
     init_rc_channels()
-    for i = 1, CONTROL_DLC do
+    for i = 1, C.CONTROL_DLC do
         set_override(control_channels[i], byte_to_rc_pwm(data[i]))
     end
     last_ctrl_ms = now_ms()
@@ -396,7 +399,7 @@ local function end_motor_test()
     end
 
     tx_resp_single[1] = 1
-    send_can(TX_TEST_MOTOR, tx_resp_single)
+    send_can(C.TX_TEST_MOTOR, tx_resp_single)
     gcs:send_text(6, "CAN bridge: motor test complete")
 end
 
@@ -405,15 +408,15 @@ local function handle_motor_test(data)
     if motor_test_active then
         gcs:send_text(4, "CAN bridge: motor test already active")
         tx_resp_single[1] = 0
-        send_can(TX_TEST_MOTOR, tx_resp_single)
+        send_can(C.TX_TEST_MOTOR, tx_resp_single)
         return
     end
 
     local duration_ms = data[7] * 10
-    if duration_ms < 10 or duration_ms > MAX_MOTOR_TEST_MS then
+    if duration_ms < 10 or duration_ms > C.MAX_MOTOR_TEST_MS then
         gcs:send_text(3, "CAN bridge: motor test duration invalid")
         tx_resp_single[1] = 0
-        send_can(TX_TEST_MOTOR, tx_resp_single)
+        send_can(C.TX_TEST_MOTOR, tx_resp_single)
         return
     end
 
@@ -435,7 +438,7 @@ local function handle_motor_test(data)
     if not arming:is_armed() then
         gcs:send_text(3, "CAN bridge: motor test arm failed")
         tx_resp_single[1] = 0
-        send_can(TX_TEST_MOTOR, tx_resp_single)
+        send_can(C.TX_TEST_MOTOR, tx_resp_single)
         return
     end
 
@@ -457,7 +460,7 @@ local function handle_motor_test(data)
     else
         gcs:send_text(3, "CAN bridge: motor test output failed")
         tx_resp_single[1] = 0
-        send_can(TX_TEST_MOTOR, tx_resp_single)
+        send_can(C.TX_TEST_MOTOR, tx_resp_single)
     end
 end
 
@@ -491,23 +494,23 @@ local function handle_frame(frame)
     end
 
     -- 1. Health Ping / Heartbeat ACK / Connection Check
-    if rx_id == RX_HEALTH then
+    if rx_id == C.RX_HEALTH then
         on_topside_activity()
         -- Only reply with TX_HEALTH (41) if this is a GUI-initiated probe (empty or payload ~= 2).
         -- Payload [2] is the GUI's ACK to a Pixhawk-initiated heartbeat ping and must not echo back.
-        if dlc == 0 or rx_data[1] ~= HEALTH_ROV_PING then
-            tx_resp_single[1] = HEALTH_GUI_PROBE
-            send_can(TX_HEALTH, tx_resp_single)
+        if dlc == 0 or rx_data[1] ~= C.HEALTH_ROV_PING then
+            tx_resp_single[1] = C.HEALTH_GUI_PROBE
+            send_can(C.TX_HEALTH, tx_resp_single)
         end
 
     -- 2. Init Connection to Frontend
-    elseif rx_id == RX_INIT_CONN then
+    elseif rx_id == C.RX_INIT_CONN then
         on_topside_activity()
         tx_resp_single[1] = 1
-        send_can(TX_INIT_CONN, tx_resp_single)
+        send_can(C.TX_INIT_CONN, tx_resp_single)
 
     -- 3. Arm Thrusters / Init Motors
-    elseif rx_id == RX_INIT_THRUSTERS then
+    elseif rx_id == C.RX_INIT_THRUSTERS then
         on_topside_activity()
         neutralize_controls()
         pcall(function()
@@ -538,10 +541,10 @@ local function handle_frame(frame)
             gcs:send_text(3, "CAN bridge: arming rejected (check ARMING_SKIPCHK & safety)")
         end
         tx_resp_single[1] = armed and 1 or 0
-        send_can(TX_INIT_THRUSTERS, tx_resp_single)
+        send_can(C.TX_INIT_THRUSTERS, tx_resp_single)
 
     -- 4. Disarm Thrusters
-    elseif rx_id == RX_DEINIT_THRUST then
+    elseif rx_id == C.RX_DEINIT_THRUST then
         on_topside_activity()
         neutralize_controls()
         pcall(function()
@@ -556,20 +559,20 @@ local function handle_frame(frame)
         end
         watchdog_tripped = true
         tx_resp_single[1] = disarmed and 1 or 0
-        send_can(TX_DEINIT_THRUST, tx_resp_single)
+        send_can(C.TX_DEINIT_THRUST, tx_resp_single)
         gcs:send_text(disarmed and 6 or 3, disarmed and "CAN bridge: disarmed" or "CAN bridge: disarm failed")
 
     -- 5. Reset Error
-    elseif rx_id == RX_RESET_ERR then
+    elseif rx_id == C.RX_RESET_ERR then
         on_topside_activity()
         watchdog_tripped = false
         watchdog_warned = false
         last_ctrl_ms = now_ms()
         tx_resp_single[1] = 1
-        send_can(TX_RESET_ERR, tx_resp_single)
+        send_can(C.TX_RESET_ERR, tx_resp_single)
 
     -- 6. Manual Individual Motor Control (Setup / Calibration view)
-    elseif rx_id == RX_MANUAL_CTRL then
+    elseif rx_id == C.RX_MANUAL_CTRL then
         on_topside_activity()
         if dlc >= 6 then
             init_motor_channels()
@@ -597,29 +600,28 @@ local function handle_frame(frame)
                 )
             end
             tx_resp_single[1] = 1
-            send_can(TX_MANUAL_CTRL, tx_resp_single)
+            send_can(C.TX_MANUAL_CTRL, tx_resp_single)
         end
 
     -- 7. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
-    elseif rx_id == RX_CTRL_STABILIZE or rx_id == RX_CTRL_DEPTH_HOLD or rx_id == RX_CTRL_MANUAL then
+    elseif rx_id == C.RX_CTRL_STABILIZE or rx_id == C.RX_CTRL_DEPTH_HOLD or rx_id == C.RX_CTRL_MANUAL then
         on_topside_activity()
-        if arming:is_armed() and not motor_test_active and not manual_ctrl_active and dlc >= CONTROL_DLC then
+        if arming:is_armed() and not motor_test_active and not manual_ctrl_active and dlc >= C.CONTROL_DLC then
             -- Flight mode selection from GUI:
             -- RX_CTRL_MANUAL     (180) switches to MANUAL (direct open-loop, mode 19)
             -- RX_CTRL_STABILIZE  (100) switches to STABILIZE (attitude hold, mode 0)
             -- RX_CTRL_DEPTH_HOLD (110) switches to ALT_HOLD (depth + attitude hold, mode 2)
             local target_mode = 0
-            if rx_id == RX_CTRL_DEPTH_HOLD then
+            if rx_id == C.RX_CTRL_DEPTH_HOLD then
                 target_mode = 2
-            elseif rx_id == RX_CTRL_MANUAL then
+            elseif rx_id == C.RX_CTRL_MANUAL then
                 target_mode = 19
             end
             local cur_mode = vehicle:get_mode()
 
             if target_mode ~= cur_mode then
-                if elapsed_ms(last_mode_change_ms) >= MODE_RETRY_INTERVAL_MS then
+                if elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
                     last_mode_change_ms = now_ms()
-                    last_requested_mode = target_mode
                     pcall(function() vehicle:set_mode(target_mode) end)
                 end
             end
@@ -628,19 +630,19 @@ local function handle_frame(frame)
         end
 
     -- 8. Direct Motor Test (Bench Thruster Test)
-    elseif rx_id == RX_TEST_MOTOR then
-        if dlc == MOTOR_TEST_DLC then
+    elseif rx_id == C.RX_TEST_MOTOR then
+        if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
         else
             gcs:send_text(3, "CAN bridge: motor test payload must be 7 bytes")
             tx_resp_single[1] = 0
-            send_can(TX_TEST_MOTOR, tx_resp_single)
+            send_can(C.TX_TEST_MOTOR, tx_resp_single)
         end
 
     -- 9. Set Direction Values (RAM table compatibility with GUI)
-    elseif rx_id >= RX_SET_FB and rx_id <= RX_SET_PITCH then
-        if dlc >= CONTROL_DLC then
-            local idx = rx_id - RX_SET_FB + 1
+    elseif rx_id >= C.RX_SET_FB and rx_id <= C.RX_SET_PITCH then
+        if dlc >= C.CONTROL_DLC then
+            local idx = rx_id - C.RX_SET_FB + 1
             for motor = 1, 6 do
                 dof_table[idx][motor] = rx_data[motor]
             end
@@ -661,28 +663,28 @@ local function handle_frame(frame)
         end
 
     -- 10. Get Direction Values
-    elseif rx_id >= RX_GET_FB and rx_id <= RX_GET_PITCH then
-        local idx = rx_id - RX_GET_FB + 1
+    elseif rx_id >= C.RX_GET_FB and rx_id <= C.RX_GET_PITCH then
+        local idx = rx_id - C.RX_GET_FB + 1
         send_can(rx_id + 1, dof_table[idx])
 
     -- 11. Pull PID Values (Return default/current values so GUI reports success)
-    elseif rx_id == RX_PULL_PID then
+    elseif rx_id == C.RX_PULL_PID then
         -- Returns Kp=0.05 (byte 5), Kd=0.02 (byte 2), GyroEnabled=1
-        send_can(TX_PULL_PID, tx_resp_pid)
+        send_can(C.TX_PULL_PID, tx_resp_pid)
 
     -- 12. Apply PID Values
-    elseif rx_id == RX_APPLY_PID then
+    elseif rx_id == C.RX_APPLY_PID then
         tx_resp_single[1] = 1
-        send_can(TX_APPLY_PID, tx_resp_single)
+        send_can(C.TX_APPLY_PID, tx_resp_single)
 
     -- 13. Update Cycle Time
-    elseif rx_id == RX_UPDATE_CYCLE then
+    elseif rx_id == C.RX_UPDATE_CYCLE then
         local candidate = (dlc >= 2) and rx_data[2] or rx_data[1]
-        if candidate and candidate >= MIN_CYCLE_TIME_MS and candidate <= MAX_CYCLE_TIME_MS then
+        if candidate and candidate >= C.MIN_CYCLE_TIME_MS and candidate <= C.MAX_CYCLE_TIME_MS then
             cycle_time_ms = candidate
         end
         tx_resp_single[1] = cycle_time_ms
-        send_can(TX_UPDATE_CYCLE, tx_resp_single)
+        send_can(C.TX_UPDATE_CYCLE, tx_resp_single)
     end
 end
 
@@ -690,7 +692,7 @@ end
 local function drain_device(dev)
     if not dev then return end
     local count = 0
-    while count < MAX_FRAMES_PER_DEVICE do
+    while count < C.MAX_FRAMES_PER_DEVICE do
         local frame = dev:read_frame()
         if not frame then
             break
@@ -710,15 +712,15 @@ end
 local function update_body()
     -- Lazy initialization of CAN scripting devices (supports both CAN1 and CAN2)
     if not can_dev1 and not can_dev2 then
-        pcall(function() can_dev1 = CAN:get_device(CAN_BUFFER_SIZE) end)
-        pcall(function() can_dev2 = CAN:get_device2(CAN_BUFFER_SIZE) end)
+        pcall(function() can_dev1 = CAN:get_device(C.CAN_BUFFER_SIZE) end)
+        pcall(function() can_dev2 = CAN:get_device2(C.CAN_BUFFER_SIZE) end)
         if not can_dev1 and not can_dev2 then
             return 1000 -- Retry every 1000ms until a CAN driver is ready
         end
         init_motor_channels()
         init_rc_channels()
         local ports_str = (can_dev1 and "CAN1 " or "") .. (can_dev2 and "CAN2" or "")
-        gcs:send_text(6, "CAN bridge: driver ready on " .. ports_str .. " (buffer " .. tostring(CAN_BUFFER_SIZE) .. ")")
+        gcs:send_text(6, "CAN bridge: driver ready on " .. ports_str .. " (buffer " .. tostring(C.CAN_BUFFER_SIZE) .. ")")
     end
 
     -- Check if active direct motor test has completed
@@ -727,7 +729,7 @@ local function update_body()
     end
 
     -- Check if manual control slider sequence timed out (auto-disarm safety)
-    if manual_ctrl_active and elapsed_ms(manual_ctrl_last_ms) > MANUAL_CTRL_TIMEOUT_MS then
+    if manual_ctrl_active and elapsed_ms(manual_ctrl_last_ms) > C.MANUAL_CTRL_TIMEOUT_MS then
         manual_ctrl_active = false
         for channel = 0, 5 do
             local out_ch = motor_channels[channel + 1]
@@ -745,7 +747,7 @@ local function update_body()
     if dofs_saved_pending and elapsed_ms(dofs_saved_timer_ms) >= 100 then
         dofs_saved_pending = false
         tx_resp_single[1] = 1
-        send_can(TX_ALL_DOF_SAVED, tx_resp_single)
+        send_can(C.TX_ALL_DOF_SAVED, tx_resp_single)
     end
 
     -- Process pending incoming CAN frames from both drivers up to device limit
@@ -759,7 +761,7 @@ local function update_body()
         was_armed = true
         if not motor_test_active and not manual_ctrl_active then
             -- 1. Pilot Input Watchdog (500ms): Neutralize controls on stick stream stop
-            if not watchdog_tripped and elapsed_ms(last_ctrl_ms) > WATCHDOG_TIMEOUT_MS then
+            if not watchdog_tripped and elapsed_ms(last_ctrl_ms) > C.WATCHDOG_TIMEOUT_MS then
                 watchdog_tripped = true
                 if not watchdog_warned then
                     watchdog_warned = true
@@ -768,25 +770,25 @@ local function update_body()
             end
 
             -- 2. Periodic Topside Heartbeat Ping (every 2000ms) & Missed-Ping Counter
-            if elapsed_ms(last_heartbeat_tx_ms) >= HEARTBEAT_INTERVAL_MS then
+            if elapsed_ms(last_heartbeat_tx_ms) >= C.HEARTBEAT_INTERVAL_MS then
                 if heartbeat_awaiting then
                     missed_heartbeats = missed_heartbeats + 1
-                    if missed_heartbeats >= MAX_MISSED_HEARTBEATS and not auto_surface_active then
+                    if missed_heartbeats >= C.MAX_MISSED_HEARTBEATS and not auto_surface_active then
                         auto_surface_active = true
                         auto_surface_start_ms = now_ms()
                         pcall(function() vehicle:set_mode(0) end) -- STABILIZE to keep level while surfacing
                         gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
                     end
                 end
-                tx_resp_single[1] = HEALTH_ROV_PING
-                send_can(TX_HEALTH, tx_resp_single)
+                tx_resp_single[1] = C.HEALTH_ROV_PING
+                send_can(C.TX_HEALTH, tx_resp_single)
                 heartbeat_awaiting = true
                 last_heartbeat_tx_ms = now_ms()
             end
 
             -- 3. Apply Failsafe Output (Auto-Surface or Neutral Hold)
             if auto_surface_active then
-                if elapsed_ms(auto_surface_start_ms) >= MAX_SURFACE_DURATION_MS then
+                if elapsed_ms(auto_surface_start_ms) >= C.MAX_SURFACE_DURATION_MS then
                     auto_surface_active = false
                     missed_heartbeats = 0
                     heartbeat_awaiting = false
@@ -797,7 +799,7 @@ local function update_body()
                     watchdog_tripped = true
                     gcs:send_text(4, "CAN failsafe: auto-surface max duration reached, disarmed")
                 else
-                    if vehicle:get_mode() ~= 0 and elapsed_ms(last_mode_change_ms) >= MODE_RETRY_INTERVAL_MS then
+                    if vehicle:get_mode() ~= 0 and elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
                         last_mode_change_ms = now_ms()
                         pcall(function() vehicle:set_mode(0) end)
                     end

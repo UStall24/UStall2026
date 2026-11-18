@@ -22,7 +22,7 @@ This directory contains the translation layer, test bench, and configuration doc
 |   (CAN_P2_DRIVER=1, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
 |   |                                                          |
 |   v                                                          |
-| Lua Script: /APM/scripts/can_bridge.lua (v1.1)               |
+| Lua Script: /APM/scripts/can_bridge.lua (v1.3)               |
 |   - Auto-detects active CAN port (CAN 1 or CAN 2)            |
 |   - Zero-allocation high-frequency CAN parsing (100 Hz)      |
 |   - Auto-detects ArduSub RCMAP parameters dynamically        |
@@ -153,7 +153,7 @@ Place `can_bridge.lua` on the Pixhawk's micro-SD card at:
 
 Reboot the Pixhawk. Monitor the GCS (QGroundControl / Mission Planner) message window for:
 ```
-ROV CAN bridge v1.1 loaded
+ROV CAN bridge v1.3 loaded
 CAN bridge: driver ready on CAN1 (buffer 25)
 ```
 

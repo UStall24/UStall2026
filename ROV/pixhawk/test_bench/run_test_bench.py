@@ -200,6 +200,11 @@ class TestBench:
     # =========================================================================
 
     def test_01_init_and_gcs_greeting(self):
+        # Verify ArduPilot embedded Lua local variable limit (LUAI_MAXVARS = 100 in main chunk)
+        with open(CAN_BRIDGE_LUA_PATH, 'r', encoding='utf-8') as f:
+            top_level_locals = sum(1 for line in f if line.startswith("local "))
+        self.assert_true(top_level_locals < 80, f"Too many top-level locals ({top_level_locals}) for ArduPilot Lua (limit 100)")
+
         # Verify GCS greeting and CAN driver detection
         msg_count = int(self.harness.eval_return_number("#gcs.messages"))
         self.assert_true(msg_count >= 2, "Expected at least 2 GCS greeting messages on boot")
