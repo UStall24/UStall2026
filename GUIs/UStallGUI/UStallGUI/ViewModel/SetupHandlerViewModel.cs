@@ -199,7 +199,7 @@ namespace UStallGUI.ViewModel
             if (can == null)
                 can = new UsbCANWrapper();
             else
-                can.ConnectToCanAdapter(force: true);
+                can.ConnectToCanAdapter();
 
             ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
@@ -246,6 +246,7 @@ namespace UStallGUI.ViewModel
             }
 
             ComPort = "Disconnected";
+            can = null;
         }
 
         public UsbCANWrapper GetCANWrapper()

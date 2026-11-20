@@ -76,62 +76,64 @@ namespace UStallGUI.Helpers
             return true;
         }
 
-        private void ResetSerialPort()
-        {
-            var portToClose = sp;
-            sp = null;
-
-            if (portToClose != null)
-            {
-                try { portToClose.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
-                try { UsbCAN.AdapterClose(portToClose); } catch { }
-            }
-
-            lock (_rxLock)
-            {
-                _rxBuffer.Clear();
-            }
-        }
-
         public bool ConnectToCanAdapter(bool force = false)
         {
             // If already open and no force requested, nothing to do.
             if (sp != null && sp.IsOpen && !force)
                 return true;
 
-            // If force requested or port is closed/broken, clean up existing port before reconnecting.
-            if (sp != null)
-            {
-                if (force)
-                    Log("Force reconnect requested - closing existing serial port.");
-                ResetSerialPort();
-            }
-
             if (!FindCanAdapter())
                 return false;
 
-            sp = UsbCAN.AdapterInit(comPort);
+            // If force requested and adapter is open, close it first.
+            if (sp != null && sp.IsOpen && force)
+            {
+                try
+                {
+                    Log("Force reconnect requested - closing existing serial port.");
+                    // Detach handler to avoid duplicates (safe even if not attached)
+                    try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
+                    UsbCAN.AdapterClose(sp);
+                }
+                catch (Exception ex)
+                {
+                    Log("Error closing serial port during reconnect: " + ex.Message);
+                }
+                finally
+                {
+                    sp = null;
+                }
+            }
+
+            // If we have a SerialPort instance that is closed, ensure handler is detached and clear it so we create a fresh one.
+            if (sp != null && !sp.IsOpen)
+            {
+                try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
+                sp = null;
+            }
+
+            // Initialize a new adapter if needed
             if (sp == null)
             {
-                Log("Failed to open serial port.");
-                return false;
+                sp = UsbCAN.AdapterInit(comPort);
+                if (sp == null)
+                {
+                    Log("Failed to open serial port.");
+                    return false;
+                }
+
+                // Attach handler after confirming adapter opened
+                sp.DataReceived += SerialPortDataRecievedEventHandler;
+
+                UsbCAN.CommandSettings(
+                    sp,
+                    speed,
+                    CanusbMode.CANUSB_MODE_NORMAL,
+                    CanusbFrameType.CANUSB_FRAME_STANDARD
+                );
+                PrintSettings();
             }
 
-            // Attach handler after confirming adapter opened
-            sp.DataReceived += SerialPortDataRecievedEventHandler;
-
-            if (UsbCAN.CommandSettings(
-                sp,
-                speed,
-                CanusbMode.CANUSB_MODE_NORMAL,
-                CanusbFrameType.CANUSB_FRAME_STANDARD) < 0)
-            {
-                Log("Failed to apply USB-CAN adapter settings.");
-                ResetSerialPort();
-                return false;
-            }
-
-            PrintSettings();
             return true;
         }
 
@@ -199,18 +201,14 @@ namespace UStallGUI.Helpers
 
         private void SerialPortDataRecievedEventHandler(object sender, SerialDataReceivedEventArgs e)
         {
-            var currentPort = sender as SerialPort ?? sp;
-            if (currentPort == null || !currentPort.IsOpen)
-                return;
-
             try
             {
-                int toRead = currentPort.BytesToRead;
+                int toRead = sp.BytesToRead;
                 if (toRead <= 0)
                     return;
 
                 var tmp = new byte[toRead];
-                int read = currentPort.Read(tmp, 0, toRead);
+                int read = sp.Read(tmp, 0, toRead);
                 if (read <= 0)
                     return;
 
@@ -224,7 +222,6 @@ namespace UStallGUI.Helpers
             catch (Exception ex)
             {
                 Log("SerialPortDataRecievedEventHandler error: " + ex.Message);
-                ResetSerialPort();
             }
         }
 
@@ -330,27 +327,18 @@ namespace UStallGUI.Helpers
 
         public bool SendFrame(ushort txId, byte[] data = null)
         {
-            if (!ConnectToCanAdapter() || sp == null || !sp.IsOpen)
-                return false;
-
+            ConnectToCanAdapter();
             if (data == null)
                 data = Array.Empty<byte>();
             byte idLsb = (byte)(txId & 0xFF);
             byte idMsb = (byte)(txId >> 8 & 0xFF);
             // Console.WriteLine($"Sending TX ID {txId} Data: {BitConverter.ToString(data)}");
-            if (UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) != 0)
-            {
-                ResetSerialPort();
-                return false;
-            }
-
-            return true;
+            return UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) == 0;
         }
 
         public bool Close()
         {
-            ResetSerialPort();
-            return true;
+            return UsbCAN.AdapterClose(sp);
         }
 
         public void PrintSettings()
