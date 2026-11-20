@@ -66,7 +66,7 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 * `MOT_SAFE_DISARM` = `1` (Keeps PWM disabled while disarmed; `0` outputs neutral 1500 µs while disarmed)
 * `FLTMODE_CH` = `0` (Disables flight mode RC channel so overrides cannot accidentally change modes)
 * `FS_THR_ENABLE` = `0` (Disables throttle/RC failsafe since no physical RC receiver is plugged in)
-* *(Note on `FS_GCS_ENABLE` / `FS_PILOT_INPUT`)*: `default.params` sets `FS_GCS_ENABLE = 2` and `FS_PILOT_INPUT = 2`. During CAN-only operation without QGroundControl connected over MAVLink, verify these do not conflict if a GCS was previously connected and then disconnected.
+* `FS_GCS_ENABLE` = `0` and `FS_PILOT_INPUT` = `0` (Disabled in `default.params` for CAN-only operation without MAVLink GCS, since `can_bridge.lua` provides the 500 ms pilot watchdog and 2-missed-ping auto-surface failsafe)
 
 ### RC Overrides & Dynamic Channel Map
 * `RC_OPTIONS` = `0` (Ensure Bit 5 [Ignore Overrides] is NOT set)
@@ -177,9 +177,9 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
 | **Set Speed Limit** | `120` | `121` | `1 B`: `[percent]` (`0..100`) | `[percent]` | Stores max thruster speed limit (`0..100%`) on Pixhawk and scales RC PWM deflection around `1500 µs`. |
 | **Motor Config (Get/Set)** | `130` | `131` | Empty (`0 B`) = Get; `7 B`: `[dir_mask, out_m1..out_m6]` = Set | `7 B`: `[dir_mask, out_m1..out_m6]` | Reads or saves `MOT_1..6_DIRECTION` (`dir_mask` bits `0..5`: `1` = reversed `-1`) and `SERVO1..6_FUNCTION` (`out_m1..out_m6` = unique `1..6`) via `param:set_and_save`. |
-| **Axis Gains (Get/Set)** | `140` | `141` | Empty (`0 B`) = Get; `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` (`0..100`) = Set | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | Reads or sets per-axis RC scaling (`0..100%`), multiplied with the global speed limit. |
+| **Axis Gains (Get/Set)** | `140` | `141` | Empty (`0 B`) = Get; `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` (`0..100`) = Set | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | Reads or saves per-axis RC scaling (`0..100%`) to `SCR_USER1..6` (`gain + 1`), multiplied with the global speed limit. |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
-| **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
+| **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM (respecting `SERVO1..6_FUNCTION` port mapping and `MOT_1..6_DIRECTION`) for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
 
 * **Stick & Motor Byte Encoding:** `0` -> `1100 µs` (full reverse), `127`/`128` -> `1500 µs` (neutral with deadband), `255` -> `1900 µs` (full forward).
 

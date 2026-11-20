@@ -288,15 +288,28 @@ run_case("Motor Config Directions & ESC Port Mapping (ID 130 -> 131)", function(
     assert_eq(f:data(2), 1, "M2 -> SERVO1")
     assert_eq(param:get("MOT_1_DIRECTION"), -1)
     assert_eq(param:get("SERVO2_FUNCTION"), 33)
+
+    -- Writes while armed must be rejected and echo existing config
+    CAN.dev1:push_rx(60, {0})
+    update()
+    CAN.dev1.tx_queue = {}
+    CAN.dev1:push_rx(130, {0, 1, 2, 3, 4, 5, 6})
+    update()
+    local f2 = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f2 ~= nil and f2:id_signed() == 131 and f2:dlc() == 7)
+    assert_eq(f2:data(0), 9, "dir_mask unchanged while armed")
+    assert_eq(f2:data(1), 2, "M1 port unchanged while armed")
 end)
 
-run_case("Per-Axis Gains Scaling (ID 140 -> 141)", function()
+run_case("Per-Axis Gains Scaling & Persistence (ID 140 -> 141)", function()
     CAN.dev1:push_rx(140, {50, 25, 100, 50, 0, 100})
     update()
     local f = table.remove(CAN.dev1.tx_queue, 1)
     assert_true(f ~= nil and f:id_signed() == 141 and f:dlc() == 6)
     assert_eq(f:data(0), 50)
     assert_eq(f:data(1), 25)
+    assert_eq(param:get("SCR_USER1"), 51, "SCR_USER1 saved as gain+1")
+    assert_eq(param:get("SCR_USER5"), 1, "SCR_USER5 saved 0% as 1")
 
     CAN.dev1:push_rx(60, {0})
     update()

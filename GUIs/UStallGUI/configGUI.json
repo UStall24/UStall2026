@@ -1,4 +1,7 @@
 {
-  "ComPort": 15,
-  "GyroEnabled": true
+  "MqttPort": 5000,
+  "MqttIpAddr": "192.168.0.3",
+  "ControlStyle": 0,
+  "FlightMode": 1,
+  "MaxThrusterSpeedPercent": 100
 }

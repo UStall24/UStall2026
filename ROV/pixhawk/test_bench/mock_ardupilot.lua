@@ -271,6 +271,12 @@ param = {
         SERVO4_FUNCTION = 36,
         SERVO5_FUNCTION = 37,
         SERVO6_FUNCTION = 38,
+        SCR_USER1       = 0,
+        SCR_USER2       = 0,
+        SCR_USER3       = 0,
+        SCR_USER4       = 0,
+        SCR_USER5       = 0,
+        SCR_USER6       = 0,
     },
     get = function(self, name)
         return self.params[name]
@@ -302,6 +308,7 @@ function M.reset_state()
     for m = 1, 6 do
         param.params["MOT_" .. m .. "_DIRECTION"] = 1
         param.params["SERVO" .. m .. "_FUNCTION"] = 32 + m
+        param.params["SCR_USER" .. m] = 0
     end
     for _, ch in pairs(rc.channels) do
         ch.override_pwm = 0

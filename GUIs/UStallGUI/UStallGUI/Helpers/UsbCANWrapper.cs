@@ -165,12 +165,22 @@ namespace UStallGUI.Helpers
                 if (read <= 0)
                     return;
 
+                List<(ushort rxId, byte[] data)>? frames = null;
                 lock (_rxLock)
                 {
                     for (int i = 0; i < read; i++)
                         _rxBuffer.Add(tmp[i]);
 
-                    ProcessRxBuffer();
+                    ProcessRxBuffer(ref frames);
+                }
+
+                if (frames != null)
+                {
+                    foreach (var (rxId, data) in frames)
+                    {
+                        Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
+                        TriggerCallback(rxId, data);
+                    }
                 }
             }
             catch (Exception ex)
@@ -179,7 +189,7 @@ namespace UStallGUI.Helpers
             }
         }
 
-        private void ProcessRxBuffer()
+        private void ProcessRxBuffer(ref List<(ushort rxId, byte[] data)>? frames)
         {
             while (true)
             {
@@ -222,8 +232,8 @@ namespace UStallGUI.Helpers
 
                 _rxBuffer.RemoveRange(0, frameLen);
 
-                Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
-                TriggerCallback(rxId, data);
+                frames ??= new List<(ushort rxId, byte[] data)>();
+                frames.Add((rxId, data));
             }
         }
 

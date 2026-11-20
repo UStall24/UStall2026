@@ -296,8 +296,36 @@ namespace UStallGUI.ViewModel
                     gainPayload,
                     500);
 
-                if (motorResp.Length >= 7 && gainResp.Length >= 6)
+                bool motorMatched = motorResp.Length >= 7;
+                if (motorMatched)
+                {
+                    for (int i = 0; i < 7; i++)
+                    {
+                        if (motorResp[i] != motorPayload[i])
+                        {
+                            motorMatched = false;
+                            break;
+                        }
+                    }
+
+                    if (!motorMatched)
+                    {
+                        // Sync UI back to actual Pixhawk motor config (e.g. write rejected while armed)
+                        byte actualMask = motorResp[0];
+                        for (int m = 0; m < 6; m++)
+                        {
+                            Thrusters[m].IsReversed = ((actualMask >> m) & 1) == 1;
+                            int port = motorResp[m + 1];
+                            if (port >= 1 && port <= 6)
+                                Thrusters[m].SelectedPortIndex = port - 1;
+                        }
+                    }
+                }
+
+                if (motorMatched && gainResp.Length >= 6)
                     MainWindowViewModel.Instance.LogToControlBox("Applied thruster directions, ESC ports, and axis gains to Pixhawk (saved to params).");
+                else if (motorResp.Length >= 7 && !motorMatched && gainResp.Length >= 6)
+                    MainWindowViewModel.Instance.LogToControlBox("Axis gains saved, but Pixhawk rejected motor direction/port changes (disarm thrusters first).");
                 else
                     MainWindowViewModel.Instance.LogToControlBox("Apply to Pixhawk incomplete or timed out.");
             }

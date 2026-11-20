@@ -755,10 +755,11 @@ class TestBench:
         self.assert_equal(int(self.harness.eval_return_number("param:get('SERVO2_FUNCTION')")), 33, "SERVO2 must be k_motor1 (33)")
         self.assert_equal(int(self.harness.eval_return_number("param:get('SERVO1_FUNCTION')")), 34, "SERVO1 must be k_motor2 (34)")
 
-        # 3. Verify direct motor test for M1 now drives physical servo channel 1 (0-indexed SERVO2)!
+        # 3. Verify direct motor test for M1 now drives physical servo channel 1 (0-indexed SERVO2)
+        #    AND respects MOT_1_DIRECTION = -1 (1560 us inverted around 1500 -> 1440 us)!
         self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 50])
         self.harness.step_update()
-        self.assert_true(abs(self.harness.get_srv_output(1) - 1560) <= 5, "M1 test must route to remapped SERVO2 (chan 1)")
+        self.assert_true(abs(self.harness.get_srv_output(1) - 1440) <= 5, "M1 test must route to remapped SERVO2 (chan 1) and invert for MOT_1_DIRECTION=-1")
         self.assert_equal(self.harness.get_srv_output(0), 1500, "SERVO1 (now M2) must remain neutral 1500 us")
 
         # 4. Reject invalid duplicate port mapping [0, 1, 1, 3, 4, 5, 6] -> must keep previous valid config
@@ -769,6 +770,16 @@ class TestBench:
         self.harness.step_update()
         resp = self.harness.pop_can_tx("dev1")
         self.assert_equal(resp["data"], [9, 2, 1, 3, 4, 5, 6], "Duplicate port assignment must be rejected")
+
+        # 5. Reject motor config changes while armed -> must keep previous config and echo it back
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+        self.harness.push_can_rx("dev1", 130, [0, 1, 2, 3, 4, 5, 6])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"], [9, 2, 1, 3, 4, 5, 6], "Motor config write must be rejected while armed")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_1_DIRECTION')")), -1, "MOT_1_DIRECTION must remain unchanged while armed")
 
     def test_33_per_axis_gains_get_set_and_scaling(self):
         # 1. GET default axis gains (ID 140 empty -> ID 141 [100, 100, 100, 100, 100, 100])
@@ -783,6 +794,8 @@ class TestBench:
         self.harness.step_update()
         resp = self.harness.pop_can_tx("dev1")
         self.assert_equal(resp["data"], [50, 25, 100, 50, 0, 100], "Updated axis gains must echo back")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('SCR_USER1')")), 51, "SCR_USER1 must store FB gain+1 (51)")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('SCR_USER5')")), 1, "SCR_USER5 must store Pitch 0% as 1")
 
         # 3. Arm and drive full stick on all axes -> verify per-axis scaling
         self.harness.push_can_rx("dev1", 60, [0])

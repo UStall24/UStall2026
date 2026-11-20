@@ -230,6 +230,10 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} (Disarmed - click Arm Thrusters when ready).");
                 await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
                 SendFlightModeFrame(SelectedFlightMode);
+                if (App.Instance?.ControlParamterHandlerViewModelGetter != null)
+                {
+                    await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
+                }
             }
             else
             {
@@ -279,6 +283,8 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance.LogToControlBox("Cannot arm thrusters: USB-CAN adapter not connected.");
                 return;
             }
+
+            await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
 
             var modePayload = new byte[] { GetArduSubModeByte(SelectedFlightMode) };
             var response = await SendAndWaitForResponseAsync(

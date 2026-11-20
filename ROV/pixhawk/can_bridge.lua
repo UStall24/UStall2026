@@ -196,6 +196,18 @@ local tx_resp_single  = {0}
 local tx_motor_cfg    = {0, 1, 2, 3, 4, 5, 6}
 local axis_gains      = {100, 100, 100, 100, 100, 100} -- [FB, LR, UD, Yaw, Pitch, Roll] in %
 
+-- Load persisted per-axis gains from SCR_USER1..SCR_USER6 (stored as gain + 1 in 1..101; 0 = factory unset -> 100%)
+local function init_axis_gains()
+    if param and param.get then
+        for i = 1, C.CONTROL_DLC do
+            local v = param:get("SCR_USER" .. tostring(i))
+            if v and v >= 1 and v <= 101 then
+                axis_gains[i] = math.floor(v) - 1
+            end
+        end
+    end
+end
+
 -- ==============================================================================
 -- Helper Functions & State
 -- ==============================================================================
@@ -423,11 +435,19 @@ local function end_motor_test()
 end
 
 -- Apply direct motor test outputs (file-scoped to avoid closure allocation in pcall)
+-- Applies MOT_1..6_DIRECTION so bench tests match flight spin direction
 local function apply_motor_test_outputs(data, duration_ms)
     for channel = 0, 5 do
+        local pwm = byte_to_motor_pwm(data[channel + 1])
+        if pwm ~= 1500 and param and param.get then
+            local dir = param:get("MOT_" .. tostring(channel + 1) .. "_DIRECTION")
+            if dir and dir < 0 then
+                pwm = 3000 - pwm
+            end
+        end
         SRV_Channels:set_output_pwm_chan_timeout(
             motor_channels[channel + 1],
-            byte_to_motor_pwm(data[channel + 1]),
+            pwm,
             duration_ms + 50
         )
     end
@@ -490,35 +510,39 @@ end
 local function handle_motor_config(data, dlc)
     on_topside_activity()
     if dlc >= 7 and param then
-        -- Validate that all 6 output ports are in 1..6 and unique
-        local used = {}
-        local valid = true
-        for m = 1, 6 do
-            local port = math.floor(data[m + 1] or 0)
-            if port < 1 or port > 6 or used[port] then
-                valid = false
-                break
-            end
-            used[port] = true
-        end
-
-        if valid then
-            local save_fn = param.set_and_save or param.set
-            local mask = math.floor(data[1] or 0)
-            for m = 1, 6 do
-                local bit = 2 ^ (m - 1)
-                local reversed = (math.floor(mask / bit) % 2) == 1
-                pcall(save_fn, param, "MOT_" .. tostring(m) .. "_DIRECTION", reversed and -1 or 1)
-            end
-            for m = 1, 6 do
-                local port = math.floor(data[m + 1])
-                pcall(save_fn, param, "SERVO" .. tostring(port) .. "_FUNCTION", 32 + m)
-                motor_channels[m] = port - 1
-            end
-            motor_channels_initialized = true
-            gcs:send_text(6, "CAN bridge: motor directions & ESC ports updated")
+        if arming:is_armed() then
+            gcs:send_text(4, "CAN bridge: disarm before changing motor config")
         else
-            gcs:send_text(3, "CAN bridge: invalid motor config (ports must be unique 1..6)")
+            -- Validate that all 6 output ports are in 1..6 and unique
+            local used = {}
+            local valid = true
+            for m = 1, 6 do
+                local port = math.floor(data[m + 1] or 0)
+                if port < 1 or port > 6 or used[port] then
+                    valid = false
+                    break
+                end
+                used[port] = true
+            end
+
+            if valid then
+                local save_fn = param.set_and_save or param.set
+                local mask = math.floor(data[1] or 0)
+                for m = 1, 6 do
+                    local bit = 2 ^ (m - 1)
+                    local reversed = (math.floor(mask / bit) % 2) == 1
+                    pcall(save_fn, param, "MOT_" .. tostring(m) .. "_DIRECTION", reversed and -1 or 1)
+                end
+                for m = 1, 6 do
+                    local port = math.floor(data[m + 1])
+                    pcall(save_fn, param, "SERVO" .. tostring(port) .. "_FUNCTION", 32 + m)
+                    motor_channels[m] = port - 1
+                end
+                motor_channels_initialized = true
+                gcs:send_text(6, "CAN bridge: motor directions & ESC ports updated")
+            else
+                gcs:send_text(3, "CAN bridge: invalid motor config (ports must be unique 1..6)")
+            end
         end
     end
 
@@ -674,10 +698,15 @@ local function handle_frame(frame)
     elseif rx_id == C.RX_AXIS_GAINS then
         on_topside_activity()
         if dlc >= C.CONTROL_DLC then
+            local save_fn = param and (param.set_and_save or param.set) or nil
             for i = 1, C.CONTROL_DLC do
                 axis_gains[i] = math.max(0, math.min(100, math.floor(rx_data[i])))
+                if save_fn then
+                    -- Store gain + 1 (1..101) so 0% is distinguishable from factory default 0
+                    pcall(save_fn, param, "SCR_USER" .. tostring(i), axis_gains[i] + 1)
+                end
             end
-            gcs:send_text(6, "CAN bridge: axis gains updated")
+            gcs:send_text(6, "CAN bridge: axis gains updated & saved")
         end
         send_can(C.TX_AXIS_GAINS, axis_gains)
 
@@ -736,6 +765,7 @@ local function update_body()
         end
         init_motor_channels()
         init_rc_channels()
+        init_axis_gains()
         local ports_str = (can_dev1 and "CAN1 " or "") .. (can_dev2 and "CAN2" or "")
         gcs:send_text(6, "CAN bridge: driver ready on " .. ports_str .. " (buffer " .. tostring(C.CAN_BUFFER_SIZE) .. ")")
     end
