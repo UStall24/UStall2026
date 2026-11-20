@@ -645,6 +645,97 @@ class TestBench:
         self.assert_equal(self.harness.get_rc_override(5), 1500, "RC5 at 0% limit must be 1500 us")
         self.assert_equal(self.harness.get_rc_override(6), 1500, "RC6 at 0% limit must be 1500 us")
 
+    def test_27_emergency_disarm_cancels_active_motor_test(self):
+        # Start a 1000 ms motor test on Motor 1
+        self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 100])
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), True)
+        self.assert_true(abs(self.harness.get_srv_output(0) - 1560) <= 5)
+        self.harness.clear_tx_queues()
+
+        # Emergency Disarm (ID 70) mid-test
+        self.harness.advance_time(200)
+        self.harness.push_can_rx("dev1", 70, [])
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), False, "Vehicle must disarm immediately")
+        self.assert_equal(self.harness.get_srv_output(0), 1500, "Motor 1 output must be neutralized on emergency disarm")
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 71 and resp["data"] == [1], "Expected disarm ACK (ID 71 [1])")
+
+        # Advance past original test duration -> must NOT send stale TX_TEST_MOTOR (171)
+        self.harness.advance_time(1000)
+        self.harness.step_update()
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Must not emit stale ID 171 after cancelled motor test")
+
+    def test_28_motor_test_failure_restores_mode_and_disarms(self):
+        # Case A: Arming denied during motor test from ALT_HOLD (mode 2) -> mode must be restored to 2
+        self.harness.eval("vehicle._mode = 2; arming.arm_allowed = false; arming.arm_force_allowed = false")
+        self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 50])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 171 and resp["data"] == [0], "Expected motor test fail [0]")
+        self.assert_equal(self.harness.is_armed(), False, "Must remain disarmed")
+        self.assert_equal(self.harness.get_mode(), 2, "Must restore prior mode (ALT_HOLD) on arm failure")
+
+        # Case B: SRV_Channels output throws after arming -> must disarm & restore prior mode
+        self.harness.eval("arming.arm_allowed = true; arming.arm_force_allowed = true; SRV_Channels.fail_output = true")
+        self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 50])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 171 and resp["data"] == [0], "Expected motor test output fail [0]")
+        self.assert_equal(self.harness.is_armed(), False, "Must disarm when motor output fails")
+        self.assert_equal(self.harness.get_mode(), 2, "Must restore prior mode (ALT_HOLD) on output failure")
+
+    def test_29_empty_update_cycle_ignores_stale_buffer(self):
+        # Send speed limit 50 (populates rx_data[1] = 50)
+        self.harness.push_can_rx("dev1", 120, [50])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+
+        # Send 0-byte Update Cycle Time frame (ID 160, dlc = 0) -> must keep 10 ms, NOT read stale 50
+        self.harness.push_can_rx("dev1", 160, [])
+        delay = self.harness.step_update()
+        self.assert_equal(delay, 10, "0-byte ID 160 must not read stale rx_data[1]")
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 161 and resp["data"] == [10], "Echo must remain 10 ms")
+
+    def test_30_external_arm_resets_timers_cleanly(self):
+        # Advance time far past heartbeat & watchdog thresholds while disarmed
+        self.harness.advance_time(10000)
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+
+        # Simulate external GCS arming (not via CAN ID 60)
+        self.harness.eval("arming._armed = true")
+        self.harness.step_update()
+
+        # Must NOT immediately fire a heartbeat ping or trip watchdog on the very first armed tick
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Must not immediately send heartbeat ping on external arm")
+        self.assert_equal(self.harness.get_rc_override(3), 0, "Must not immediately trip watchdog on external arm")
+
+        # After 600 ms without pilot input, watchdog should trip normally
+        self.harness.advance_time(600)
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(3), 1500, "Watchdog should neutralize after 500 ms")
+
+    def test_31_external_disarm_cancels_active_motor_test(self):
+        # Start motor test for 1000 ms
+        self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 100])
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), True)
+        self.harness.clear_tx_queues()
+
+        # External disarm (e.g. from QGC)
+        self.harness.eval("arming._armed = false")
+        self.harness.advance_time(200)
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_srv_output(0), 1500, "Motor 1 must neutralize on external disarm")
+
+        # Advance past original duration -> must NOT emit stale ID 171
+        self.harness.advance_time(1000)
+        self.harness.step_update()
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Must not emit stale ID 171 after external disarm")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -672,6 +763,11 @@ class TestBench:
             ("Test 24: Auto-Surface on 2 Missed Heartbeat Pings & Recovery", self.test_24_auto_surface_on_missed_heartbeats_and_recovery),
             ("Test 25: Heartbeat ACK Idle Keep-Alive & Max-Surface Disarm", self.test_25_heartbeat_ack_prevents_surface_and_max_duration_disarm),
             ("Test 26: Arm in Requested Mode & Pixhawk Speed Limit", self.test_26_arm_with_requested_mode_and_speed_limit),
+            ("Test 27: Emergency Disarm Cancels Active Motor Test", self.test_27_emergency_disarm_cancels_active_motor_test),
+            ("Test 28: Motor Test Failure Restores Mode & Disarms", self.test_28_motor_test_failure_restores_mode_and_disarms),
+            ("Test 29: Empty Cycle Time Frame Ignores Stale Buffer", self.test_29_empty_update_cycle_ignores_stale_buffer),
+            ("Test 30: External Arm Resets Heartbeat/Watchdog Timers", self.test_30_external_arm_resets_timers_cleanly),
+            ("Test 31: External Disarm Cancels Active Motor Test", self.test_31_external_disarm_cancels_active_motor_test),
         ]
 
         for name, fn in tests:

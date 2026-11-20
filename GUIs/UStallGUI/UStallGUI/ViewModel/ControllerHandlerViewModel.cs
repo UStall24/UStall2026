@@ -76,7 +76,6 @@ namespace UStallGUI.ViewModel
 
         // 50 Hz (20 ms interval) matches ArduSub update rate without saturating the 125 kbps CAN bus
         private readonly int pollingFrequency = 50;
-        private readonly int sendingDividor = 1;
         private bool keepPolling = false;
 
         // Properties for binding
@@ -107,7 +106,6 @@ namespace UStallGUI.ViewModel
         {
             keepPolling = true;
             int delayMs = pollingFrequency > 0 ? 1000 / pollingFrequency : 20;
-            int dividorCounter = 0;
 
             try
             {
@@ -115,7 +113,8 @@ namespace UStallGUI.ViewModel
                 {
                     CurrentControllerModel.UpdateControllerValues();
 
-                    if (dividorCounter == 0)
+                    // Allow sending if CAN is open and either Controller or Keyboard is active
+                    if (can != null && can.IsOpen && (sendControllerValues || EnableKeyboardInput))
                     {
                         var command = CurrentFlightMode switch
                         {
@@ -124,18 +123,7 @@ namespace UStallGUI.ViewModel
                             _ => SendAddressesControlUnit.ApplyControllerValues_Stabilize,
                         };
 
-                        var payload = GetMappedPayload();
-
-                        // Allow sending if either Controller or Keyboard is active
-                        if (sendControllerValues || EnableKeyboardInput)
-                        {
-                            can.SendFrame((ushort)command, payload);
-                        }
-                        dividorCounter = sendingDividor;
-                    }
-                    else
-                    {
-                        dividorCounter--;
+                        can.SendFrame((ushort)command, GetMappedPayload());
                     }
 
                     RaisePropertyChanged(nameof(CurrentControllerModel));
@@ -225,13 +213,13 @@ namespace UStallGUI.ViewModel
                 11 => EnableKeyboardInput ? (byte)(127 + ((IsKeyDown(VK_W) ? 1 : 0) - (IsKeyDown(VK_S) ? 1 : 0)) * 127) : (byte)127,
 
                 // 12 (Keyboard A/D -> D is right/positive, A is left/negative)
-                12 => (byte)(127 + ((IsKeyDown(VK_D) ? 1 : 0) - (IsKeyDown(VK_A) ? 1 : 0)) * 127),
+                12 => EnableKeyboardInput ? (byte)(127 + ((IsKeyDown(VK_D) ? 1 : 0) - (IsKeyDown(VK_A) ? 1 : 0)) * 127) : (byte)127,
 
-                // 13 (Keyboard Q/R -> Q is positive, R is negative)
-                13 => (byte)(127 + ((IsKeyDown(VK_Q) ? 1 : 0) - (IsKeyDown(VK_E) ? 1 : 0)) * 127),
+                // 13 (Keyboard Q/E -> Q is positive, E is negative)
+                13 => EnableKeyboardInput ? (byte)(127 + ((IsKeyDown(VK_Q) ? 1 : 0) - (IsKeyDown(VK_E) ? 1 : 0)) * 127) : (byte)127,
 
                 // 14 (Keyboard X/Y -> X is positive, Y is negative)
-                14 => (byte)(127 + ((IsKeyDown(VK_X) ? 1 : 0) - (IsKeyDown(VK_Y) ? 1 : 0)) * 127),
+                14 => EnableKeyboardInput ? (byte)(127 + ((IsKeyDown(VK_X) ? 1 : 0) - (IsKeyDown(VK_Y) ? 1 : 0)) * 127) : (byte)127,
 
                 _ => 127
             };

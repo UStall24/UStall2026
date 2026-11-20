@@ -7,10 +7,9 @@
 local script_dir = "./"
 local info = debug.getinfo(1, "S")
 if info and info.source and info.source:sub(1,1) == "@" then
-    script_dir = info.source:sub(2):match("(.*/)") or "./"
+    script_dir = info.source:sub(2):match("(.*[/\\])") or "./"
 end
 local mock = dofile(script_dir .. "mock_ardupilot.lua")
-dofile(script_dir .. "../can_bridge.lua")
 
 local passed = 0
 local failed = 0
@@ -18,6 +17,7 @@ local failed = 0
 local function run_case(name, fn)
     io.write(string.format("  [TEST] %-55s ... ", name))
     mock.reset_state()
+    dofile(script_dir .. "../can_bridge.lua")
     update() -- run initial tick for lazy init
     CAN.dev1.tx_queue = {}
     CAN.dev2.tx_queue = {}
@@ -50,7 +50,7 @@ print(string.rep("=", 72))
 
 run_case("Health Ping (ID 40 -> 41 [1])", function()
     CAN.dev1:push_rx(40, {})
-    local delay = update()
+    local _, delay = update()
     assert_eq(delay, 10, "Cycle delay")
     local f = table.remove(CAN.dev1.tx_queue, 1)
     assert_true(f ~= nil, "Response must exist")
@@ -222,6 +222,62 @@ run_case("DroneCAN Extended 29-bit & Error Frame Filtering", function()
     CAN.dev1:push_rx(40, {}, false, false, true) -- rtr
     update()
     assert_eq(#CAN.dev1.tx_queue, 0, "All filtered out")
+end)
+
+run_case("Arm in Requested Mode & Speed Limit (ID 60 [19], 120)", function()
+    CAN.dev1:push_rx(120, {50})
+    update()
+    local f = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f ~= nil and f:id_signed() == 121 and f:data(0) == 50, "Speed limit echo 50%")
+
+    CAN.dev1:push_rx(60, {19})
+    update()
+    assert_eq(arming:is_armed(), true)
+    assert_eq(vehicle:get_mode(), 19, "Armed in MANUAL")
+    CAN.dev1.tx_queue = {}
+
+    CAN.dev1:push_rx(90, {255, 0, 127, 127, 127, 127})
+    update()
+    assert_eq(rc:get_channel(5).override_pwm, 1700, "RC5 scaled to 50%")
+    assert_eq(rc:get_channel(6).override_pwm, 1300, "RC6 scaled to 50%")
+
+    -- Restore speed limit to 100% for subsequent tests (shared Lua state)
+    CAN.dev1:push_rx(120, {100})
+    update()
+end)
+
+run_case("Emergency Disarm Cancels Active Motor Test (ID 70)", function()
+    CAN.dev1:push_rx(170, {145, 128, 128, 128, 128, 128, 100})
+    update()
+    assert_eq(arming:is_armed(), true)
+    CAN.dev1.tx_queue = {}
+
+    mock.advance_time(200)
+    CAN.dev1:push_rx(70, {})
+    update()
+    assert_eq(arming:is_armed(), false, "Must disarm immediately")
+    assert_eq(SRV_Channels.outputs[0].pwm, 1500, "Motor 1 neutralized")
+    local f = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f ~= nil and f:id_signed() == 71 and f:data(0) == 1)
+
+    mock.advance_time(1000)
+    update()
+    assert_eq(#CAN.dev1.tx_queue, 0, "No stale ID 171 after cancelled test")
+end)
+
+run_case("Empty Cycle Time Frame Ignores Stale Buffer (ID 160)", function()
+    CAN.dev1:push_rx(120, {50})
+    update()
+    CAN.dev1.tx_queue = {}
+
+    CAN.dev1:push_rx(160, {})
+    local _, delay = update()
+    assert_eq(delay, 10, "Must keep 10 ms cycle time")
+    local f = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f ~= nil and f:id_signed() == 161 and f:data(0) == 10)
+
+    CAN.dev1:push_rx(120, {100})
+    update()
 end)
 
 print(string.rep("=", 72))

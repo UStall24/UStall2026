@@ -26,7 +26,7 @@
 --   FS_THR_ENABLE    = 0       (Disable throttle/radio failsafe when no physical RC receiver)
 --   RC_OPTIONS       = 0       (Ensure bit 5 is 0 so RC overrides are NOT ignored)
 --   RC_OVERRIDE_TIME = 3.0     (Timeout in seconds before ArduSub releases RC override)
---   MOT_SAFE_DISARM  = 0       (Keep PWM disabled while disarmed)
+--   MOT_SAFE_DISARM  = 1       (Keep PWM disabled while disarmed)
 --
 -- FLIGHT MODES (ArduSub):
 --   0  = STABILIZE (Attitude stabilization via IMU: eliminates roll/pitch tipping and tether twist)
@@ -36,7 +36,7 @@
 -- ==============================================================================
 
 local SCRIPT_NAME    = "ROV CAN bridge"
-local SCRIPT_VERSION = "1.4"
+local SCRIPT_VERSION = "1.5"
 
 -- CAN Driver handles (lazy initialized in update loop to prevent boot race conditions)
 local can_dev1       = nil
@@ -263,12 +263,48 @@ local function send_can(id, payload)
     end
 
     if not tx_frame then
-        pcall(function() tx_frame = CANFrame() end)
-        if not tx_frame then return false end
+        local ok, f = pcall(CANFrame)
+        if not ok or not f then return false end
+        tx_frame = f
     end
 
     local ok, result = pcall(raw_write_frame, dev, tx_frame, id, payload, len)
     return ok and result ~= false
+end
+
+-- Transmit a 1-byte CAN response using the pre-allocated static buffer
+local function send_u8(id, val)
+    tx_resp_single[1] = val
+    return send_can(id, tx_resp_single)
+end
+
+-- Zero-allocation protected wrappers for ArduSub API calls
+local function safe_set_mode(mode)
+    return pcall(vehicle.set_mode, vehicle, mode)
+end
+
+local function safe_disarm()
+    return pcall(arming.disarm, arming)
+end
+
+local function safe_arm()
+    local ok, armed = pcall(arming.arm, arming)
+    if ok and armed then
+        return true
+    end
+    local fok, forced = pcall(arming.arm_force, arming)
+    return fok and forced
+end
+
+-- Reset armed-session heartbeat & watchdog timers
+local function reset_armed_timers(now)
+    last_ctrl_ms = now
+    last_heartbeat_tx_ms = now
+    missed_heartbeats = 0
+    heartbeat_awaiting = false
+    auto_surface_active = false
+    watchdog_tripped = false
+    watchdog_warned = false
 end
 
 -- Override RC channel PWM (0 to release override)
@@ -316,18 +352,14 @@ local function clear_control_overrides()
     end
 end
 
--- Convert 0..255 byte value to 1100..1900 RC PWM (127/128 -> 1500 neutral), scaled by max_speed_percent
+-- Convert 0..255 byte value to 1100..1900 RC PWM (126..129 -> 1500 neutral), scaled by max_speed_percent
 local function byte_to_rc_pwm(value)
-    if not value then return 1500 end
-    local clamped = math.max(0, math.min(255, value))
-    local norm = (clamped / 127.5) - 1.0
-    if norm < -1.0 then norm = -1.0 end
-    if norm > 1.0 then norm = 1.0 end
-    if math.abs(norm) < 0.015 then
+    if not value or (value >= 126 and value <= 129) then
         return 1500
     end
-    local scale = max_speed_percent / 100.0
-    return math.floor(1500 + (norm * 400 * scale) + 0.5)
+    local clamped = math.max(0, math.min(255, value))
+    local norm = (clamped / 127.5) - 1.0
+    return math.floor(1500 + (norm * 400 * (max_speed_percent / 100.0)) + 0.5)
 end
 
 -- Convert 0..255 byte value to 1100..1900 motor PWM for direct output with deadzone
@@ -350,45 +382,63 @@ local function handle_controller_values(data)
     watchdog_warned = false
 end
 
+-- Force all 6 direct motor channels back to 1500 neutral immediately
+local function neutralize_motor_outputs()
+    for channel = 0, 5 do
+        pcall(SRV_Channels.set_output_pwm_chan_timeout, SRV_Channels, motor_channels[channel + 1], 1500, 50)
+    end
+end
+
+-- Cancel an active bench motor test (used on emergency disarm or external disarm)
+local function cancel_motor_test()
+    if not motor_test_active then return end
+    motor_test_active = false
+    neutralize_motor_outputs()
+end
+
 -- Direct motor test completion
 local function end_motor_test()
     motor_test_active = false
     last_ctrl_ms = now_ms()
-
-    -- Actively force all motor channels back to 1500 neutral immediately
-    for channel = 0, 5 do
-        local out_ch = motor_channels[channel + 1]
-        SRV_Channels:set_output_pwm_chan_timeout(out_ch, 1500, 50)
-    end
+    neutralize_motor_outputs()
 
     -- Safety restoration: If vehicle was disarmed before test, disarm it now.
     -- If it was armed, restore the previous flight mode.
     if not was_armed_before_test then
-        pcall(function() arming:disarm() end)
+        safe_disarm()
     else
-        pcall(function() vehicle:set_mode(saved_mode_before_test) end)
+        safe_set_mode(saved_mode_before_test)
         neutralize_controls()
     end
 
-    tx_resp_single[1] = 1
-    send_can(C.TX_TEST_MOTOR, tx_resp_single)
+    send_u8(C.TX_TEST_MOTOR, 1)
     gcs:send_text(6, "CAN bridge: motor test complete")
+end
+
+-- Apply direct motor test outputs (file-scoped to avoid closure allocation in pcall)
+local function apply_motor_test_outputs(data, duration_ms)
+    for channel = 0, 5 do
+        SRV_Channels:set_output_pwm_chan_timeout(
+            motor_channels[channel + 1],
+            byte_to_motor_pwm(data[channel + 1]),
+            duration_ms + 50
+        )
+    end
 end
 
 -- Handle direct motor test command from GUI
 local function handle_motor_test(data)
+    on_topside_activity()
     if motor_test_active then
         gcs:send_text(4, "CAN bridge: motor test already active")
-        tx_resp_single[1] = 0
-        send_can(C.TX_TEST_MOTOR, tx_resp_single)
+        send_u8(C.TX_TEST_MOTOR, 0)
         return
     end
 
     local duration_ms = data[7] * 10
     if duration_ms < 10 or duration_ms > C.MAX_MOTOR_TEST_MS then
         gcs:send_text(3, "CAN bridge: motor test duration invalid")
-        tx_resp_single[1] = 0
-        send_can(C.TX_TEST_MOTOR, tx_resp_single)
+        send_u8(C.TX_TEST_MOTOR, 0)
         return
     end
 
@@ -398,41 +448,31 @@ local function handle_motor_test(data)
 
     -- Always switch to MANUAL mode (19) during bench motor tests so IMU attitude controller
     -- does not fight the test or drive other thrusters
-    pcall(function()
-        vehicle:set_mode(19)
-        if not was_armed_before_test then
-            if not arming:arm() then
-                arming:arm_force()
-            end
-        end
-    end)
+    safe_set_mode(19)
+    if not was_armed_before_test then
+        safe_arm()
+    end
 
     if not arming:is_armed() then
+        safe_set_mode(saved_mode_before_test)
         gcs:send_text(3, "CAN bridge: motor test arm failed")
-        tx_resp_single[1] = 0
-        send_can(C.TX_TEST_MOTOR, tx_resp_single)
+        send_u8(C.TX_TEST_MOTOR, 0)
         return
     end
 
-    local ok = pcall(function()
-        for channel = 0, 5 do
-            local out_ch = motor_channels[channel + 1]
-            SRV_Channels:set_output_pwm_chan_timeout(
-                out_ch,
-                byte_to_motor_pwm(data[channel + 1]),
-                duration_ms + 50
-            )
-        end
-    end)
-
+    local ok = pcall(apply_motor_test_outputs, data, duration_ms)
     if ok then
         motor_test_active = true
         motor_test_start_ms = now_ms()
         motor_test_dur_ms = duration_ms
     else
+        neutralize_motor_outputs()
+        if not was_armed_before_test then
+            safe_disarm()
+        end
+        safe_set_mode(saved_mode_before_test)
         gcs:send_text(3, "CAN bridge: motor test output failed")
-        tx_resp_single[1] = 0
-        send_can(C.TX_TEST_MOTOR, tx_resp_single)
+        send_u8(C.TX_TEST_MOTOR, 0)
     end
 end
 
@@ -462,64 +502,48 @@ local function handle_frame(frame)
         -- Only reply with TX_HEALTH (41) if this is a GUI-initiated probe (empty or payload ~= 2).
         -- Payload [2] is the GUI's ACK to a Pixhawk-initiated heartbeat ping and must not echo back.
         if dlc == 0 or rx_data[1] ~= C.HEALTH_ROV_PING then
-            tx_resp_single[1] = C.HEALTH_GUI_PROBE
-            send_can(C.TX_HEALTH, tx_resp_single)
+            send_u8(C.TX_HEALTH, C.HEALTH_GUI_PROBE)
         end
 
     -- 2. Init Connection to Frontend
     elseif rx_id == C.RX_INIT_CONN then
         on_topside_activity()
-        tx_resp_single[1] = 1
-        send_can(C.TX_INIT_CONN, tx_resp_single)
+        send_u8(C.TX_INIT_CONN, 1)
 
     -- 3. Arm Thrusters / Init Motors
     elseif rx_id == C.RX_INIT_THRUSTERS then
         on_topside_activity()
         neutralize_controls()
-        pcall(function()
-            if dlc >= 1 then
-                local req_mode = rx_data[1]
-                if req_mode == 0 or req_mode == 2 or req_mode == 19 then
-                    vehicle:set_mode(req_mode)
-                end
-            else
-                -- Legacy empty-payload arm defaults to STABILIZE (0) if currently MANUAL
-                local mode = vehicle:get_mode()
-                if not mode or mode == 19 then
-                    vehicle:set_mode(0)
-                end
+        if dlc >= 1 then
+            local req_mode = rx_data[1]
+            if req_mode == 0 or req_mode == 2 or req_mode == 19 then
+                safe_set_mode(req_mode)
             end
-            if not arming:arm() then
-                -- Fallback to force-arming if bench checks fail
-                arming:arm_force()
+        else
+            -- Legacy empty-payload arm defaults to STABILIZE (0) if currently MANUAL
+            local mode = vehicle:get_mode()
+            if not mode or mode == 19 then
+                safe_set_mode(0)
             end
-        end)
+        end
+        safe_arm()
 
         local armed = arming:is_armed()
         if armed then
-            local now = now_ms()
-            last_ctrl_ms = now
-            last_heartbeat_tx_ms = now
-            missed_heartbeats = 0
-            heartbeat_awaiting = false
-            auto_surface_active = false
-            watchdog_tripped = false
-            watchdog_warned = false
+            reset_armed_timers(now_ms())
             was_armed = true
             gcs:send_text(6, "CAN bridge: armed in mode " .. tostring(vehicle:get_mode()))
         else
             gcs:send_text(3, "CAN bridge: arming rejected (check ARMING_SKIPCHK & safety)")
         end
-        tx_resp_single[1] = armed and 1 or 0
-        send_can(C.TX_INIT_THRUSTERS, tx_resp_single)
+        send_u8(C.TX_INIT_THRUSTERS, armed and 1 or 0)
 
     -- 4. Disarm Thrusters
     elseif rx_id == C.RX_DEINIT_THRUST then
         on_topside_activity()
+        cancel_motor_test()
         neutralize_controls()
-        pcall(function()
-            arming:disarm()
-        end)
+        safe_disarm()
         local disarmed = not arming:is_armed()
         if disarmed then
             clear_control_overrides()
@@ -528,8 +552,7 @@ local function handle_frame(frame)
             neutralize_controls()
         end
         watchdog_tripped = true
-        tx_resp_single[1] = disarmed and 1 or 0
-        send_can(C.TX_DEINIT_THRUST, tx_resp_single)
+        send_u8(C.TX_DEINIT_THRUST, disarmed and 1 or 0)
         gcs:send_text(disarmed and 6 or 3, disarmed and "CAN bridge: disarmed" or "CAN bridge: disarm failed")
 
     -- 5. Reset Error
@@ -538,8 +561,7 @@ local function handle_frame(frame)
         watchdog_tripped = false
         watchdog_warned = false
         last_ctrl_ms = now_ms()
-        tx_resp_single[1] = 1
-        send_can(C.TX_RESET_ERR, tx_resp_single)
+        send_u8(C.TX_RESET_ERR, 1)
 
     -- 6. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
     elseif rx_id == C.RX_CTRL_STABILIZE or rx_id == C.RX_CTRL_DEPTH_HOLD or rx_id == C.RX_CTRL_MANUAL then
@@ -555,13 +577,10 @@ local function handle_frame(frame)
             elseif rx_id == C.RX_CTRL_MANUAL then
                 target_mode = 19
             end
-            local cur_mode = vehicle:get_mode()
 
-            if target_mode ~= cur_mode then
-                if elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
-                    last_mode_change_ms = now_ms()
-                    pcall(function() vehicle:set_mode(target_mode) end)
-                end
+            if target_mode ~= vehicle:get_mode() and elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
+                last_mode_change_ms = now_ms()
+                safe_set_mode(target_mode)
             end
 
             if arming:is_armed() then
@@ -576,27 +595,27 @@ local function handle_frame(frame)
             max_speed_percent = math.max(0, math.min(100, math.floor(rx_data[1])))
             gcs:send_text(6, "CAN bridge: max speed limit set to " .. tostring(max_speed_percent) .. "%")
         end
-        tx_resp_single[1] = max_speed_percent
-        send_can(C.TX_SET_SPEED_LIMIT, tx_resp_single)
+        send_u8(C.TX_SET_SPEED_LIMIT, max_speed_percent)
 
-    -- 7. Direct Motor Test (Bench Thruster Test)
+    -- 8. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
         if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
         else
             gcs:send_text(3, "CAN bridge: motor test payload must be 7 bytes")
-            tx_resp_single[1] = 0
-            send_can(C.TX_TEST_MOTOR, tx_resp_single)
+            send_u8(C.TX_TEST_MOTOR, 0)
         end
 
-    -- 8. Update Cycle Time
+    -- 9. Update Cycle Time
     elseif rx_id == C.RX_UPDATE_CYCLE then
-        local candidate = (dlc >= 2) and rx_data[2] or rx_data[1]
-        if candidate and candidate >= C.MIN_CYCLE_TIME_MS and candidate <= C.MAX_CYCLE_TIME_MS then
-            cycle_time_ms = candidate
+        on_topside_activity()
+        if dlc >= 1 then
+            local candidate = (dlc >= 2) and rx_data[2] or rx_data[1]
+            if candidate and candidate >= C.MIN_CYCLE_TIME_MS and candidate <= C.MAX_CYCLE_TIME_MS then
+                cycle_time_ms = candidate
+            end
         end
-        tx_resp_single[1] = cycle_time_ms
-        send_can(C.TX_UPDATE_CYCLE, tx_resp_single)
+        send_u8(C.TX_UPDATE_CYCLE, cycle_time_ms)
     end
 end
 
@@ -624,8 +643,10 @@ end
 local function update_body()
     -- Lazy initialization of CAN scripting devices (supports both CAN1 and CAN2)
     if not can_dev1 and not can_dev2 then
-        pcall(function() can_dev1 = CAN:get_device(C.CAN_BUFFER_SIZE) end)
-        pcall(function() can_dev2 = CAN:get_device2(C.CAN_BUFFER_SIZE) end)
+        local ok1, d1 = pcall(CAN.get_device, CAN, C.CAN_BUFFER_SIZE)
+        local ok2, d2 = pcall(CAN.get_device2, CAN, C.CAN_BUFFER_SIZE)
+        if ok1 then can_dev1 = d1 end
+        if ok2 then can_dev2 = d2 end
         if not can_dev1 and not can_dev2 then
             return 1000 -- Retry every 1000ms until a CAN driver is ready
         end
@@ -648,7 +669,10 @@ local function update_body()
     -- (Suppressed during direct motor tests to prevent override conflicts)
     local is_armed = arming:is_armed()
     if is_armed then
-        was_armed = true
+        if not was_armed then
+            was_armed = true
+            reset_armed_timers(now_ms())
+        end
         if not motor_test_active then
             -- 1. Pilot Input Watchdog (500ms): Neutralize controls on stick stream stop
             if not watchdog_tripped and elapsed_ms(last_ctrl_ms) > C.WATCHDOG_TIMEOUT_MS then
@@ -666,12 +690,11 @@ local function update_body()
                     if missed_heartbeats >= C.MAX_MISSED_HEARTBEATS and not auto_surface_active then
                         auto_surface_active = true
                         auto_surface_start_ms = now_ms()
-                        pcall(function() vehicle:set_mode(0) end) -- STABILIZE to keep level while surfacing
+                        safe_set_mode(0) -- STABILIZE to keep level while surfacing
                         gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
                     end
                 end
-                tx_resp_single[1] = C.HEALTH_ROV_PING
-                send_can(C.TX_HEALTH, tx_resp_single)
+                send_u8(C.TX_HEALTH, C.HEALTH_ROV_PING)
                 heartbeat_awaiting = true
                 last_heartbeat_tx_ms = now_ms()
             end
@@ -683,7 +706,7 @@ local function update_body()
                     missed_heartbeats = 0
                     heartbeat_awaiting = false
                     neutralize_controls()
-                    pcall(function() arming:disarm() end)
+                    safe_disarm()
                     clear_control_overrides()
                     was_armed = false
                     watchdog_tripped = true
@@ -691,7 +714,7 @@ local function update_body()
                 else
                     if vehicle:get_mode() ~= 0 and elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
                         last_mode_change_ms = now_ms()
-                        pcall(function() vehicle:set_mode(0) end)
+                        safe_set_mode(0)
                     end
                     apply_surface_controls()
                 end
@@ -700,8 +723,9 @@ local function update_body()
             end
         end
     else
-        -- If disarmed externally (e.g. from GCS or failsafe), ensure overrides are cleared
-        if was_armed then
+        -- If disarmed externally (e.g. from GCS or failsafe), cancel any motor test and clear overrides
+        if was_armed or motor_test_active then
+            cancel_motor_test()
             clear_control_overrides()
             was_armed = false
             watchdog_tripped = true

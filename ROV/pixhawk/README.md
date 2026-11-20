@@ -22,7 +22,7 @@ This directory contains the translation layer, test bench, and configuration doc
 |   (CAN_P2_DRIVER=1, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
 |   |                                                          |
 |   v                                                          |
-| Lua Script: /APM/scripts/can_bridge.lua (v1.3)               |
+| Lua Script: /APM/scripts/can_bridge.lua (v1.5)               |
 |   - Auto-detects active CAN port (CAN 1 or CAN 2)            |
 |   - Zero-allocation high-frequency CAN parsing (100 Hz)      |
 |   - Auto-detects ArduSub RCMAP parameters dynamically        |
@@ -63,9 +63,10 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 ### Safety & Arming Configuration (Bench Testing without RC/Sensors)
 * `ARMING_SKIPCHK` = `1048062` (Skip pre-arm checks in ArduSub during bench test, or `-1` to skip all)
 * `BRD_SAFETY_DEFLT` = `0` (Disables physical safety switch button on Pixhawk 4)
-* `MOT_SAFE_DISARM` = `0` (Keeps PWM disabled while disarmed)
-* `FLTMODE_CH` = `0` (Disables flight mode RC channel so RC overrides cannot accidentally change modes)
+* `MOT_SAFE_DISARM` = `1` (Keeps PWM disabled while disarmed; `0` outputs neutral 1500 µs while disarmed)
+* `FLTMODE_CH` = `0` (Disables flight mode RC channel so overrides cannot accidentally change modes)
 * `FS_THR_ENABLE` = `0` (Disables throttle/RC failsafe since no physical RC receiver is plugged in)
+* *(Note on `FS_GCS_ENABLE` / `FS_PILOT_INPUT`)*: `default.params` sets `FS_GCS_ENABLE = 2` and `FS_PILOT_INPUT = 2`. During CAN-only operation without QGroundControl connected over MAVLink, verify these do not conflict if a GCS was previously connected and then disconnected.
 
 ### RC Overrides & Dynamic Channel Map
 * `RC_OPTIONS` = `0` (Ensure Bit 5 [Ignore Overrides] is NOT set)
@@ -80,8 +81,8 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 * `RCMAP_YAW` = `4` (Yaw input)
 
 ### External Depth Sensor (Bar30 / MS5837 on I2C Port)
-* `BARO_PROBE_EXT` = `1` (Enable probing external I2C bus)
-* `BARO_EXT_BUS` = `0` or `1` (I2C bus number corresponding to external I2C port on Pixhawk 4)
+* `BARO_PROBE_EXT` = `768` (Bitmask `256 | 512` enabling MS5837 + MS5803 external I2C pressure sensors for Bar30)
+* `BARO_EXT_BUS` = `1` (I2C bus number corresponding to external I2C port on Pixhawk 4)
 
 ---
 
@@ -153,7 +154,7 @@ Place `can_bridge.lua` on the Pixhawk's micro-SD card at:
 
 Reboot the Pixhawk. Monitor the GCS (QGroundControl / Mission Planner) message window for:
 ```
-ROV CAN bridge v1.3 loaded
+ROV CAN bridge v1.5 loaded
 CAN bridge: driver ready on CAN1 (buffer 25)
 ```
 
@@ -224,7 +225,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 21 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 27 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -249,3 +250,9 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 19. **Pilot Drive Manual Mode (ID 90):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.
 20. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1580 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
 21. **Health ACK Idle Keep-Alive & Max-Surface Disarm:** Verifies `ID 40 [2]` auto-replies prevent surfacing while idle, and verifies automatic disarm after `30 s` of surfacing.
+22. **Arm in Requested Mode & Pixhawk Speed Limit (ID 60 [mode], ID 120 -> 121):** Verifies arming directly into `MANUAL`/`STABILIZE`/`ALT_HOLD` and onboard speed-limit scaling (`0–100%`).
+23. **Emergency Disarm Cancels Active Motor Test (ID 70):** Verifies disarming mid-test immediately neutralizes motor outputs and suppresses stale `ID 171` completion frames.
+24. **Motor Test Failure Recovery:** Verifies arm failure or output error cleanly restores prior flight mode and disarms if previously disarmed.
+25. **Empty Cycle Time Frame Guard (ID 160):** Verifies a 0-byte `ID 160` frame does not read stale data from the reusable RX buffer.
+26. **External Arm Timer Reset:** Verifies arming from GCS cleanly initializes watchdog and heartbeat timers without immediate false triggers.
+27. **External Disarm Cancels Active Motor Test:** Verifies an external GCS disarm mid-test neutralizes motor outputs and cancels pending completion.

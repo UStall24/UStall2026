@@ -1,6 +1,7 @@
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using UStallGUI.Helpers;
 using UStallGUI.Model;
@@ -110,6 +111,7 @@ namespace UStallGUI.ViewModel
         }
 
         private int _maxThrusterSpeedPercent = 100;
+        private CancellationTokenSource _speedLimitDebounceCts;
 
         public int MaxThrusterSpeedPercent
         {
@@ -124,7 +126,25 @@ namespace UStallGUI.ViewModel
                 ControllerHandlerViewModel.MaxThrusterSpeedPercent = clamped;
                 UpdateConfig();
                 QuickSetupViewModel.Instance?.NotifyMaxThrusterSpeedChanged();
-                _ = SendSpeedLimitAsync(clamped);
+                _ = DebouncedSendSpeedLimitAsync(clamped);
+            }
+        }
+
+        private async Task DebouncedSendSpeedLimitAsync(int percent)
+        {
+            _speedLimitDebounceCts?.Cancel();
+            _speedLimitDebounceCts?.Dispose();
+            var cts = new CancellationTokenSource();
+            _speedLimitDebounceCts = cts;
+
+            try
+            {
+                await Task.Delay(120, cts.Token);
+                await SendSpeedLimitAsync(percent);
+            }
+            catch (TaskCanceledException)
+            {
+                // Superseded by a newer slider update
             }
         }
 
@@ -151,29 +171,12 @@ namespace UStallGUI.ViewModel
             HealthCommand = new RelayCommand(SendHealthMessage);
         }
 
-        private async Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
+        private Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
         {
             if (can == null || !can.IsOpen)
-                return Array.Empty<byte>();
+                return Task.FromResult(Array.Empty<byte>());
 
-            var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            void Handler(ushort id, byte[] data)
-            {
-                if (id == recvId)
-                    tcs.TrySetResult(data ?? Array.Empty<byte>());
-            }
-
-            can.RegisterCallback(recvId, Handler);
-            try
-            {
-                can.SendFrame(sendId, payload);
-                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
-                return completed == tcs.Task ? await tcs.Task : Array.Empty<byte>();
-            }
-            finally
-            {
-                can.UnregisterCallback(recvId, Handler);
-            }
+            return can.SendAndWaitForResponseAsync(sendId, recvId, payload, timeoutMs);
         }
 
         public async void SendHealthMessage()
@@ -249,8 +252,8 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance.LogToControlBox("CAN interface is currently closed");
             }
 
+            // Keep the shared UsbCANWrapper instance intact so other ViewModels don't hold stale references
             ComPort = "Disconnected";
-            can = null;
         }
 
         public UsbCANWrapper GetCANWrapper()

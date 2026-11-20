@@ -33,10 +33,8 @@ namespace UStallGUI.ViewModel
         public ControlParameterHandlerViewModel(UsbCANWrapper can)
         {
             this.can = can;
-            
-            TestMotor = new RelayCommand<object>(TestMotorCommand, _ => TestMotor_Enabled);
 
-            can.RegisterCallback((ushort)RecieveAddressesControlUnit.TestMotor, TestMotorCommandCallback);
+            TestMotor = new RelayCommand<object>(TestMotorCommand, _ => TestMotor_Enabled);
         }
 
         public static byte[] PwmArrayToByteArray(int[] pwmValues)
@@ -63,48 +61,50 @@ namespace UStallGUI.ViewModel
 
         public async void TestMotorCommand(object motorIndexStr)
         {
-            if (motorIndexStr == null || !int.TryParse(motorIndexStr.ToString(), out int motorIndex)) return;
+            if (motorIndexStr == null || !int.TryParse(motorIndexStr.ToString(), out int motorIndex))
+                return;
+            if (motorIndex < 0 || motorIndex >= 6)
+                return;
+
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot test motor: USB-CAN adapter not connected.");
+                return;
+            }
 
             TestMotor_Enabled = false;
 
             try
             {
-                ushort duration = 150;
-                if (can != null)
+                byte duration = 150; // 1500 ms
+                int[] values = { 1500, 1500, 1500, 1500, 1500, 1500 };
+
+                // Override the selected motor (scaled by global MaxThrusterSpeedPercent)
+                double factor = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100) / 100.0;
+                values[motorIndex] = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
+                byte[] motorBytes = PwmArrayToByteArray(values);
+                byte[] payload = new byte[motorBytes.Length + 1];
+                Array.Copy(motorBytes, payload, motorBytes.Length);
+                payload[^1] = duration;
+
+                var resp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.TestMotor,
+                    (ushort)RecieveAddressesControlUnit.TestMotor,
+                    payload,
+                    duration * 10 + 500);
+
+                if (resp.Length > 0 && resp[0] == 1)
                 {
-                    int[] values = new int[6];
-                    for (int i = 0; i < values.Length; i++)
-                        values[i] = 1500;
-
-                    // Override the selected motor (scaled by global MaxThrusterSpeedPercent)
-                    double factor = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100) / 100.0;
-                    values[motorIndex] = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
-                    byte[] motorBytes = PwmArrayToByteArray(values);
-                    byte[] payload = new byte[motorBytes.Length + 1];
-                    Array.Copy(motorBytes, payload, motorBytes.Length);
-                    payload[^1] = (byte)duration;
-
-                    can.SendFrame((ushort)SendAddressesControlUnit.TestMotor, payload);
-
-                    // Brief delay to prevent overlapping motor test pulses
-                    await Task.Delay(200);
+                    MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test completed.");
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test rejected or timed out (check Pixhawk status).");
                 }
             }
             finally
             {
                 TestMotor_Enabled = true;
-            }
-        }
-
-        public void TestMotorCommandCallback(ushort id, byte[] data)
-        {
-            if (data != null && data.Length > 0 && data[0] == 1)
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Testing Motor Successful");
-            }
-            else
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Testing Motor Rejected or Failed (check Pixhawk status)");
             }
         }
     }

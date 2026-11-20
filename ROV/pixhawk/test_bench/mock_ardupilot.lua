@@ -196,6 +196,7 @@ rc = {
 -- SRV_Channels Mock
 SRV_Channels = {
     outputs = {}, -- chan (0-indexed) -> { pwm = ..., timeout_ms = ... }
+    fail_output = false,
     find_channel = function(self, func_num)
         -- k_motor1 (33) .. k_motor6 (38) mapped to 0..5
         if func_num >= 33 and func_num <= 38 then
@@ -204,6 +205,9 @@ SRV_Channels = {
         return false
     end,
     set_output_pwm_chan_timeout = function(self, chan, pwm, timeout_ms)
+        if self.fail_output then
+            error("simulated SRV_Channels output error")
+        end
         self.outputs[chan] = { pwm = pwm, timeout_ms = timeout_ms, timestamp = M.sim_time_ms }
     end
 }
@@ -212,6 +216,7 @@ SRV_Channels = {
 arming = {
     _armed = false,
     arm_allowed = true,
+    arm_force_allowed = true,
     is_armed = function(self)
         return self._armed
     end,
@@ -221,6 +226,7 @@ arming = {
         return true
     end,
     arm_force = function(self)
+        if not self.arm_force_allowed then return false end
         self._armed = true
         return true
     end,
@@ -270,8 +276,10 @@ function M.reset_state()
     CAN.dev2.rx_queue = {}
     CAN.dev2.tx_queue = {}
     SRV_Channels.outputs = {}
+    SRV_Channels.fail_output = false
     arming._armed = false
     arming.arm_allowed = true
+    arming.arm_force_allowed = true
     vehicle._mode = 0
     vehicle.mode_change_allowed = true
     for _, ch in pairs(rc.channels) do

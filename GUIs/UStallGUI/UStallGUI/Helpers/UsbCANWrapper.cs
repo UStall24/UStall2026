@@ -2,44 +2,37 @@ using System;
 using System.Collections.Generic;
 using System.IO.Ports;
 using System.Threading.Tasks;
-using Xceed.Wpf.Toolkit.Core.Converters;
 
 namespace UStallGUI.Helpers
 {
-    public struct CanMessage
-    {
-        public DateTime Timestamp;
-        public byte[] Data;
-    }
-
     public class UsbCANWrapper
     {
-        private const CanusbSpeed speed = CanusbSpeed.CANUSB_SPEED_125000;
-        private SerialPort sp = null;
+        private const CanusbSpeed Speed = CanusbSpeed.CANUSB_SPEED_125000;
+        private static readonly byte[] HeartbeatAckPayload = new byte[] { 2 };
 
-        public delegate void OnCanMessageArrival(ushort rxId, byte[] data);
+        private readonly object _txLock = new();
+        private readonly object _rxLock = new();
+        private readonly object _cbLock = new();
+        private readonly List<byte> _rxBuffer = new();
+        private readonly Dictionary<ushort, Action<ushort, byte[]>> _callbacks = new();
 
-        public static Dictionary<ushort, OnCanMessageArrival> canMessageArrivalEvents = new();
-
+        private SerialPort sp;
         private string comPort;
 
         public string ComPort => comPort;
-
         public bool DebugMode { get; set; } = true;
-
-        // Helper printing method
-        private void Log(string msg)
-        {
-            if (DebugMode)
-                Console.WriteLine(msg);
-        }
-
-        private static readonly byte[] HeartbeatAckPayload = new byte[] { 2 };
+        public bool IsOpen => sp != null && sp.IsOpen;
 
         public UsbCANWrapper()
         {
             RegisterCallback((ushort)RecieveAddressesControlUnit.Health, OnHealthFrameReceived);
             ConnectToCanAdapter();
+        }
+
+        private void Log(string msg)
+        {
+            if (DebugMode)
+                Console.WriteLine(msg);
         }
 
         private void OnHealthFrameReceived(ushort rxId, byte[] data)
@@ -51,11 +44,6 @@ namespace UStallGUI.Helpers
             }
         }
 
-        public bool IsOpen => sp != null && sp.IsOpen;
-
-        private readonly object _rxLock = new();
-        private readonly List<byte> _rxBuffer = new();
-
         public bool FindCanAdapter()
         {
             comPort = UsbCAN.FindComPortByName("USB-SERIAL CH340");
@@ -66,55 +54,21 @@ namespace UStallGUI.Helpers
             }
 
             Log($"Using port: {comPort}");
-
-            Console.CancelKeyPress += (s, e) =>
-            {
-                Log("Stopping...");
-                e.Cancel = true;
-            };
-
             return true;
         }
 
         public bool ConnectToCanAdapter(bool force = false)
         {
-            // If already open and no force requested, nothing to do.
-            if (sp != null && sp.IsOpen && !force)
-                return true;
-
-            if (!FindCanAdapter())
-                return false;
-
-            // If force requested and adapter is open, close it first.
-            if (sp != null && sp.IsOpen && force)
+            lock (_txLock)
             {
-                try
-                {
-                    Log("Force reconnect requested - closing existing serial port.");
-                    // Detach handler to avoid duplicates (safe even if not attached)
-                    try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
-                    UsbCAN.AdapterClose(sp);
-                }
-                catch (Exception ex)
-                {
-                    Log("Error closing serial port during reconnect: " + ex.Message);
-                }
-                finally
-                {
-                    sp = null;
-                }
-            }
+                if (sp != null && sp.IsOpen && !force)
+                    return true;
 
-            // If we have a SerialPort instance that is closed, ensure handler is detached and clear it so we create a fresh one.
-            if (sp != null && !sp.IsOpen)
-            {
-                try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
-                sp = null;
-            }
+                if (!FindCanAdapter())
+                    return false;
 
-            // Initialize a new adapter if needed
-            if (sp == null)
-            {
+                ClosePortLocked();
+
                 sp = UsbCAN.AdapterInit(comPort);
                 if (sp == null)
                 {
@@ -122,100 +76,100 @@ namespace UStallGUI.Helpers
                     return false;
                 }
 
-                // Attach handler after confirming adapter opened
+                lock (_rxLock)
+                {
+                    _rxBuffer.Clear();
+                }
+
                 sp.DataReceived += SerialPortDataRecievedEventHandler;
 
                 UsbCAN.CommandSettings(
                     sp,
-                    speed,
+                    Speed,
                     CanusbMode.CANUSB_MODE_NORMAL,
                     CanusbFrameType.CANUSB_FRAME_STANDARD
                 );
                 PrintSettings();
+                return true;
             }
-
-            return true;
         }
 
-        // ---------------------------------------------------------------------
-        //  Connection‑test helper – clearer naming and safer async handling
-        // ---------------------------------------------------------------------
+        private void ClosePortLocked()
+        {
+            if (sp == null)
+                return;
 
-        private bool _isTestingConnection = false;          // true while a test is in progress
-        private bool _hasHealthResponse = false;           // set by the callback when the reply arrives
-        private int _time_required = 0;
+            try { sp.DataReceived -= SerialPortDataRecievedEventHandler; } catch { }
+            try { UsbCAN.AdapterClose(sp); } catch (Exception ex) { Log("Error closing serial port: " + ex.Message); }
+            try { sp.Dispose(); } catch { }
+            sp = null;
+        }
+
+        public async Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
+        {
+            if (!IsOpen)
+                return Array.Empty<byte>();
+
+            var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Handler(ushort id, byte[] data)
+            {
+                if (id == recvId)
+                    tcs.TrySetResult(data ?? Array.Empty<byte>());
+            }
+
+            RegisterCallback(recvId, Handler);
+            try
+            {
+                if (!SendFrame(sendId, payload))
+                    return Array.Empty<byte>();
+
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+                return completed == tcs.Task ? await tcs.Task : Array.Empty<byte>();
+            }
+            finally
+            {
+                UnregisterCallback(recvId, Handler);
+            }
+        }
 
         /// <summary>
         /// Sends a Health request and waits up to <paramref name="timeoutMs"/> for the reply.
         /// </summary>
         public async Task<bool> TestConnectionAsync(int timeoutMs = 500)
         {
-            // Reset state before starting a new test
-            _isTestingConnection = true;
-            _hasHealthResponse = false;
-
-            // Register a one‑shot callback that will capture the response
-            RegisterCallback(
+            var resp = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.Health,
                 (ushort)RecieveAddressesControlUnit.Health,
-                OnHealthResponse);
+                Array.Empty<byte>(),
+                timeoutMs);
 
-            try
-            {
-                // Transmit the request (empty payload)
-                _time_required = Environment.TickCount;
-                SendFrame((ushort)SendAddressesControlUnit.Health, Array.Empty<byte>());
-
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                while (sw.ElapsedMilliseconds < timeoutMs && !_hasHealthResponse)
-                {
-                    await Task.Delay(10);
-                }
-            }
-            finally
-            {
-                UnregisterCallback(
-                    (ushort)RecieveAddressesControlUnit.Health,
-                    OnHealthResponse);
-                _isTestingConnection = false;
-            }
-
-            if (_hasHealthResponse)
-            {
-                Log($"Health response received within timeout. Time required: {_time_required}ms");
-                return true;
-            }
-
-            Log("Health response not received within timeout.");
-            return false;
-        }
-
-        /// <summary>
-        /// Callback invoked when the Health response frame arrives.
-        /// </summary>
-        private void OnHealthResponse(ushort rxId, byte[] data)
-        {
-            _time_required = Environment.TickCount - _time_required;
-            _hasHealthResponse = true;
-            Log($"Health response received. Data: {BitConverter.ToString(data)}");
+            bool ok = resp.Length > 0;
+            Log(ok ? "Health response received within timeout." : "Health response not received within timeout.");
+            return ok;
         }
 
         private void SerialPortDataRecievedEventHandler(object sender, SerialDataReceivedEventArgs e)
         {
             try
             {
-                int toRead = sp.BytesToRead;
+                var port = sp;
+                if (port == null || !port.IsOpen)
+                    return;
+
+                int toRead = port.BytesToRead;
                 if (toRead <= 0)
                     return;
 
                 var tmp = new byte[toRead];
-                int read = sp.Read(tmp, 0, toRead);
+                int read = port.Read(tmp, 0, toRead);
                 if (read <= 0)
                     return;
 
                 lock (_rxLock)
                 {
-                    // append new bytes to buffer
-                    _rxBuffer.AddRange(tmp.AsSpan(0, read).ToArray());
+                    for (int i = 0; i < read; i++)
+                        _rxBuffer.Add(tmp[i]);
+
                     ProcessRxBuffer();
                 }
             }
@@ -229,8 +183,8 @@ namespace UStallGUI.Helpers
         {
             while (true)
             {
-                // Need at least header
-                if (_rxBuffer.Count < 6)
+                // Minimum Waveshare CAN data frame is 5 bytes (0-byte DLC: AA C0 ID_L ID_H 55)
+                if (_rxBuffer.Count < 5)
                     return;
 
                 // Sync to 0xAA start byte
@@ -241,40 +195,33 @@ namespace UStallGUI.Helpers
                 }
 
                 byte header = _rxBuffer[1];
+                int dlc = header & 0x0F;
 
-                // Check for CAN data frame: high nibble == 0xC
-                if (header >> 4 != 0x0C)
+                // Check for CAN data frame: high nibble == 0xC and valid DLC (0..8)
+                if ((header >> 4) != 0x0C || dlc > 8)
                 {
-                    // Unknown frame type: drop start byte and resync
                     _rxBuffer.RemoveAt(0);
                     continue;
                 }
 
-                int dlc = header & 0x0F;
-                int frameLen = dlc + 5; // AA + header + ID_L + ID_H + data(dlc) + 0x55(end) => but end byte index = frameLen-1
-
-                // Wait for full frame
+                int frameLen = dlc + 5; // AA + header + ID_L + ID_H + data(dlc) + 0x55
                 if (_rxBuffer.Count < frameLen)
                     return;
 
                 // Check end byte 0x55
                 if (_rxBuffer[frameLen - 1] != 0x55)
                 {
-                    // Corrupt frame, drop first byte and resync
                     _rxBuffer.RemoveAt(0);
                     continue;
                 }
 
-                // Extract ID and data
-                ushort rxId = (ushort)(_rxBuffer[3] << 8 | _rxBuffer[2]);
-                var data = new byte[dlc];
+                ushort rxId = (ushort)((_rxBuffer[3] << 8) | _rxBuffer[2]);
+                var data = dlc > 0 ? new byte[dlc] : Array.Empty<byte>();
                 if (dlc > 0)
                     _rxBuffer.CopyTo(4, data, 0, dlc);
 
-                // Remove this frame from buffer
                 _rxBuffer.RemoveRange(0, frameLen);
 
-                // Log + callback
                 Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
                 TriggerCallback(rxId, data);
             }
@@ -282,63 +229,84 @@ namespace UStallGUI.Helpers
 
         ~UsbCANWrapper()
         {
-            UsbCAN.AdapterClose(sp);
-            Log("Serial port closed.");
+            Close();
         }
 
         public bool RegisterCallback(ushort rxId, Action<ushort, byte[]> action)
         {
-            if (!canMessageArrivalEvents.ContainsKey(rxId))
-                canMessageArrivalEvents[rxId] = null; // initialize
+            if (action == null)
+                return false;
 
-            var delegateList = canMessageArrivalEvents[rxId]?.GetInvocationList();
-            if (delegateList != null)
+            lock (_cbLock)
             {
-                foreach (var del in delegateList)
+                if (_callbacks.TryGetValue(rxId, out var existing) && existing != null)
                 {
-                    if (del.Target.Equals(action))
+                    foreach (var del in existing.GetInvocationList())
                     {
-                        // Already registered
-                        return false;
+                        if (del.Equals(action))
+                            return false;
                     }
+                    _callbacks[rxId] = existing + action;
                 }
+                else
+                {
+                    _callbacks[rxId] = action;
+                }
+                return true;
             }
-            canMessageArrivalEvents[rxId] += new OnCanMessageArrival(action);
-            return true;
         }
 
         public bool UnregisterCallback(ushort rxId, Action<ushort, byte[]> action)
         {
-            if (canMessageArrivalEvents.ContainsKey(rxId))
+            if (action == null)
+                return false;
+
+            lock (_cbLock)
             {
-                canMessageArrivalEvents[rxId] -= new OnCanMessageArrival(action);
+                if (!_callbacks.TryGetValue(rxId, out var existing) || existing == null)
+                    return false;
+
+                var updated = existing - action;
+                if (updated == null)
+                    _callbacks.Remove(rxId);
+                else
+                    _callbacks[rxId] = updated;
                 return true;
             }
-            return false;
         }
 
         private void TriggerCallback(ushort rxId, byte[] data)
         {
-            if (canMessageArrivalEvents.TryGetValue(rxId, out var handler) && handler != null)
+            Action<ushort, byte[]> handler;
+            lock (_cbLock)
             {
-                handler(rxId, data);
+                _callbacks.TryGetValue(rxId, out handler);
             }
+            handler?.Invoke(rxId, data);
         }
 
         public bool SendFrame(ushort txId, byte[] data = null)
         {
-            ConnectToCanAdapter();
-            if (data == null)
-                data = Array.Empty<byte>();
+            data ??= Array.Empty<byte>();
             byte idLsb = (byte)(txId & 0xFF);
-            byte idMsb = (byte)(txId >> 8 & 0xFF);
-            // Console.WriteLine($"Sending TX ID {txId} Data: {BitConverter.ToString(data)}");
-            return UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) == 0;
+            byte idMsb = (byte)((txId >> 8) & 0xFF);
+
+            lock (_txLock)
+            {
+                if (sp == null || !sp.IsOpen)
+                    return false;
+
+                return UsbCAN.SendDataFrame(sp, CanusbFrameType.CANUSB_FRAME_STANDARD, idLsb, idMsb, data, data.Length) == 0;
+            }
         }
 
         public bool Close()
         {
-            return UsbCAN.AdapterClose(sp);
+            lock (_txLock)
+            {
+                ClosePortLocked();
+            }
+            return true;
         }
 
         public void PrintSettings()
