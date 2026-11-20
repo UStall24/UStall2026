@@ -90,6 +90,7 @@ namespace UStallGUI.Helpers
         ApplyControllerValues_Manual = 90,
         ApplyControllerValues_Stabilize = 100,
         ApplyControllerValues_DepthHold = 110,
+        SetSpeedLimit = 120,
         UpdateCycleTime = 160,
         TestMotor = 170
     }
@@ -106,6 +107,7 @@ namespace UStallGUI.Helpers
         ArmThrusters = 61,
         DisarmThrusters = 71,
         ResetWatchdog = 81,
+        SetSpeedLimit = 121,
         UpdateCycleTime = 161,
         TestMotor = 171
     }

@@ -615,6 +615,36 @@ class TestBench:
         self.assert_equal(self.harness.is_armed(), False, "Must auto-disarm after max surface duration (30s)")
         self.assert_equal(self.harness.get_rc_override(3), 0, "RC overrides must be released (0 us) upon disarm")
 
+    def test_26_arm_with_requested_mode_and_speed_limit(self):
+        # Set speed limit to 50% (ID 120 -> 121)
+        self.harness.push_can_rx("dev1", 120, [50])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None, "Expected TX_SET_SPEED_LIMIT response")
+        self.assert_equal(resp["id"], 121, "Response ID must be TX_SET_SPEED_LIMIT (121)")
+        self.assert_equal(resp["data"], [50], "Speed limit echo must be [50]")
+
+        # Arm directly in MANUAL mode (ID 60 with [19])
+        self.harness.push_can_rx("dev1", 60, [19])
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), True, "Vehicle must be armed")
+        self.assert_equal(self.harness.get_mode(), 19, "Vehicle must arm in requested MANUAL mode (19)")
+        self.harness.clear_tx_queues()
+
+        # Full forward (255) & full reverse (0) must be scaled to 50% (1700 / 1300 us)
+        self.harness.push_can_rx("dev1", 90, [255, 0, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(5), 1700, "RC5 (Forward) at 50% limit must be 1700 us")
+        self.assert_equal(self.harness.get_rc_override(6), 1300, "RC6 (Lateral) at 50% limit must be 1300 us")
+
+        # Set speed limit to 0% -> full stick must stay neutral (1500 us)
+        self.harness.push_can_rx("dev1", 120, [0])
+        self.harness.step_update()
+        self.harness.push_can_rx("dev1", 90, [255, 0, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(5), 1500, "RC5 at 0% limit must be 1500 us")
+        self.assert_equal(self.harness.get_rc_override(6), 1500, "RC6 at 0% limit must be 1500 us")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -641,6 +671,7 @@ class TestBench:
             ("Test 23: Pilot Drive Manual Mode (ID 90 -> MANUAL)", self.test_23_driving_manual_mode),
             ("Test 24: Auto-Surface on 2 Missed Heartbeat Pings & Recovery", self.test_24_auto_surface_on_missed_heartbeats_and_recovery),
             ("Test 25: Heartbeat ACK Idle Keep-Alive & Max-Surface Disarm", self.test_25_heartbeat_ack_prevents_surface_and_max_duration_disarm),
+            ("Test 26: Arm in Requested Mode & Pixhawk Speed Limit", self.test_26_arm_with_requested_mode_and_speed_limit),
         ]
 
         for name, fn in tests:

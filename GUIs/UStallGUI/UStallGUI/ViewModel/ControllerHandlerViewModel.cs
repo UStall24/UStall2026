@@ -257,7 +257,7 @@ namespace UStallGUI.ViewModel
 
         private byte[] GetMappedPayload()
         {
-            byte[] payload = new byte[]
+            return new byte[]
             {
                 ResolveMapping(ControllerMappings[0].SelectedIndex), // Forward/Backward
                 ResolveMapping(ControllerMappings[1].SelectedIndex), // Left/Right
@@ -267,13 +267,6 @@ namespace UStallGUI.ViewModel
                 ResolveMapping(ControllerMappings[4].SelectedIndex), // Pitch
                 ResolveMapping(ControllerMappings[5].SelectedIndex), // Roll
             };
-
-            for (int i = 0; i < payload.Length; i++)
-            {
-                payload[i] = LCECommunicationHelper.ScaleCenteredByte(payload[i], MaxThrusterSpeedPercent);
-            }
-
-            return payload;
         }
     }
 

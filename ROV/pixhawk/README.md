@@ -168,12 +168,13 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1]` | Manual connection probe initiated by GUI. |
 | **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2]` | Sent by Pixhawk every `2 s` while armed; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1580 µs` heave in `STABILIZE`). |
 | **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
-| **Arm Thrusters** | `60` | `61` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets `STABILIZE` (`0`) if in `MANUAL`, and arms (`arm()` / `arm_force()`). |
+| **Arm Thrusters** | `60` | `61` | Empty (`0 B`) or `1 B`: `[mode]` | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets requested mode (`0`/`2`/`19`, or `STABILIZE` if empty & in `MANUAL`), and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
 | **Reset Watchdog** | `80` | `81` | Empty (`0 B`) | `[1]` | Clears pilot timeout watchdog flag and resets timer. |
 | **Drive (Manual)** | `90` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `MANUAL` (mode `19`) for direct open-loop control and updates RC overrides. |
 | **Drive (Stabilize)** | `100` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `STABILIZE` (mode `0`) and updates RC overrides (`1100..1900 µs`). |
 | **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
+| **Set Speed Limit** | `120` | `121` | `1 B`: `[percent]` (`0..100`) | `[percent]` | Stores max thruster speed limit (`0..100%`) on Pixhawk and scales RC PWM deflection around `1500 µs`. |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
 | **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
 

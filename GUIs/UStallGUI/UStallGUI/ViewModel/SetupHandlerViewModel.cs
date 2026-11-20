@@ -95,6 +95,7 @@ namespace UStallGUI.ViewModel
                     _ => "Flight Mode set to STABILIZE (Attitude Hold)",
                 };
                 MainWindowViewModel.Instance?.LogToControlBox(modeMessage);
+                SendFlightModeFrame(value);
             }
         }
 
@@ -123,6 +124,7 @@ namespace UStallGUI.ViewModel
                 ControllerHandlerViewModel.MaxThrusterSpeedPercent = clamped;
                 UpdateConfig();
                 QuickSetupViewModel.Instance?.NotifyMaxThrusterSpeedChanged();
+                _ = SendSpeedLimitAsync(clamped);
             }
         }
 
@@ -223,6 +225,8 @@ namespace UStallGUI.ViewModel
             {
                 MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
                 MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} (Disarmed - click Arm Thrusters when ready).");
+                await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
+                SendFlightModeFrame(SelectedFlightMode);
             }
             else
             {
@@ -273,10 +277,11 @@ namespace UStallGUI.ViewModel
                 return;
             }
 
+            var modePayload = new byte[] { GetArduSubModeByte(SelectedFlightMode) };
             var response = await SendAndWaitForResponseAsync(
                 (ushort)SendAddressesControlUnit.ArmThrusters,
                 (ushort)RecieveAddressesControlUnit.ArmThrusters,
-                null,
+                modePayload,
                 500);
 
             if (response.Length > 0 && response[0] == 1)
@@ -379,5 +384,49 @@ namespace UStallGUI.ViewModel
         }
 
         #endregion Watchdog Reset
+
+        #region Flight Mode & Speed Limit Helpers
+
+        private static byte GetArduSubModeByte(FlightMode mode) => mode switch
+        {
+            FlightMode.Manual => 19,
+            FlightMode.DepthHold => 2,
+            _ => 0,
+        };
+
+        private void SendFlightModeFrame(FlightMode mode)
+        {
+            if (can == null || !can.IsOpen)
+                return;
+
+            var cmd = mode switch
+            {
+                FlightMode.Manual => SendAddressesControlUnit.ApplyControllerValues_Manual,
+                FlightMode.DepthHold => SendAddressesControlUnit.ApplyControllerValues_DepthHold,
+                _ => SendAddressesControlUnit.ApplyControllerValues_Stabilize,
+            };
+
+            can.SendFrame((ushort)cmd, new byte[] { 127, 127, 127, 127, 127, 127 });
+        }
+
+        private async Task SendSpeedLimitAsync(int percent)
+        {
+            if (can == null || !can.IsOpen)
+                return;
+
+            byte clamped = (byte)Math.Clamp(percent, 0, 100);
+            var resp = await SendAndWaitForResponseAsync(
+                (ushort)SendAddressesControlUnit.SetSpeedLimit,
+                (ushort)RecieveAddressesControlUnit.SetSpeedLimit,
+                new byte[] { clamped },
+                300);
+
+            if (resp.Length > 0)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Pixhawk max thruster speed set to {resp[0]}%.");
+            }
+        }
+
+        #endregion Flight Mode & Speed Limit Helpers
     }
 }

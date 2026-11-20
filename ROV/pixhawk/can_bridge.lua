@@ -36,7 +36,7 @@
 -- ==============================================================================
 
 local SCRIPT_NAME    = "ROV CAN bridge"
-local SCRIPT_VERSION = "1.3"
+local SCRIPT_VERSION = "1.4"
 
 -- CAN Driver handles (lazy initialized in update loop to prevent boot race conditions)
 local can_dev1       = nil
@@ -60,6 +60,7 @@ local C = {
     RX_CTRL_MANUAL         = 90,
     RX_CTRL_STABILIZE      = 100,
     RX_CTRL_DEPTH_HOLD     = 110,
+    RX_SET_SPEED_LIMIT     = 120,
     RX_UPDATE_CYCLE        = 160,
     RX_TEST_MOTOR          = 170,
 
@@ -69,6 +70,7 @@ local C = {
     TX_INIT_THRUSTERS      = 61,
     TX_DEINIT_THRUST       = 71,
     TX_RESET_ERR           = 81,
+    TX_SET_SPEED_LIMIT     = 121,
     TX_UPDATE_CYCLE        = 161,
     TX_TEST_MOTOR          = 171,
 
@@ -213,6 +215,7 @@ local function elapsed_ms(since)
 end
 
 local cycle_time_ms             = 10
+local max_speed_percent         = 100
 local last_ctrl_ms              = now_ms()
 local watchdog_tripped          = true
 local watchdog_warned           = false
@@ -313,7 +316,7 @@ local function clear_control_overrides()
     end
 end
 
--- Convert 0..255 byte value to 1100..1900 RC PWM (127/128 -> 1500 neutral)
+-- Convert 0..255 byte value to 1100..1900 RC PWM (127/128 -> 1500 neutral), scaled by max_speed_percent
 local function byte_to_rc_pwm(value)
     if not value then return 1500 end
     local clamped = math.max(0, math.min(255, value))
@@ -323,7 +326,8 @@ local function byte_to_rc_pwm(value)
     if math.abs(norm) < 0.015 then
         return 1500
     end
-    return math.floor(1500 + (norm * 400) + 0.5)
+    local scale = max_speed_percent / 100.0
+    return math.floor(1500 + (norm * 400 * scale) + 0.5)
 end
 
 -- Convert 0..255 byte value to 1100..1900 motor PWM for direct output with deadzone
@@ -473,10 +477,17 @@ local function handle_frame(frame)
         on_topside_activity()
         neutralize_controls()
         pcall(function()
-            -- Switch to STABILIZE mode (0) by default upon arming if currently MANUAL
-            local mode = vehicle:get_mode()
-            if not mode or mode == 19 then
-                vehicle:set_mode(0) -- STABILIZE mode
+            if dlc >= 1 then
+                local req_mode = rx_data[1]
+                if req_mode == 0 or req_mode == 2 or req_mode == 19 then
+                    vehicle:set_mode(req_mode)
+                end
+            else
+                -- Legacy empty-payload arm defaults to STABILIZE (0) if currently MANUAL
+                local mode = vehicle:get_mode()
+                if not mode or mode == 19 then
+                    vehicle:set_mode(0)
+                end
             end
             if not arming:arm() then
                 -- Fallback to force-arming if bench checks fail
@@ -533,7 +544,7 @@ local function handle_frame(frame)
     -- 6. Driving / Controller Values (Manual, Stabilize, or Depth Hold)
     elseif rx_id == C.RX_CTRL_STABILIZE or rx_id == C.RX_CTRL_DEPTH_HOLD or rx_id == C.RX_CTRL_MANUAL then
         on_topside_activity()
-        if arming:is_armed() and not motor_test_active and dlc >= C.CONTROL_DLC then
+        if not motor_test_active and dlc >= C.CONTROL_DLC then
             -- Flight mode selection from GUI:
             -- RX_CTRL_MANUAL     (90) switches to MANUAL (direct open-loop, mode 19)
             -- RX_CTRL_STABILIZE  (100) switches to STABILIZE (attitude hold, mode 0)
@@ -553,8 +564,20 @@ local function handle_frame(frame)
                 end
             end
 
-            handle_controller_values(rx_data)
+            if arming:is_armed() then
+                handle_controller_values(rx_data)
+            end
         end
+
+    -- 7. Set Max Thruster Speed Limit (0..100%)
+    elseif rx_id == C.RX_SET_SPEED_LIMIT then
+        on_topside_activity()
+        if dlc >= 1 then
+            max_speed_percent = math.max(0, math.min(100, math.floor(rx_data[1])))
+            gcs:send_text(6, "CAN bridge: max speed limit set to " .. tostring(max_speed_percent) .. "%")
+        end
+        tx_resp_single[1] = max_speed_percent
+        send_can(C.TX_SET_SPEED_LIMIT, tx_resp_single)
 
     -- 7. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
