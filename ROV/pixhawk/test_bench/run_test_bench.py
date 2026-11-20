@@ -736,6 +736,73 @@ class TestBench:
         self.harness.step_update()
         self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Must not emit stale ID 171 after external disarm")
 
+    def test_32_motor_config_directions_and_port_mapping(self):
+        # 1. GET default motor config (ID 130 empty -> ID 131 [0, 1, 2, 3, 4, 5, 6])
+        self.harness.push_can_rx("dev1", 130, [])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 131, "Expected TX_MOTOR_CONFIG (131)")
+        self.assert_equal(resp["data"], [0, 1, 2, 3, 4, 5, 6], "Default motor config must be normal dir, ports 1..6")
+
+        # 2. SET: Reverse M1 (bit 0 = 1) and M4 (bit 3 = 8) => dir_mask = 9, swap ports of M1 and M2 => [9, 2, 1, 3, 4, 5, 6]
+        self.harness.push_can_rx("dev1", 130, [9, 2, 1, 3, 4, 5, 6])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"], [9, 2, 1, 3, 4, 5, 6], "Updated motor config must echo back")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_1_DIRECTION')")), -1, "MOT_1_DIRECTION must be -1")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_2_DIRECTION')")), 1, "MOT_2_DIRECTION must be +1")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_4_DIRECTION')")), -1, "MOT_4_DIRECTION must be -1")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('SERVO2_FUNCTION')")), 33, "SERVO2 must be k_motor1 (33)")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('SERVO1_FUNCTION')")), 34, "SERVO1 must be k_motor2 (34)")
+
+        # 3. Verify direct motor test for M1 now drives physical servo channel 1 (0-indexed SERVO2)!
+        self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 50])
+        self.harness.step_update()
+        self.assert_true(abs(self.harness.get_srv_output(1) - 1560) <= 5, "M1 test must route to remapped SERVO2 (chan 1)")
+        self.assert_equal(self.harness.get_srv_output(0), 1500, "SERVO1 (now M2) must remain neutral 1500 us")
+
+        # 4. Reject invalid duplicate port mapping [0, 1, 1, 3, 4, 5, 6] -> must keep previous valid config
+        self.harness.advance_time(600)
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+        self.harness.push_can_rx("dev1", 130, [0, 1, 1, 3, 4, 5, 6])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"], [9, 2, 1, 3, 4, 5, 6], "Duplicate port assignment must be rejected")
+
+    def test_33_per_axis_gains_get_set_and_scaling(self):
+        # 1. GET default axis gains (ID 140 empty -> ID 141 [100, 100, 100, 100, 100, 100])
+        self.harness.push_can_rx("dev1", 140, [])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 141, "Expected TX_AXIS_GAINS (141)")
+        self.assert_equal(resp["data"], [100, 100, 100, 100, 100, 100], "Default axis gains must all be 100%")
+
+        # 2. SET axis gains: FB=50%, LR=25%, UD=100%, Yaw=50%, Pitch=0%, Roll=100%
+        self.harness.push_can_rx("dev1", 140, [50, 25, 100, 50, 0, 100])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"], [50, 25, 100, 50, 0, 100], "Updated axis gains must echo back")
+
+        # 3. Arm and drive full stick on all axes -> verify per-axis scaling
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        self.harness.push_can_rx("dev1", 100, [255, 255, 255, 0, 255, 0])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(5), 1700, "RC5 (Forward 50%) must be 1700 us")
+        self.assert_equal(self.harness.get_rc_override(6), 1600, "RC6 (Lateral 25%) must be 1600 us")
+        self.assert_equal(self.harness.get_rc_override(3), 1900, "RC3 (Throttle 100%) must be 1900 us")
+        self.assert_equal(self.harness.get_rc_override(4), 1300, "RC4 (Yaw 50% rev) must be 1300 us")
+        self.assert_equal(self.harness.get_rc_override(2), 1500, "RC2 (Pitch 0%) must be 1500 us")
+        self.assert_equal(self.harness.get_rc_override(1), 1100, "RC1 (Roll 100% rev) must be 1100 us")
+
+        # 4. Combine with global speed limit 50% -> Forward (50% * 50% = 25%) => 1600 us
+        self.harness.push_can_rx("dev1", 120, [50])
+        self.harness.step_update()
+        self.harness.push_can_rx("dev1", 100, [255, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(5), 1600, "RC5 (50% global * 50% axis = 25%) must be 1600 us")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -768,6 +835,8 @@ class TestBench:
             ("Test 29: Empty Cycle Time Frame Ignores Stale Buffer", self.test_29_empty_update_cycle_ignores_stale_buffer),
             ("Test 30: External Arm Resets Heartbeat/Watchdog Timers", self.test_30_external_arm_resets_timers_cleanly),
             ("Test 31: External Disarm Cancels Active Motor Test", self.test_31_external_disarm_cancels_active_motor_test),
+            ("Test 32: Motor Config Directions & ESC Port Mapping (ID 130 -> 131)", self.test_32_motor_config_directions_and_port_mapping),
+            ("Test 33: Per-Axis Gains Get/Set & Combined Scaling (ID 140 -> 141)", self.test_33_per_axis_gains_get_set_and_scaling),
         ]
 
         for name, fn in tests:

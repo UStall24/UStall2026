@@ -1,20 +1,85 @@
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading.Tasks;
-using System.Windows;
 using UStallGUI.Helpers;
-using UStallGUI.Model;
 
 namespace UStallGUI.ViewModel
 {
+    public class ThrusterConfigItem : ObservableObject
+    {
+        public int MotorIndex { get; }
+        public string Label { get; }
+        public string Description { get; }
+
+        private int _selectedPortIndex;
+        public int SelectedPortIndex
+        {
+            get => _selectedPortIndex;
+            set => Set(ref _selectedPortIndex, Math.Clamp(value, 0, 5));
+        }
+
+        private bool _isReversed;
+        public bool IsReversed
+        {
+            get => _isReversed;
+            set
+            {
+                if (Set(ref _isReversed, value))
+                    RaisePropertyChanged(nameof(DirectionLabel));
+            }
+        }
+
+        public string DirectionLabel => IsReversed ? "REV (−)" : "FWD (+)";
+
+        public ThrusterConfigItem(int motorIndex, string label, string description)
+        {
+            MotorIndex = motorIndex;
+            Label = label;
+            Description = description;
+            _selectedPortIndex = motorIndex;
+        }
+    }
+
     public class ControlParameterHandlerViewModel : ObservableObject
     {
-        // --- Properties & Fields ---
-        private bool _testMotor_Enabled = true;
+        private readonly UsbCANWrapper can;
 
+        public string[] OutputPortOptions { get; } = { "OUT1", "OUT2", "OUT3", "OUT4", "OUT5", "OUT6" };
+
+        public ObservableCollection<ThrusterConfigItem> Thrusters { get; } = new()
+        {
+            new ThrusterConfigItem(0, "M1", "Horizontal - Forward Left (Fwd +, Yaw +)"),
+            new ThrusterConfigItem(1, "M2", "Horizontal - Forward Right (Fwd +, Yaw -)"),
+            new ThrusterConfigItem(2, "M3", "Horizontal - Lateral Strafe (Lat +)"),
+            new ThrusterConfigItem(3, "M4", "Vertical - Rear Right (Roll -, Pitch -0.5, Heave +)"),
+            new ThrusterConfigItem(4, "M5", "Vertical - Front Center (Pitch +1.0, Heave +)"),
+            new ThrusterConfigItem(5, "M6", "Vertical - Rear Left (Roll +, Pitch -0.5, Heave +)"),
+        };
+
+        // --- Per-Axis Gains (0..100%) ---
+        private int _gainForward = 100;
+        public int GainForward { get => _gainForward; set => Set(ref _gainForward, Math.Clamp(value, 0, 100)); }
+
+        private int _gainLateral = 100;
+        public int GainLateral { get => _gainLateral; set => Set(ref _gainLateral, Math.Clamp(value, 0, 100)); }
+
+        private int _gainHeave = 100;
+        public int GainHeave { get => _gainHeave; set => Set(ref _gainHeave, Math.Clamp(value, 0, 100)); }
+
+        private int _gainYaw = 100;
+        public int GainYaw { get => _gainYaw; set => Set(ref _gainYaw, Math.Clamp(value, 0, 100)); }
+
+        private int _gainPitch = 100;
+        public int GainPitch { get => _gainPitch; set => Set(ref _gainPitch, Math.Clamp(value, 0, 100)); }
+
+        private int _gainRoll = 100;
+        public int GainRoll { get => _gainRoll; set => Set(ref _gainRoll, Math.Clamp(value, 0, 100)); }
+
+        // --- Busy Flags ---
+        private bool _testMotor_Enabled = true;
         public bool TestMotor_Enabled
         {
             get => _testMotor_Enabled;
@@ -25,38 +90,53 @@ namespace UStallGUI.ViewModel
             }
         }
 
+        private bool _configSync_Enabled = true;
+        public bool ConfigSync_Enabled
+        {
+            get => _configSync_Enabled;
+            set
+            {
+                if (Set(ref _configSync_Enabled, value))
+                {
+                    PullFromPixhawk_Command.RaiseCanExecuteChanged();
+                    ApplyToPixhawk_Command.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        // --- Test Motor PWM ---
+        private int _testThrust = 1560;
+        public int TestThrust
+        {
+            get => _testThrust;
+            set => Set(ref _testThrust, Math.Clamp(value, 1100, 1900));
+        }
+
+        // --- Commands ---
         public RelayCommand<object> TestMotor { get; }
+        public RelayCommand PullFromPixhawk_Command { get; }
+        public RelayCommand ApplyToPixhawk_Command { get; }
+        public RelayCommand ResetDefaults_Command { get; }
 
-        private readonly UsbCANWrapper can;
-
-        // --- Constructor ---
         public ControlParameterHandlerViewModel(UsbCANWrapper can)
         {
             this.can = can;
 
             TestMotor = new RelayCommand<object>(TestMotorCommand, _ => TestMotor_Enabled);
+            PullFromPixhawk_Command = new RelayCommand(() => _ = PullFromPixhawkAsync(), () => ConfigSync_Enabled);
+            ApplyToPixhawk_Command = new RelayCommand(() => _ = ApplyToPixhawkAsync(), () => ConfigSync_Enabled);
+            ResetDefaults_Command = new RelayCommand(ResetDefaults);
         }
 
         public static byte[] PwmArrayToByteArray(int[] pwmValues)
         {
             byte[] result = new byte[pwmValues.Length];
-
             for (int i = 0; i < pwmValues.Length; i++)
             {
                 int pwm = Math.Clamp(pwmValues[i], 1100, 1900);
                 result[i] = (byte)Math.Round(((pwm - 1100) / 800.0) * 255);
             }
-
             return result;
-        }
-
-        // --- Test Motor Logic ---
-        private int _testThrust = 1560;
-
-        public int TestThrust
-        {
-            get => _testThrust;
-            set => Set(ref _testThrust, Math.Clamp(value, 1100, 1900));
         }
 
         public async void TestMotorCommand(object motorIndexStr)
@@ -73,15 +153,14 @@ namespace UStallGUI.ViewModel
             }
 
             TestMotor_Enabled = false;
-
             try
             {
                 byte duration = 150; // 1500 ms
                 int[] values = { 1500, 1500, 1500, 1500, 1500, 1500 };
 
-                // Override the selected motor (scaled by global MaxThrusterSpeedPercent)
                 double factor = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100) / 100.0;
                 values[motorIndex] = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
+
                 byte[] motorBytes = PwmArrayToByteArray(values);
                 byte[] payload = new byte[motorBytes.Length + 1];
                 Array.Copy(motorBytes, payload, motorBytes.Length);
@@ -94,18 +173,154 @@ namespace UStallGUI.ViewModel
                     duration * 10 + 500);
 
                 if (resp.Length > 0 && resp[0] == 1)
-                {
                     MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test completed.");
-                }
                 else
-                {
                     MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test rejected or timed out (check Pixhawk status).");
-                }
             }
             finally
             {
                 TestMotor_Enabled = true;
             }
+        }
+
+        public async Task PullFromPixhawkAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot pull thruster config: USB-CAN adapter not connected.");
+                return;
+            }
+
+            ConfigSync_Enabled = false;
+            try
+            {
+                var motorResp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.MotorConfig,
+                    (ushort)RecieveAddressesControlUnit.MotorConfig,
+                    Array.Empty<byte>(),
+                    500);
+
+                bool motorOk = motorResp.Length >= 7;
+                if (motorOk)
+                {
+                    byte dirMask = motorResp[0];
+                    for (int m = 0; m < 6; m++)
+                    {
+                        Thrusters[m].IsReversed = ((dirMask >> m) & 1) == 1;
+                        int port = motorResp[m + 1];
+                        if (port >= 1 && port <= 6)
+                            Thrusters[m].SelectedPortIndex = port - 1;
+                    }
+                }
+
+                var gainResp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.AxisGains,
+                    (ushort)RecieveAddressesControlUnit.AxisGains,
+                    Array.Empty<byte>(),
+                    500);
+
+                bool gainOk = gainResp.Length >= 6;
+                if (gainOk)
+                {
+                    GainForward = gainResp[0];
+                    GainLateral = gainResp[1];
+                    GainHeave = gainResp[2];
+                    GainYaw = gainResp[3];
+                    GainPitch = gainResp[4];
+                    GainRoll = gainResp[5];
+                }
+
+                if (motorOk && gainOk)
+                    MainWindowViewModel.Instance.LogToControlBox("Pulled thruster directions, ESC ports, and axis gains from Pixhawk.");
+                else
+                    MainWindowViewModel.Instance.LogToControlBox("Pull from Pixhawk incomplete or timed out.");
+            }
+            finally
+            {
+                ConfigSync_Enabled = true;
+            }
+        }
+
+        public async Task ApplyToPixhawkAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance.LogToControlBox("Cannot apply thruster config: USB-CAN adapter not connected.");
+                return;
+            }
+
+            // Ensure all 6 ESC ports are unique before sending
+            var usedPorts = new HashSet<int>();
+            for (int m = 0; m < 6; m++)
+            {
+                int port = Thrusters[m].SelectedPortIndex + 1;
+                if (!usedPorts.Add(port))
+                {
+                    MainWindowViewModel.Instance.LogToControlBox($"Duplicate ESC port OUT{port}! Each thruster (M1–M6) must use a unique port.");
+                    return;
+                }
+            }
+
+            ConfigSync_Enabled = false;
+            try
+            {
+                byte dirMask = 0;
+                byte[] motorPayload = new byte[7];
+                for (int m = 0; m < 6; m++)
+                {
+                    if (Thrusters[m].IsReversed)
+                        dirMask |= (byte)(1 << m);
+                    motorPayload[m + 1] = (byte)(Thrusters[m].SelectedPortIndex + 1);
+                }
+                motorPayload[0] = dirMask;
+
+                var motorResp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.MotorConfig,
+                    (ushort)RecieveAddressesControlUnit.MotorConfig,
+                    motorPayload,
+                    600);
+
+                byte[] gainPayload =
+                {
+                    (byte)GainForward,
+                    (byte)GainLateral,
+                    (byte)GainHeave,
+                    (byte)GainYaw,
+                    (byte)GainPitch,
+                    (byte)GainRoll
+                };
+
+                var gainResp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.AxisGains,
+                    (ushort)RecieveAddressesControlUnit.AxisGains,
+                    gainPayload,
+                    500);
+
+                if (motorResp.Length >= 7 && gainResp.Length >= 6)
+                    MainWindowViewModel.Instance.LogToControlBox("Applied thruster directions, ESC ports, and axis gains to Pixhawk (saved to params).");
+                else
+                    MainWindowViewModel.Instance.LogToControlBox("Apply to Pixhawk incomplete or timed out.");
+            }
+            finally
+            {
+                ConfigSync_Enabled = true;
+            }
+        }
+
+        private void ResetDefaults()
+        {
+            for (int m = 0; m < 6; m++)
+            {
+                Thrusters[m].SelectedPortIndex = m;
+                Thrusters[m].IsReversed = false;
+            }
+            GainForward = 100;
+            GainLateral = 100;
+            GainHeave = 100;
+            GainYaw = 100;
+            GainPitch = 100;
+            GainRoll = 100;
+            MainWindowViewModel.Instance.LogToControlBox("Thruster config reset to defaults (click 'Apply to Pixhawk' to save).");
         }
     }
 }

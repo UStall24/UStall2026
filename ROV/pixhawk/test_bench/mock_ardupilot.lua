@@ -253,18 +253,35 @@ vehicle = {
 -- Parameter Mock
 param = {
     params = {
-        RCMAP_FORWARD  = 5,
-        RCMAP_LATERAL  = 6,
-        RCMAP_THROTTLE = 3,
-        RCMAP_YAW      = 4,
-        RCMAP_PITCH    = 2,
-        RCMAP_ROLL     = 1,
+        RCMAP_FORWARD   = 5,
+        RCMAP_LATERAL   = 6,
+        RCMAP_THROTTLE  = 3,
+        RCMAP_YAW       = 4,
+        RCMAP_PITCH     = 2,
+        RCMAP_ROLL      = 1,
+        MOT_1_DIRECTION = 1,
+        MOT_2_DIRECTION = 1,
+        MOT_3_DIRECTION = 1,
+        MOT_4_DIRECTION = 1,
+        MOT_5_DIRECTION = 1,
+        MOT_6_DIRECTION = 1,
+        SERVO1_FUNCTION = 33,
+        SERVO2_FUNCTION = 34,
+        SERVO3_FUNCTION = 35,
+        SERVO4_FUNCTION = 36,
+        SERVO5_FUNCTION = 37,
+        SERVO6_FUNCTION = 38,
     },
     get = function(self, name)
         return self.params[name]
     end,
     set = function(self, name, val)
         self.params[name] = val
+        return true
+    end,
+    set_and_save = function(self, name, val)
+        self.params[name] = val
+        return true
     end
 }
 
@@ -282,6 +299,10 @@ function M.reset_state()
     arming.arm_force_allowed = true
     vehicle._mode = 0
     vehicle.mode_change_allowed = true
+    for m = 1, 6 do
+        param.params["MOT_" .. m .. "_DIRECTION"] = 1
+        param.params["SERVO" .. m .. "_FUNCTION"] = 32 + m
+    end
     for _, ch in pairs(rc.channels) do
         ch.override_pwm = 0
     end

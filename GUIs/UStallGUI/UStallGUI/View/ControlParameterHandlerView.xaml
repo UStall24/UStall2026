@@ -3,113 +3,221 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:UStallGUI.View"
-             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel" d:DataContext="{d:DesignInstance Type=viewmodel:ControlParameterHandlerViewModel}"
+             xmlns:viewmodel="clr-namespace:UStallGUI.ViewModel"
+             d:DataContext="{d:DesignInstance Type=viewmodel:ControlParameterHandlerViewModel}"
              mc:Ignorable="d"
-             d:DesignHeight="650" d:DesignWidth="400" Background="White">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition />
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition />
-        </Grid.ColumnDefinitions>
+             d:DesignHeight="680" d:DesignWidth="420" Background="White">
 
-        <GroupBox Grid.Row="0" Grid.ColumnSpan="2" Margin="5" Header="Bench Motor Test (1100 - 1900 µs)">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
-                <Label Content="PWM [µs]" Grid.Row="0" HorizontalAlignment="Center" FontWeight="Bold" />
-                <TextBox Width="45" Height="22" HorizontalAlignment="Center" VerticalContentAlignment="Center" Background="Aquamarine" Text="{Binding TestThrust}" Grid.Row="1" Grid.Column="0" Margin="5" />
+    <UserControl.Resources>
+        <Style x:Key="ThrusterCardStyle" TargetType="Border">
+            <Setter Property="Width" Value="92" />
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Background" Value="#E6FFFFFF" />
+            <Setter Property="BorderBrush" Value="#FF2B6CB0" />
+            <Setter Property="BorderThickness" Value="1.2" />
+        </Style>
 
-                <Label Content="M1" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="1" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="1" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="0" IsEnabled="{Binding TestMotor_Enabled}" />
+        <Style x:Key="DirToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="#FFD4EDDA" />
+            <Setter Property="BorderBrush" Value="#FF28A745" />
+            <Setter Property="Foreground" Value="#FF155724" />
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#FFF8D7DA" />
+                    <Setter Property="BorderBrush" Value="#FFDC3545" />
+                    <Setter Property="Foreground" Value="#FF721C24" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
 
-                <Label Content="M2" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="2" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="2" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="1" IsEnabled="{Binding TestMotor_Enabled}" />
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="5">
+            <!-- Sync & Bench Test PWM Bar -->
+            <GroupBox Header="Pixhawk Thruster Sync &amp; Bench Test" Margin="0,0,0,5">
+                <Grid Margin="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                <Label Content="M3" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="3" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="3" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="2" IsEnabled="{Binding TestMotor_Enabled}" />
+                    <Button Grid.Row="0" Grid.Column="0" Content="Pull from Pixhawk" Margin="2" Height="24"
+                            Command="{Binding PullFromPixhawk_Command}" IsEnabled="{Binding ConfigSync_Enabled}" />
+                    <Button Grid.Row="0" Grid.Column="1" Content="Apply to Pixhawk" Margin="2" Height="24" FontWeight="SemiBold"
+                            Command="{Binding ApplyToPixhawk_Command}" IsEnabled="{Binding ConfigSync_Enabled}" />
+                    <Button Grid.Row="0" Grid.Column="2" Content="Reset" Margin="2" Padding="8,0" Height="24"
+                            Command="{Binding ResetDefaults_Command}" />
 
-                <Label Content="M4" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="4" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="4" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="3" IsEnabled="{Binding TestMotor_Enabled}" />
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="2,4,2,0" VerticalAlignment="Center">
+                        <TextBlock Text="Bench Test PWM (1100–1900 µs):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,6,0" />
+                        <TextBox Width="56" Height="22" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                 Background="Aquamarine" Text="{Binding TestThrust}" />
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
 
-                <Label Content="M5" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="5" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="5" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="4" IsEnabled="{Binding TestMotor_Enabled}" />
+            <!-- ROV Diagram with Overlaid Thruster Config Cards -->
+            <GroupBox Header="Thruster Layout (Port, Direction &amp; Test)" Margin="0,0,0,5">
+                <Viewbox Stretch="Uniform" MaxHeight="380">
+                    <Canvas Width="400" Height="400">
+                        <Image Source="/ROV_Model.png" Width="400" Height="400" Stretch="Uniform" />
 
-                <Label Content="M6" HorizontalAlignment="Center" FontWeight="DemiBold" Grid.Column="6" />
-                <Button Content="Test" Grid.Row="1" Grid.Column="6" Width="45" Height="22" Margin="5" Command="{Binding TestMotor}" CommandParameter="5" IsEnabled="{Binding TestMotor_Enabled}" />
-            </Grid>
-        </GroupBox>
+                        <!-- M3: Top Center (Horizontal - Lateral) -->
+                        <Border Canvas.Left="154" Canvas.Top="6" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[2].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M3 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="2" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[2].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[2].IsReversed}"
+                                              Content="{Binding Thrusters[2].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
 
-        <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Width="400" Height="400">
-            <Viewbox Stretch="Uniform">
-                <Image Source="/ROV_Model.png" />
-            </Viewbox>
+                        <!-- M6: Upper Left (Vertical - Rear Left) -->
+                        <Border Canvas.Left="4" Canvas.Top="110" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[5].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M6 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="5" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[5].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[5].IsReversed}"
+                                              Content="{Binding Thrusters[5].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
 
-            <Canvas Width="200" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="92,112,0,0">
-                <Canvas.Resources>
-                    <Geometry x:Key="ArrowGeo">M 100,10 L 130,50 L 110,50 L 110,90 L 90,90 L 90,50 L 70,50 Z</Geometry>
-                </Canvas.Resources>
+                        <!-- M4: Upper Right (Vertical - Rear Right) -->
+                        <Border Canvas.Left="304" Canvas.Top="110" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[3].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M4 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="3" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[3].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[3].IsReversed}"
+                                              Content="{Binding Thrusters[3].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
 
-                <Path Data="{StaticResource ArrowGeo}">
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Fill" Value="Gray" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsArrow1On}" Value="True">
-                                    <Setter Property="Fill" Value="LimeGreen" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
+                        <!-- M1: Lower Left (Horizontal - Forward Left) -->
+                        <Border Canvas.Left="4" Canvas.Top="260" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[0].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M1 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="0" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[0].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[0].IsReversed}"
+                                              Content="{Binding Thrusters[0].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
 
-                <Path Data="{StaticResource ArrowGeo}">
-                    <Path.RenderTransform>
-                        <RotateTransform Angle="120" CenterX="100" CenterY="100" />
-                    </Path.RenderTransform>
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Fill" Value="Gray" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsArrow2On}" Value="True">
-                                    <Setter Property="Fill" Value="LimeGreen" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
+                        <!-- M2: Lower Right (Horizontal - Forward Right) -->
+                        <Border Canvas.Left="304" Canvas.Top="260" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[1].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M2 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="1" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[1].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[1].IsReversed}"
+                                              Content="{Binding Thrusters[1].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
 
-                <Path Data="{StaticResource ArrowGeo}">
-                    <Path.RenderTransform>
-                        <RotateTransform Angle="240" CenterX="100" CenterY="100" />
-                    </Path.RenderTransform>
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Fill" Value="Gray" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsArrow3On}" Value="True">
-                                    <Setter Property="Fill" Value="LimeGreen" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
-            </Canvas>
-        </Grid>
-    </Grid>
+                        <!-- M5: Bottom Center (Vertical - Front Center) -->
+                        <Border Canvas.Left="154" Canvas.Top="322" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[4].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M5 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="4" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[4].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[4].IsReversed}"
+                                              Content="{Binding Thrusters[4].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+                </Viewbox>
+            </GroupBox>
+
+            <!-- Per-Axis Gains (0..100%) -->
+            <GroupBox Header="Per-Axis Gains (0–100%, Applied with 'Apply to Pixhawk')">
+                <Grid Margin="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="68" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Forward:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainForward}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding GainForward, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Lateral:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainLateral}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding GainLateral, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Heave:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainHeave}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding GainHeave, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Yaw:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainYaw}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding GainYaw, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Pitch:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainPitch}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding GainPitch, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Roll:" VerticalAlignment="Center" />
+                    <Slider Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="False" Value="{Binding GainRoll}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="5" Grid.Column="2" Text="{Binding GainRoll, StringFormat={}{0}%}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+            </GroupBox>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

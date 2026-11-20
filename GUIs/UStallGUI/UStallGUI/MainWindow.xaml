@@ -47,7 +47,7 @@
                 <TabItem Header="Controller Settings">
                     <view:ControllerHandlerView />
                 </TabItem>
-                <TabItem Header="Motor Test">
+                <TabItem Header="Thruster Config">
                     <view:ControlParameterHandlerView />
                 </TabItem>
                 <TabItem Header="Gripper Settings">

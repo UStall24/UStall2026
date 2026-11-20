@@ -61,6 +61,8 @@ local C = {
     RX_CTRL_STABILIZE      = 100,
     RX_CTRL_DEPTH_HOLD     = 110,
     RX_SET_SPEED_LIMIT     = 120,
+    RX_MOTOR_CONFIG        = 130,
+    RX_AXIS_GAINS          = 140,
     RX_UPDATE_CYCLE        = 160,
     RX_TEST_MOTOR          = 170,
 
@@ -71,6 +73,8 @@ local C = {
     TX_DEINIT_THRUST       = 71,
     TX_RESET_ERR           = 81,
     TX_SET_SPEED_LIMIT     = 121,
+    TX_MOTOR_CONFIG        = 131,
+    TX_AXIS_GAINS          = 141,
     TX_UPDATE_CYCLE        = 161,
     TX_TEST_MOTOR          = 171,
 
@@ -189,6 +193,8 @@ local rx_data = {0, 0, 0, 0, 0, 0, 0, 0}
 -- Pre-allocated static response buffers (zero heap allocations during TX)
 local tx_ack_payload  = {}
 local tx_resp_single  = {0}
+local tx_motor_cfg    = {0, 1, 2, 3, 4, 5, 6}
+local axis_gains      = {100, 100, 100, 100, 100, 100} -- [FB, LR, UD, Yaw, Pitch, Roll] in %
 
 -- ==============================================================================
 -- Helper Functions & State
@@ -352,14 +358,15 @@ local function clear_control_overrides()
     end
 end
 
--- Convert 0..255 byte value to 1100..1900 RC PWM (126..129 -> 1500 neutral), scaled by max_speed_percent
-local function byte_to_rc_pwm(value)
+-- Convert 0..255 byte value to 1100..1900 RC PWM (126..129 -> 1500 neutral), scaled by max_speed_percent and axis gain
+local function byte_to_rc_pwm(value, axis_gain_pct)
     if not value or (value >= 126 and value <= 129) then
         return 1500
     end
     local clamped = math.max(0, math.min(255, value))
     local norm = (clamped / 127.5) - 1.0
-    return math.floor(1500 + (norm * 400 * (max_speed_percent / 100.0)) + 0.5)
+    local scale = (max_speed_percent / 100.0) * ((axis_gain_pct or 100) / 100.0)
+    return math.floor(1500 + (norm * 400 * scale) + 0.5)
 end
 
 -- Convert 0..255 byte value to 1100..1900 motor PWM for direct output with deadzone
@@ -375,7 +382,7 @@ end
 local function handle_controller_values(data)
     init_rc_channels()
     for i = 1, C.CONTROL_DLC do
-        set_override(control_channels[i], byte_to_rc_pwm(data[i]))
+        set_override(control_channels[i], byte_to_rc_pwm(data[i], axis_gains[i]))
     end
     last_ctrl_ms = now_ms()
     watchdog_tripped = false
@@ -474,6 +481,68 @@ local function handle_motor_test(data)
         gcs:send_text(3, "CAN bridge: motor test output failed")
         send_u8(C.TX_TEST_MOTOR, 0)
     end
+end
+
+-- Get/Set motor directions (MOT_1..6_DIRECTION) and ESC port assignments (SERVO1..6_FUNCTION)
+-- Frame format (7 bytes): [dir_mask, out_m1, out_m2, out_m3, out_m4, out_m5, out_m6]
+--   dir_mask bit (m-1) = 1 means MOT_<m>_DIRECTION = -1 (reversed), 0 means +1 (normal)
+--   out_m<m> (1..6)    = physical SERVO port assigned to k_motor<m> (function 32 + m)
+local function handle_motor_config(data, dlc)
+    on_topside_activity()
+    if dlc >= 7 and param then
+        -- Validate that all 6 output ports are in 1..6 and unique
+        local used = {}
+        local valid = true
+        for m = 1, 6 do
+            local port = math.floor(data[m + 1] or 0)
+            if port < 1 or port > 6 or used[port] then
+                valid = false
+                break
+            end
+            used[port] = true
+        end
+
+        if valid then
+            local save_fn = param.set_and_save or param.set
+            local mask = math.floor(data[1] or 0)
+            for m = 1, 6 do
+                local bit = 2 ^ (m - 1)
+                local reversed = (math.floor(mask / bit) % 2) == 1
+                pcall(save_fn, param, "MOT_" .. tostring(m) .. "_DIRECTION", reversed and -1 or 1)
+            end
+            for m = 1, 6 do
+                local port = math.floor(data[m + 1])
+                pcall(save_fn, param, "SERVO" .. tostring(port) .. "_FUNCTION", 32 + m)
+                motor_channels[m] = port - 1
+            end
+            motor_channels_initialized = true
+            gcs:send_text(6, "CAN bridge: motor directions & ESC ports updated")
+        else
+            gcs:send_text(3, "CAN bridge: invalid motor config (ports must be unique 1..6)")
+        end
+    end
+
+    -- Read back live parameters into static reply buffer
+    local dir_mask = 0
+    for m = 1, 6 do
+        local dir = param and param:get("MOT_" .. tostring(m) .. "_DIRECTION") or 1
+        if dir < 0 then
+            dir_mask = dir_mask + (2 ^ (m - 1))
+        end
+        tx_motor_cfg[m + 1] = motor_channels[m] + 1
+    end
+    if param and param.get then
+        for port = 1, 6 do
+            local fn = param:get("SERVO" .. tostring(port) .. "_FUNCTION")
+            if fn and fn >= 33 and fn <= 38 then
+                local m = math.floor(fn) - 32
+                tx_motor_cfg[m + 1] = port
+                motor_channels[m] = port - 1
+            end
+        end
+    end
+    tx_motor_cfg[1] = math.floor(dir_mask)
+    send_can(C.TX_MOTOR_CONFIG, tx_motor_cfg)
 end
 
 -- ==============================================================================
@@ -597,7 +666,22 @@ local function handle_frame(frame)
         end
         send_u8(C.TX_SET_SPEED_LIMIT, max_speed_percent)
 
-    -- 8. Direct Motor Test (Bench Thruster Test)
+    -- 8. Get/Set Motor Directions & ESC Port Mapping (ID 130 -> 131)
+    elseif rx_id == C.RX_MOTOR_CONFIG then
+        handle_motor_config(rx_data, dlc)
+
+    -- 9. Get/Set Per-Axis Gains (ID 140 -> 141, 6 bytes: FB, LR, UD, Yaw, Pitch, Roll in 0..100%)
+    elseif rx_id == C.RX_AXIS_GAINS then
+        on_topside_activity()
+        if dlc >= C.CONTROL_DLC then
+            for i = 1, C.CONTROL_DLC do
+                axis_gains[i] = math.max(0, math.min(100, math.floor(rx_data[i])))
+            end
+            gcs:send_text(6, "CAN bridge: axis gains updated")
+        end
+        send_can(C.TX_AXIS_GAINS, axis_gains)
+
+    -- 10. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
         if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
@@ -606,7 +690,7 @@ local function handle_frame(frame)
             send_u8(C.TX_TEST_MOTOR, 0)
         end
 
-    -- 9. Update Cycle Time
+    -- 11. Update Cycle Time
     elseif rx_id == C.RX_UPDATE_CYCLE then
         on_topside_activity()
         if dlc >= 1 then

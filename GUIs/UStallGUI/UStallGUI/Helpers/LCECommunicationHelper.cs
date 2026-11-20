@@ -15,6 +15,8 @@ namespace UStallGUI.Helpers
         ApplyControllerValues_Stabilize = 100,
         ApplyControllerValues_DepthHold = 110,
         SetSpeedLimit = 120,
+        MotorConfig = 130,
+        AxisGains = 140,
         UpdateCycleTime = 160,
         TestMotor = 170
     }
@@ -32,6 +34,8 @@ namespace UStallGUI.Helpers
         DisarmThrusters = 71,
         ResetWatchdog = 81,
         SetSpeedLimit = 121,
+        MotorConfig = 131,
+        AxisGains = 141,
         UpdateCycleTime = 161,
         TestMotor = 171
     }

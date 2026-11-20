@@ -176,6 +176,8 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **Drive (Stabilize)** | `100` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `STABILIZE` (mode `0`) and updates RC overrides (`1100..1900 µs`). |
 | **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
 | **Set Speed Limit** | `120` | `121` | `1 B`: `[percent]` (`0..100`) | `[percent]` | Stores max thruster speed limit (`0..100%`) on Pixhawk and scales RC PWM deflection around `1500 µs`. |
+| **Motor Config (Get/Set)** | `130` | `131` | Empty (`0 B`) = Get; `7 B`: `[dir_mask, out_m1..out_m6]` = Set | `7 B`: `[dir_mask, out_m1..out_m6]` | Reads or saves `MOT_1..6_DIRECTION` (`dir_mask` bits `0..5`: `1` = reversed `-1`) and `SERVO1..6_FUNCTION` (`out_m1..out_m6` = unique `1..6`) via `param:set_and_save`. |
+| **Axis Gains (Get/Set)** | `140` | `141` | Empty (`0 B`) = Get; `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` (`0..100`) = Set | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | Reads or sets per-axis RC scaling (`0..100%`), multiplied with the global speed limit. |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
 | **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
 
@@ -202,8 +204,8 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
    * Click **Arm Thrusters** when the water around the ROV is clear.
    * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1580 µs` upward throttle) for up to `30 s` (or until communication returns).
    * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
-5. **Bench Motor Testing (Optional):**
-   * Open the **Motor Test** tab, enter a target PWM (`1100–1900 µs`, default `1560 µs`), and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
+5. **Thruster Config & Bench Testing (Optional):**
+   * Open the **Thruster Config** tab to pull/apply per-thruster directions (`MOT_1..6_DIRECTION`), ESC port mappings (`OUT1–OUT6`), and per-axis gains (`Forward/Lateral/Heave/Yaw/Pitch/Roll`), or enter a target PWM (`1100–1900 µs`, default `1560 µs`) and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
 
 ---
 
@@ -225,7 +227,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 27 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 29 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -256,3 +258,5 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 25. **Empty Cycle Time Frame Guard (ID 160):** Verifies a 0-byte `ID 160` frame does not read stale data from the reusable RX buffer.
 26. **External Arm Timer Reset:** Verifies arming from GCS cleanly initializes watchdog and heartbeat timers without immediate false triggers.
 27. **External Disarm Cancels Active Motor Test:** Verifies an external GCS disarm mid-test neutralizes motor outputs and cancels pending completion.
+28. **Motor Config Directions & ESC Port Mapping (ID 130 -> 131):** Verifies live Get/Set of `MOT_1..6_DIRECTION` and `SERVO1..6_FUNCTION`, remapped motor test routing, and duplicate-port rejection.
+29. **Per-Axis Gains Get/Set & Combined Scaling (ID 140 -> 141):** Verifies per-axis RC gain scaling (`0–100%`) and multiplicative combination with global speed limit.
