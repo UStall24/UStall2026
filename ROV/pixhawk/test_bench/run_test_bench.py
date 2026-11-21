@@ -816,6 +816,79 @@ class TestBench:
         self.harness.step_update()
         self.assert_equal(self.harness.get_rc_override(5), 1600, "RC5 (50% global * 50% axis = 25%) must be 1600 us")
 
+    def test_34_non_bridge_traffic_does_not_hijack_active_port(self):
+        # Establish CAN1 as active port
+        self.harness.push_can_rx("dev1", 40, [])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 41, "Expected initial reply on CAN1")
+
+        # Arm on CAN1 so periodic heartbeat will transmit on active_can_dev
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+
+        # Inject DroneCAN extended frame and Gripper (0x301) frame on CAN2
+        self.harness.push_can_rx("dev2", 0x18000001, [1, 2, 3], is_ext=True)
+        self.harness.push_can_rx("dev2", 0x301, [0, 45, 0])
+        self.harness.step_update()
+
+        # Advance 2000ms to trigger ROV heartbeat -> must still transmit on CAN1, NOT CAN2
+        self.harness.advance_time(2000)
+        self.harness.step_update()
+        hb1 = self.harness.pop_can_tx("dev1")
+        hb2 = self.harness.pop_can_tx("dev2")
+        self.assert_true(hb1 is not None and hb1["id"] == 41 and hb1["data"] == [2], "Heartbeat must remain on CAN1")
+        self.assert_true(hb2 is None, "Non-bridge traffic on CAN2 must not hijack active_can_dev")
+
+    def test_35_rapid_flight_mode_switching_without_throttle(self):
+        # Arm in MANUAL (19)
+        self.harness.push_can_rx("dev1", 60, [19])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 19, "Must start in MANUAL (19)")
+
+        # Switch to STABILIZE (0) after only 50ms
+        self.harness.advance_time(50)
+        self.harness.push_can_rx("dev1", 100, [127, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 0, "Must switch immediately to STABILIZE (0)")
+
+        # Switch to ALT_HOLD (2) after only 50ms more (well inside 1000ms retry interval)
+        self.harness.advance_time(50)
+        self.harness.push_can_rx("dev1", 110, [127, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 2, "Must switch immediately to ALT_HOLD (2)")
+
+        # Switch back to MANUAL (19) after only 50ms more
+        self.harness.advance_time(50)
+        self.harness.push_can_rx("dev1", 90, [127, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_mode(), 19, "Must switch immediately back to MANUAL (19)")
+
+    def test_36_arm_rejected_during_active_motor_test(self):
+        # Start motor test while disarmed (500ms duration)
+        self.assert_equal(self.harness.is_armed(), False, "Must start disarmed")
+        self.harness.push_can_rx("dev1", 170, [160, 128, 128, 128, 128, 128, 50])
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), True, "Motor test must arm temporarily")
+        self.assert_equal(self.harness.get_mode(), 19, "Motor test must be in MANUAL (19)")
+        self.harness.clear_tx_queues()
+
+        # Send Arm (ID 60 [0]) mid-test -> must be rejected with [0] and stay in MANUAL
+        self.harness.advance_time(100)
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 61 and resp["data"] == [0], "Arm during motor test must return [0]")
+        self.assert_equal(self.harness.get_mode(), 19, "Mode must remain MANUAL (19) during active motor test")
+
+        # Complete motor test -> must disarm cleanly and send ID 171 [1]
+        self.harness.advance_time(450)
+        self.harness.step_update()
+        self.assert_equal(self.harness.is_armed(), False, "Must disarm after motor test finishes")
+        done = self.harness.pop_can_tx("dev1")
+        self.assert_true(done is not None and done["id"] == 171 and done["data"] == [1], "Motor test must still complete cleanly")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -850,6 +923,9 @@ class TestBench:
             ("Test 31: External Disarm Cancels Active Motor Test", self.test_31_external_disarm_cancels_active_motor_test),
             ("Test 32: Motor Config Directions & ESC Port Mapping (ID 130 -> 131)", self.test_32_motor_config_directions_and_port_mapping),
             ("Test 33: Per-Axis Gains Get/Set & Combined Scaling (ID 140 -> 141)", self.test_33_per_axis_gains_get_set_and_scaling),
+            ("Test 34: Non-Bridge Traffic Does Not Hijack Active CAN Port", self.test_34_non_bridge_traffic_does_not_hijack_active_port),
+            ("Test 35: Rapid Flight Mode Switching Without Throttle", self.test_35_rapid_flight_mode_switching_without_throttle),
+            ("Test 36: Arm Rejected During Active Bench Motor Test", self.test_36_arm_rejected_during_active_motor_test),
         ]
 
         for name, fn in tests:

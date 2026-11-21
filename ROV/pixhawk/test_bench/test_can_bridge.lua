@@ -320,6 +320,54 @@ run_case("Per-Axis Gains Scaling & Persistence (ID 140 -> 141)", function()
     assert_eq(rc:get_channel(2).override_pwm, 1500, "RC2 Pitch 0%")
 end)
 
+run_case("Non-Bridge Traffic on CAN2 Does Not Hijack Active Port", function()
+    CAN.dev1:push_rx(60, {0})
+    update()
+    CAN.dev1.tx_queue = {}
+    CAN.dev2.tx_queue = {}
+
+    -- Push Gripper (0x301) and DroneCAN extended frame on CAN2
+    CAN.dev2:push_rx(0x301, {0, 45, 0})
+    CAN.dev2:push_rx(0x18000001, {1, 2, 3}, true, false, false)
+    update()
+
+    mock.advance_time(2000)
+    update()
+    local hb1 = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(hb1 ~= nil and hb1:id_signed() == 41 and hb1:data(0) == 2, "Heartbeat stays on CAN1")
+    assert_eq(#CAN.dev2.tx_queue, 0, "CAN2 must not receive replies")
+end)
+
+run_case("Rapid Flight Mode Switching & Arm Guard During Motor Test", function()
+    CAN.dev1:push_rx(60, {19})
+    update()
+    assert_eq(vehicle:get_mode(), 19)
+
+    mock.advance_time(50)
+    CAN.dev1:push_rx(100, {127, 127, 127, 127, 127, 127})
+    update()
+    assert_eq(vehicle:get_mode(), 0, "Immediate switch to STABILIZE")
+
+    mock.advance_time(50)
+    CAN.dev1:push_rx(110, {127, 127, 127, 127, 127, 127})
+    update()
+    assert_eq(vehicle:get_mode(), 2, "Immediate switch to ALT_HOLD")
+
+    -- Disarm, start motor test, verify ID 60 is rejected mid-test
+    CAN.dev1:push_rx(70, {})
+    update()
+    CAN.dev1:push_rx(170, {160, 128, 128, 128, 128, 128, 50})
+    update()
+    CAN.dev1.tx_queue = {}
+
+    mock.advance_time(100)
+    CAN.dev1:push_rx(60, {0})
+    update()
+    local f = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f ~= nil and f:id_signed() == 61 and f:data(0) == 0, "Arm rejected mid-test")
+    assert_eq(vehicle:get_mode(), 19, "Stays in MANUAL during motor test")
+end)
+
 print(string.rep("=", 72))
 print(string.format("Pure Lua Test Results: %d PASSED, %d FAILED", passed, failed))
 print(string.rep("=", 72))

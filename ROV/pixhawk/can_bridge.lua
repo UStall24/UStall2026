@@ -17,7 +17,7 @@
 --   CAN_P1_DRIVER    = 1       (Enable CAN Port 1)
 --   CAN_D1_PROTOCOL  = 10      (Set CAN Driver 1 protocol to 10 = Scripting)
 --   CAN_P1_BITRATE   = 125000  (Match USB-CAN adapter bitrate: 125000 bps)
---   CAN_P2_DRIVER    = 1       (Optional: Enable CAN Port 2 for tether backup)
+--   CAN_P2_DRIVER    = 2       (Optional: Assign CAN Port 2 to Driver 2 for tether backup)
 --   CAN_D2_PROTOCOL  = 12      (Optional: Set CAN Driver 2 protocol to 12 = Scripting2)
 --   CAN_P2_BITRATE   = 125000  (Optional: CAN Port 2 bitrate: 125000 bps)
 --   BRD_SAFETY_DEFLT = 0       (Disable Pixhawk physical safety switch button)
@@ -95,6 +95,24 @@ local C = {
     MIN_CYCLE_TIME_MS      = 5,
     MAX_CYCLE_TIME_MS      = 100,
     MODE_RETRY_INTERVAL_MS = 1000,
+}
+
+-- Recognized standard 11-bit RX IDs handled by this bridge (O(1) filter so
+-- non-bridge traffic such as DroneCAN or gripper frames never hijacks active_can_dev)
+local BRIDGE_RX_IDS = {
+    [C.RX_HEALTH]          = true,
+    [C.RX_INIT_CONN]       = true,
+    [C.RX_INIT_THRUSTERS]  = true,
+    [C.RX_DEINIT_THRUST]   = true,
+    [C.RX_RESET_ERR]       = true,
+    [C.RX_CTRL_MANUAL]     = true,
+    [C.RX_CTRL_STABILIZE]  = true,
+    [C.RX_CTRL_DEPTH_HOLD] = true,
+    [C.RX_SET_SPEED_LIMIT] = true,
+    [C.RX_MOTOR_CONFIG]    = true,
+    [C.RX_AXIS_GAINS]      = true,
+    [C.RX_UPDATE_CYCLE]    = true,
+    [C.RX_TEST_MOTOR]      = true,
 }
 
 -- ==============================================================================
@@ -249,6 +267,7 @@ local saved_mode_before_test    = 0
 local was_armed_before_test     = false
 local was_armed                 = false
 local last_mode_change_ms       = 0
+local last_requested_mode       = -1
 
 local function to_uint32(val)
     if uint32_t then
@@ -426,6 +445,7 @@ local function end_motor_test()
     if not was_armed_before_test then
         safe_disarm()
     else
+        last_requested_mode = -1
         safe_set_mode(saved_mode_before_test)
         neutralize_controls()
     end
@@ -572,16 +592,18 @@ end
 -- ==============================================================================
 -- Frame Dispatcher
 -- ==============================================================================
-local function handle_frame(frame)
+local function handle_frame(frame, dev)
     -- Filter out extended 29-bit frames (DroneCAN traffic), error frames, and RTRs
     if frame:isExtended() or frame:isErrorFrame() or frame:isRemoteTransmissionRequest() then
         return
     end
 
     local rx_id = frame:id_signed()
-    if rx_id < 0 or rx_id > 0x7FF then
+    if rx_id < 0 or rx_id > 0x7FF or not BRIDGE_RX_IDS[rx_id] then
         return
     end
+
+    active_can_dev = dev -- remember which port is actively communicating with the GUI
 
     local dlc = frame:dlc()
     if dlc > 8 then dlc = 8 end
@@ -606,7 +628,13 @@ local function handle_frame(frame)
     -- 3. Arm Thrusters / Init Motors
     elseif rx_id == C.RX_INIT_THRUSTERS then
         on_topside_activity()
+        if motor_test_active then
+            gcs:send_text(4, "CAN bridge: cannot arm while motor test active")
+            send_u8(C.TX_INIT_THRUSTERS, 0)
+            return
+        end
         neutralize_controls()
+        last_requested_mode = -1
         if dlc >= 1 then
             local req_mode = rx_data[1]
             if req_mode == 0 or req_mode == 2 or req_mode == 19 then
@@ -671,9 +699,14 @@ local function handle_frame(frame)
                 target_mode = 19
             end
 
-            if target_mode ~= vehicle:get_mode() and elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
-                last_mode_change_ms = now_ms()
-                safe_set_mode(target_mode)
+            if target_mode ~= vehicle:get_mode() then
+                if target_mode ~= last_requested_mode or elapsed_ms(last_mode_change_ms) >= C.MODE_RETRY_INTERVAL_MS then
+                    last_requested_mode = target_mode
+                    last_mode_change_ms = now_ms()
+                    safe_set_mode(target_mode)
+                end
+            else
+                last_requested_mode = target_mode
             end
 
             if arming:is_armed() then
@@ -742,8 +775,7 @@ local function drain_device(dev)
             break
         end
         count = count + 1
-        active_can_dev = dev -- remember which port is actively communicating
-        local ok, err = pcall(handle_frame, frame)
+        local ok, err = pcall(handle_frame, frame, dev)
         if not ok then
             gcs:send_text(3, "CAN frame error: " .. tostring(err))
         end
@@ -804,6 +836,7 @@ local function update_body()
                     if missed_heartbeats >= C.MAX_MISSED_HEARTBEATS and not auto_surface_active then
                         auto_surface_active = true
                         auto_surface_start_ms = now_ms()
+                        last_requested_mode = -1
                         safe_set_mode(0) -- STABILIZE to keep level while surfacing
                         gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
                     end

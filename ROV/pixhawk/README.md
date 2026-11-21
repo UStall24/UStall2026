@@ -19,7 +19,7 @@ This directory contains the translation layer, test bench, and configuration doc
 +------------------------------v-------------------------------+
 | Pixhawk 4: CAN Port 1 or CAN Port 2                          |
 |   (CAN_P1_DRIVER=1, CAN_D1_PROTOCOL=10, CAN_P1_BITRATE=125k) |
-|   (CAN_P2_DRIVER=1, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
+|   (CAN_P2_DRIVER=2, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
 |   |                                                          |
 |   v                                                          |
 | Lua Script: /APM/scripts/can_bridge.lua (v1.5)               |
@@ -56,7 +56,7 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 * `CAN_P1_DRIVER` = `1` (Enable CAN Port 1)
 * `CAN_D1_PROTOCOL` = `10` (Assign CAN Driver 1 to **Scripting**)
 * `CAN_P1_BITRATE` = `125000` (125 kbps matching the UStall USB-CAN adapter)
-* `CAN_P2_DRIVER` = `1` *(Optional: Enable CAN Port 2 for tether backup)*
+* `CAN_P2_DRIVER` = `2` *(Optional: Assign CAN Port 2 to Driver 2 for tether backup)*
 * `CAN_D2_PROTOCOL` = `12` *(Optional: Assign CAN Driver 2 to **Scripting2** - NOT 10)*
 * `CAN_P2_BITRATE` = `125000` *(Optional: 125 kbps)*
 
@@ -227,7 +227,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 29 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 32 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -260,3 +260,6 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 27. **External Disarm Cancels Active Motor Test:** Verifies an external GCS disarm mid-test neutralizes motor outputs and cancels pending completion.
 28. **Motor Config Directions & ESC Port Mapping (ID 130 -> 131):** Verifies live Get/Set of `MOT_1..6_DIRECTION` and `SERVO1..6_FUNCTION`, remapped motor test routing, and duplicate-port rejection.
 29. **Per-Axis Gains Get/Set & Combined Scaling (ID 140 -> 141):** Verifies per-axis RC gain scaling (`0–100%`) and multiplicative combination with global speed limit.
+30. **Active CAN Port Isolation:** Verifies non-bridge traffic on the backup CAN port (e.g., DroneCAN extended frames or gripper `0x301` frames) does not hijack reply/heartbeat routing.
+31. **Rapid Flight Mode Switching:** Verifies switching between `MANUAL`, `STABILIZE`, and `ALT_HOLD` takes effect immediately without being throttled by the 1 s retry timer.
+32. **Arm Guard During Bench Motor Test:** Verifies `ID 60` (Arm) is cleanly rejected while a direct bench motor test is active so test isolation and post-test disarm restoration remain intact.
