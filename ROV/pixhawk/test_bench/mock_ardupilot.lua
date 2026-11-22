@@ -265,6 +265,8 @@ param = {
         MOT_4_DIRECTION = 1,
         MOT_5_DIRECTION = 1,
         MOT_6_DIRECTION = 1,
+        MOT_PWM_MIN     = 1100,
+        MOT_PWM_MAX     = 1900,
         SERVO1_FUNCTION = 33,
         SERVO2_FUNCTION = 34,
         SERVO3_FUNCTION = 35,
@@ -305,6 +307,8 @@ function M.reset_state()
     arming.arm_force_allowed = true
     vehicle._mode = 0
     vehicle.mode_change_allowed = true
+    param.params["MOT_PWM_MIN"] = 1100
+    param.params["MOT_PWM_MAX"] = 1900
     for m = 1, 6 do
         param.params["MOT_" .. m .. "_DIRECTION"] = 1
         param.params["SERVO" .. m .. "_FUNCTION"] = 32 + m

@@ -92,34 +92,36 @@ ArduSub supports custom thruster geometries by configuring `SUB_FRAME_CUSTOM` (f
 
 
 
-### 3-Vertical Thruster Delta Formation (120°) + 3-Horizontal
+### 3-Vertical Thruster Delta Formation (120°) + 3-Horizontal (Clockwise 1–6)
 *(Described in the Control Strategy Paper, Section 1.5)*
 
-* **Geometry:** Vertical thrusters arranged symmetrically at 120°:
-  - **T1 / M5 (Front Center):** Pitch nose UP/DOWN (+1.0 pitch), heave UP (1.0 throttle)
-  - **T2 / M6 (Rear Left):** Pitch nose (-0.5 pitch), Roll RIGHT (+0.866 roll), heave UP (1.0 throttle)
-  - **T3 / M4 (Rear Right):** Pitch nose (-0.5 pitch), Roll LEFT (-0.866 roll), heave UP (1.0 throttle)
-* **Horizontal Thrusters (M1, M2, M3):** Arranged for Forward, Lateral, and Yaw control.
+Numbered **clockwise 1–6** looking from above with Front at 12 o'clock:
+* **Vertical Thrusters (M1, M3, M5):** Arranged symmetrically at 120°:
+  - **M1 (Front Center):** Pitch nose UP/DOWN (`+1.0` pitch), heave UP (`+1.0` throttle)
+  - **M3 (Rear Right):** Pitch nose (`-0.5` pitch), Roll LEFT (`-0.866` roll), heave UP (`+1.0` throttle)
+  - **M5 (Rear Left):** Pitch nose (`-0.5` pitch), Roll RIGHT (`+0.866` roll), heave UP (`+1.0` throttle)
+* **Horizontal Thrusters (M2, M4, M6):**
+  - **M2 (Front Right):** Forward/Backward (`+1.0` forward, `-1.0` yaw)
+  - **M4 (Rear Center):** Lateral Strafe (`+1.0` lateral)
+  - **M6 (Front Left):** Forward/Backward (`+1.0` forward, `+1.0` yaw)
 
 In `libraries/AP_Motors/AP_Motors6DOF.cpp`:
 ```cpp
 case SUB_FRAME_CUSTOM:
     // Format: add_motor_raw_6dof(motor_num, roll, pitch, yaw, throttle, forward, lateral, test_order);
-    // --- Horizontal Thrusters ---
-    // Motor 1: Forward Left (Forward +, Yaw +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_1,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1);
+    // Clockwise 1..6 (1, 3, 5 = Vertical 120 deg Delta; 2, 4, 6 = Horizontal)
+    // Motor 1: Front-Center (Roll 0, Pitch +1.0, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_1,  0.0f,    1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 1);
     // Motor 2: Forward Right (Forward +, Yaw -)
-    add_motor_raw_6dof(AP_MOTORS_MOT_2,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f, 2);
-    // Motor 3: Lateral Strafe (Lateral +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_3,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  1.0f, 3);
-
-    // --- Vertical Thrusters (120 deg Delta Layout) ---
-    // Motor 4: Rear-Right (Roll -, Pitch -0.5, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_4, -0.866f, -0.5f, 0.0f,  1.0f,  0.0f,  0.0f, 4);
-    // Motor 5: Front-Center (Roll 0, Pitch +1.0, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_5,  0.0f,    1.0f, 0.0f,  1.0f,  0.0f,  0.0f, 5);
-    // Motor 6: Rear-Left (Roll +, Pitch -0.5, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_6,  0.866f, -0.5f, 0.0f,  1.0f,  0.0f,  0.0f, 6);
+    add_motor_raw_6dof(AP_MOTORS_MOT_2,  0.0f,    0.0f, -1.0f,  0.0f,  1.0f,  0.0f, 2);
+    // Motor 3: Rear-Right (Roll -, Pitch -0.5, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_3, -0.866f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 3);
+    // Motor 4: Lateral Strafe (Lateral +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_4,  0.0f,    0.0f,  0.0f,  0.0f,  0.0f,  1.0f, 4);
+    // Motor 5: Rear-Left (Roll +, Pitch -0.5, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_5,  0.866f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 5);
+    // Motor 6: Forward Left (Forward +, Yaw +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_6,  0.0f,    0.0f,  1.0f,  0.0f,  1.0f,  0.0f, 6);
     break;
 ```
 
@@ -167,7 +169,7 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | Command | TX ID (GUI -> Pixhawk) | RX ID (Pixhawk -> GUI) | TX Payload | RX Payload | Description / ArduSub Action |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1, armed, mode]` | Manual connection probe initiated by GUI; returns live armed state (`0`/`1`) and active ArduSub mode (`0`/`2`/`19`). |
-| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2, armed, mode]` | Sent by Pixhawk every `2 s` while armed with live armed/mode telemetry; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1580 µs` heave in `STABILIZE`). |
+| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2, armed, mode]` | Sent by Pixhawk every `2 s` while armed with live armed/mode telemetry; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1540 µs` gentle heave in `STABILIZE`, capped by global speed limit). |
 | **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
 | **Arm Thrusters** | `60` | `61` | Empty (`0 B`) or `1 B`: `[mode]` | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets requested mode (`0`/`2`/`19`, or `STABILIZE` if empty & in `MANUAL`), and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
@@ -175,9 +177,9 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **Drive (Manual)** | `90` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `MANUAL` (mode `19`) for direct open-loop control and updates RC overrides. |
 | **Drive (Stabilize)** | `100` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `STABILIZE` (mode `0`) and updates RC overrides (`1100..1900 µs`). |
 | **Drive (Depth Hold)** | `110` | — | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | *None* | Switches to `ALT_HOLD` (mode `2`) for automatic depth + attitude hold and updates RC overrides. |
-| **Set Speed Limit** | `120` | `121` | `1 B`: `[percent]` (`0..100`) | `[percent]` | Stores max thruster speed limit (`0..100%`) on Pixhawk and scales RC PWM deflection around `1500 µs`. |
+| **Speed Limit (Get/Set)** | `120` | `121` | Empty (`0 B`) = Get; `1 B`: `[percent]` (`0..100`) = Set | `[percent]` | Reads or saves global max thruster speed limit (`0..100%`) to `MOT_PWM_MIN` / `MOT_PWM_MAX` (`1500 ± round(400 * pct / 100)`) via `param:set_and_save`, capping all flight modes, stabilization, auto-surface, and bench motor tests across reboots. |
 | **Motor Config (Get/Set)** | `130` | `131` | Empty (`0 B`) = Get; `7 B`: `[dir_mask, out_m1..out_m6]` = Set | `7 B`: `[dir_mask, out_m1..out_m6]` | Reads or saves `MOT_1..6_DIRECTION` (`dir_mask` bits `0..5`: `1` = reversed `-1`) and `SERVO1..6_FUNCTION` (`out_m1..out_m6` = unique `1..6`) via `param:set_and_save`. |
-| **Axis Gains (Get/Set)** | `140` | `141` | Empty (`0 B`) = Get; `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` (`0..100`) = Set | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | Reads or saves per-axis RC scaling (`0..100%`) to `SCR_USER1..6` (`gain + 1`), multiplied with the global speed limit. |
+| **Axis Gains (Get/Set)** | `140` | `141` | Empty (`0 B`) = Get; `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` (`0..100`) = Set | `6 B`: `[FB, LR, UD, Yaw, Pitch, Roll]` | Reads or saves per-axis pilot RC scaling (`0..100%`) to `SCR_USER1..6` (`gain + 1`). |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
 | **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM (respecting `SERVO1..6_FUNCTION` port mapping and `MOT_1..6_DIRECTION`) for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
 
@@ -202,7 +204,7 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
    * Adjust the **Speed Limit** slider (`0–100%`) to cap maximum thruster output for indoor tank testing or precision maneuvers.
 4. **Arm & Drive:**
    * Click **Arm Thrusters** when the water around the ROV is clear.
-   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1580 µs` upward throttle) for up to `30 s` (or until communication returns).
+   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1540 µs` upward throttle, capped by `MOT_PWM_MAX`) for up to `30 s` (or until communication returns).
    * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
 5. **Thruster Config & Bench Testing (Optional):**
    * Open the **Thruster Config** tab to pull/apply per-thruster directions (`MOT_1..6_DIRECTION`), ESC port mappings (`OUT1–OUT6`), and per-axis gains (`Forward/Lateral/Heave/Yaw/Pitch/Roll`), or enter a target PWM (`1100–1900 µs`, default `1560 µs`) and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.

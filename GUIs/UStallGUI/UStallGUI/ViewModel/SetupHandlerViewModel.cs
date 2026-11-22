@@ -173,6 +173,20 @@ namespace UStallGUI.ViewModel
             }
         }
 
+        public void SyncSpeedLimitFromPixhawk(int percent)
+        {
+            int clamped = Math.Clamp(percent, 0, 100);
+            if (_maxThrusterSpeedPercent == clamped)
+                return;
+
+            _maxThrusterSpeedPercent = clamped;
+            currentConfig.MaxThrusterSpeedPercent = clamped;
+            ControllerHandlerViewModel.MaxThrusterSpeedPercent = clamped;
+            UpdateConfig();
+            RaisePropertyChanged(nameof(MaxThrusterSpeedPercent));
+            QuickSetupViewModel.Instance?.NotifyMaxThrusterSpeedChanged();
+        }
+
         private async Task DebouncedSendSpeedLimitAsync(int percent)
         {
             _speedLimitDebounceCts?.Cancel();

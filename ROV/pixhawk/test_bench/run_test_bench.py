@@ -574,7 +574,7 @@ class TestBench:
         self.harness.advance_time(2000)
         self.harness.step_update()
         self.assert_equal(self.harness.get_mode(), 0, "Must switch to STABILIZE (0) for level ascent")
-        self.assert_equal(self.harness.get_rc_override(3), 1580, "RC3 (Throttle) must command gentle ascent (1580 us)")
+        self.assert_equal(self.harness.get_rc_override(3), 1540, "RC3 (Throttle) must command gentle ascent (1540 us)")
         for ch in [1, 2, 4, 5, 6]:
             self.assert_equal(self.harness.get_rc_override(ch), 1500, f"RC{ch} must remain neutral (1500 us)")
 
@@ -607,7 +607,7 @@ class TestBench:
         for _ in range(3):
             self.harness.advance_time(2000)
             self.harness.step_update()
-        self.assert_equal(self.harness.get_rc_override(3), 1580, "Auto-surface active at 1580 us")
+        self.assert_equal(self.harness.get_rc_override(3), 1540, "Auto-surface active at 1540 us")
 
         # Advance 30,000 ms (MAX_SURFACE_DURATION_MS) -> must auto-disarm safely at surface
         self.harness.advance_time(30000)
@@ -616,13 +616,29 @@ class TestBench:
         self.assert_equal(self.harness.get_rc_override(3), 0, "RC overrides must be released (0 us) upon disarm")
 
     def test_26_arm_with_requested_mode_and_speed_limit(self):
-        # Set speed limit to 50% (ID 120 -> 121)
+        # Set global speed limit to 50% (ID 120 -> 121) and verify MOT_PWM_MIN / MOT_PWM_MAX persistence
         self.harness.push_can_rx("dev1", 120, [50])
         self.harness.step_update()
         resp = self.harness.pop_can_tx("dev1")
         self.assert_true(resp is not None, "Expected TX_SET_SPEED_LIMIT response")
         self.assert_equal(resp["id"], 121, "Response ID must be TX_SET_SPEED_LIMIT (121)")
         self.assert_equal(resp["data"], [50], "Speed limit echo must be [50]")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_PWM_MIN')")), 1300, "MOT_PWM_MIN must be saved to 1300")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_PWM_MAX')")), 1700, "MOT_PWM_MAX must be saved to 1700")
+
+        # Empty GET on ID 120 must return current 50%
+        self.harness.push_can_rx("dev1", 120, [])
+        self.harness.step_update()
+        resp_get = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp_get is not None and resp_get["id"] == 121 and resp_get["data"] == [50], "GET ID 120 must return [50]")
+
+        # Bench motor test (ID 170) must also be scaled by global 50% speed limit (255 -> 1900 raw -> 1700 scaled)
+        self.harness.push_can_rx("dev1", 170, [255, 128, 128, 128, 128, 128, 50])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_srv_output(0), 1700, "Bench motor test must scale 1900 -> 1700 at 50% speed limit")
+        self.harness.advance_time(550)
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
 
         # Arm directly in MANUAL mode (ID 60 with [19])
         self.harness.push_can_rx("dev1", 60, [19])
@@ -631,19 +647,31 @@ class TestBench:
         self.assert_equal(self.harness.get_mode(), 19, "Vehicle must arm in requested MANUAL mode (19)")
         self.harness.clear_tx_queues()
 
-        # Full forward (255) & full reverse (0) must be scaled to 50% (1700 / 1300 us)
+        # RC overrides are NOT double-scaled (global cap is applied by ArduSub via MOT_PWM_MIN/MOT_PWM_MAX)
         self.harness.push_can_rx("dev1", 90, [255, 0, 127, 127, 127, 127])
         self.harness.step_update()
-        self.assert_equal(self.harness.get_rc_override(5), 1700, "RC5 (Forward) at 50% limit must be 1700 us")
-        self.assert_equal(self.harness.get_rc_override(6), 1300, "RC6 (Lateral) at 50% limit must be 1300 us")
+        self.assert_equal(self.harness.get_rc_override(5), 1900, "RC5 (Forward) stays full range (global cap via MOT_PWM_MAX)")
+        self.assert_equal(self.harness.get_rc_override(6), 1100, "RC6 (Lateral) stays full range (global cap via MOT_PWM_MIN)")
 
-        # Set speed limit to 0% -> full stick must stay neutral (1500 us)
+        # Set speed limit to 0% -> MOT_PWM_MIN=1499, MOT_PWM_MAX=1501 (valid min < max) & full stick stays neutral (1500 us)
         self.harness.push_can_rx("dev1", 120, [0])
         self.harness.step_update()
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_PWM_MIN')")), 1499, "MOT_PWM_MIN at 0% must be 1499")
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_PWM_MAX')")), 1501, "MOT_PWM_MAX at 0% must be 1501")
         self.harness.push_can_rx("dev1", 90, [255, 0, 127, 127, 127, 127])
         self.harness.step_update()
         self.assert_equal(self.harness.get_rc_override(5), 1500, "RC5 at 0% limit must be 1500 us")
         self.assert_equal(self.harness.get_rc_override(6), 1500, "RC6 at 0% limit must be 1500 us")
+
+        # Verify reboot reload: re-loading can_bridge.lua with persisted MOT_PWM_MIN=1300 / MOT_PWM_MAX=1700 restores 50%
+        self.harness.eval("param.params.MOT_PWM_MIN = 1300; param.params.MOT_PWM_MAX = 1700")
+        self.harness.eval("dofile([[" + CAN_BRIDGE_LUA_PATH.replace("\\", "/") + "]])")
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+        self.harness.push_can_rx("dev1", 120, [])
+        self.harness.step_update()
+        resp_boot = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp_boot is not None and resp_boot["id"] == 121 and resp_boot["data"] == [50], "Reboot must reload 50% from MOT_PWM_MAX=1700")
 
     def test_27_emergency_disarm_cancels_active_motor_test(self):
         # Start a 1000 ms motor test on Motor 1
@@ -809,12 +837,13 @@ class TestBench:
         self.assert_equal(self.harness.get_rc_override(2), 1500, "RC2 (Pitch 0%) must be 1500 us")
         self.assert_equal(self.harness.get_rc_override(1), 1100, "RC1 (Roll 100% rev) must be 1100 us")
 
-        # 4. Combine with global speed limit 50% -> Forward (50% * 50% = 25%) => 1600 us
+        # 4. Global speed limit 50% saves MOT_PWM_MIN/MAX without double-scaling RC5 (remains 1700 us for 50% axis gain)
         self.harness.push_can_rx("dev1", 120, [50])
         self.harness.step_update()
+        self.assert_equal(int(self.harness.eval_return_number("param:get('MOT_PWM_MAX')")), 1700, "MOT_PWM_MAX must be 1700 at 50% global limit")
         self.harness.push_can_rx("dev1", 100, [255, 127, 127, 127, 127, 127])
         self.harness.step_update()
-        self.assert_equal(self.harness.get_rc_override(5), 1600, "RC5 (50% global * 50% axis = 25%) must be 1600 us")
+        self.assert_equal(self.harness.get_rc_override(5), 1700, "RC5 must stay 1700 us (50% axis gain, no double-scaling with MOT_PWM_MAX)")
 
     def test_34_non_bridge_traffic_does_not_hijack_active_port(self):
         # Establish CAN1 as active port

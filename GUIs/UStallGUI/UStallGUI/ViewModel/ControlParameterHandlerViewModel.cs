@@ -51,12 +51,12 @@ namespace UStallGUI.ViewModel
 
         public ObservableCollection<ThrusterConfigItem> Thrusters { get; } = new()
         {
-            new ThrusterConfigItem(0, "M1", "Horizontal - Forward Left (Fwd +, Yaw +)"),
-            new ThrusterConfigItem(1, "M2", "Horizontal - Forward Right (Fwd +, Yaw -)"),
-            new ThrusterConfigItem(2, "M3", "Horizontal - Lateral Strafe (Lat +)"),
-            new ThrusterConfigItem(3, "M4", "Vertical - Rear Right (Roll -, Pitch -0.5, Heave +)"),
-            new ThrusterConfigItem(4, "M5", "Vertical - Front Center (Pitch +1.0, Heave +)"),
-            new ThrusterConfigItem(5, "M6", "Vertical - Rear Left (Roll +, Pitch -0.5, Heave +)"),
+            new ThrusterConfigItem(0, "M1", "Vertical - Front Center (Pitch +1.0, Heave +)"),
+            new ThrusterConfigItem(1, "M2", "Horizontal - Front Right (Fwd +, Yaw -)"),
+            new ThrusterConfigItem(2, "M3", "Vertical - Rear Right (Roll -, Pitch -0.5, Heave +)"),
+            new ThrusterConfigItem(3, "M4", "Horizontal - Rear Center / Lateral Strafe (Lat +)"),
+            new ThrusterConfigItem(4, "M5", "Vertical - Rear Left (Roll +, Pitch -0.5, Heave +)"),
+            new ThrusterConfigItem(5, "M6", "Horizontal - Front Left (Fwd +, Yaw +)"),
         };
 
         // --- Per-Axis Gains (0..100%) ---
@@ -156,11 +156,13 @@ namespace UStallGUI.ViewModel
             double factor = speedLimit / 100.0;
             int effectivePwm = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
 
+            // Pixhawk can_bridge.lua scales bench motor test PWM by global max_speed_percent;
+            // send raw TestThrust here so it is not double-scaled, while checking effectivePwm for deadband.
             int[] values = { 1500, 1500, 1500, 1500, 1500, 1500 };
-            values[motorIndex] = effectivePwm;
+            values[motorIndex] = TestThrust;
 
             byte[] motorBytes = PwmArrayToByteArray(values);
-            if (TestThrust != 1500 && motorBytes[motorIndex] >= 126 && motorBytes[motorIndex] <= 129)
+            if (TestThrust != 1500 && (speedLimit == 0 || Math.Abs(effectivePwm - 1500) < 10))
             {
                 MainWindowViewModel.Instance.LogToControlBox(
                     $"Motor M{motorIndex + 1} test skipped: scaled PWM ({effectivePwm} µs at {speedLimit}% speed limit) falls inside neutral deadband (1500 µs). Increase Speed Limit or Bench Test PWM.");
@@ -244,8 +246,19 @@ namespace UStallGUI.ViewModel
                     GainRoll = gainResp[5];
                 }
 
+                var speedResp = await can.SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.SetSpeedLimit,
+                    (ushort)RecieveAddressesControlUnit.SetSpeedLimit,
+                    Array.Empty<byte>(),
+                    500);
+
+                if (speedResp.Length > 0)
+                {
+                    SetupHandlerViewModel.Instance?.SyncSpeedLimitFromPixhawk(speedResp[0]);
+                }
+
                 if (motorOk && gainOk)
-                    MainWindowViewModel.Instance.LogToControlBox("Pulled thruster directions, ESC ports, and axis gains from Pixhawk.");
+                    MainWindowViewModel.Instance.LogToControlBox("Pulled thruster directions, ESC ports, axis gains, and speed limit from Pixhawk.");
                 else
                     MainWindowViewModel.Instance.LogToControlBox("Pull from Pixhawk incomplete or timed out.");
             }

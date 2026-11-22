@@ -89,7 +89,7 @@ local C = {
     WATCHDOG_TIMEOUT_MS    = 500,
     HEARTBEAT_INTERVAL_MS  = 2000,
     MAX_MISSED_HEARTBEATS  = 2,
-    SURFACE_THROTTLE_PWM   = 1580,
+    SURFACE_THROTTLE_PWM   = 1540,
     MAX_SURFACE_DURATION_MS= 30000,
     MAX_MOTOR_TEST_MS      = 2000,
     MIN_CYCLE_TIME_MS      = 5,
@@ -253,6 +253,37 @@ end
 
 local cycle_time_ms             = 10
 local max_speed_percent         = 100
+
+-- Load persisted global speed limit from MOT_PWM_MIN / MOT_PWM_MAX (symmetric around 1500 us)
+local function init_speed_limit()
+    if param and param.get then
+        local pwm_max = param:get("MOT_PWM_MAX")
+        local pwm_min = param:get("MOT_PWM_MIN")
+        if pwm_max and pwm_max >= 1501 and pwm_max <= 1900 then
+            if pwm_max <= 1501 and pwm_min and pwm_min >= 1499 then
+                max_speed_percent = 0
+            else
+                max_speed_percent = math.max(0, math.min(100, math.floor(((pwm_max - 1500) / 400.0) * 100.0 + 0.5)))
+            end
+        end
+    end
+end
+
+-- Persist global speed limit to MOT_PWM_MIN / MOT_PWM_MAX so ArduSub caps ALL outputs
+-- (MANUAL, STABILIZE, ALT_HOLD, IMU/depth PID corrections, and auto-surface) across reboots.
+-- Keeps MOT_PWM_MIN < MOT_PWM_MAX (1499/1501 at 0%) to satisfy ArduSub's check_mot_pwm_params().
+local function save_speed_limit(pct)
+    max_speed_percent = math.max(0, math.min(100, math.floor(pct)))
+    if param then
+        local save_fn = param.set_and_save or param.set
+        if save_fn then
+            local half_span = math.max(1, math.floor(400 * (max_speed_percent / 100.0) + 0.5))
+            pcall(save_fn, param, "MOT_PWM_MIN", 1500 - half_span)
+            pcall(save_fn, param, "MOT_PWM_MAX", 1500 + half_span)
+        end
+    end
+end
+
 local last_ctrl_ms              = now_ms()
 local watchdog_tripped          = true
 local watchdog_warned           = false
@@ -398,24 +429,28 @@ local function clear_control_overrides()
     end
 end
 
--- Convert 0..255 byte value to 1100..1900 RC PWM (126..129 -> 1500 neutral), scaled by max_speed_percent and axis gain
+-- Convert 0..255 byte value to 1100..1900 RC PWM (126..129 -> 1500 neutral), scaled by axis gain.
+-- Global max_speed_percent is enforced across all flight modes by ArduSub's MOT_PWM_MIN / MOT_PWM_MAX.
 local function byte_to_rc_pwm(value, axis_gain_pct)
-    if not value or (value >= 126 and value <= 129) then
+    if max_speed_percent == 0 or not value or (value >= 126 and value <= 129) then
         return 1500
     end
     local clamped = math.max(0, math.min(255, value))
     local norm = (clamped / 127.5) - 1.0
-    local scale = (max_speed_percent / 100.0) * ((axis_gain_pct or 100) / 100.0)
+    local scale = (axis_gain_pct or 100) / 100.0
     return math.floor(1500 + (norm * 400 * scale) + 0.5)
 end
 
--- Convert 0..255 byte value to 1100..1900 motor PWM for direct output with deadzone
+-- Convert 0..255 byte value to 1100..1900 motor PWM for direct output with deadzone,
+-- scaled by max_speed_percent so bench tests respect the global speed limit.
 local function byte_to_motor_pwm(value)
-    if not value or (value >= 126 and value <= 129) then
+    if max_speed_percent == 0 or not value or (value >= 126 and value <= 129) then
         return 1500
     end
     local clamped = math.max(0, math.min(255, value))
-    return math.floor(1100 + (clamped * 800 / 255) + 0.5)
+    local raw_pwm = 1100 + (clamped * 800 / 255)
+    local scaled = 1500 + ((raw_pwm - 1500) * (max_speed_percent / 100.0))
+    return math.floor(scaled + 0.5)
 end
 
 -- Process incoming pilot controller inputs
@@ -723,12 +758,12 @@ local function handle_frame(frame, dev)
             end
         end
 
-    -- 7. Set Max Thruster Speed Limit (0..100%)
+    -- 7. Get/Set Global Max Thruster Speed Limit (0..100%, saved to MOT_PWM_MIN / MOT_PWM_MAX)
     elseif rx_id == C.RX_SET_SPEED_LIMIT then
         on_topside_activity()
         if dlc >= 1 then
-            max_speed_percent = math.max(0, math.min(100, math.floor(rx_data[1])))
-            gcs:send_text(6, "CAN bridge: max speed limit set to " .. tostring(max_speed_percent) .. "%")
+            save_speed_limit(rx_data[1])
+            gcs:send_text(6, "CAN bridge: global speed limit set & saved to " .. tostring(max_speed_percent) .. "%")
         end
         send_u8(C.TX_SET_SPEED_LIMIT, max_speed_percent)
 
@@ -807,6 +842,7 @@ local function update_body()
         init_motor_channels()
         init_rc_channels()
         init_axis_gains()
+        init_speed_limit()
         local ports_str = (can_dev1 and "CAN1 " or "") .. (can_dev2 and "CAN2" or "")
         gcs:send_text(6, "CAN bridge: driver ready on " .. ports_str .. " (buffer " .. tostring(C.CAN_BUFFER_SIZE) .. ")")
     end

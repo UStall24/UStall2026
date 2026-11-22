@@ -71,63 +71,12 @@
                     <Canvas Width="400" Height="400">
                         <Image Source="/ROV_Model.png" Width="400" Height="400" Stretch="Uniform" />
 
-                        <!-- M3: Top Center (Horizontal - Lateral) -->
+                        <!-- M1: Top Center (Vertical - Front Center) -->
                         <Border Canvas.Left="154" Canvas.Top="6" Style="{StaticResource ThrusterCardStyle}"
-                                ToolTip="{Binding Thrusters[2].Description}">
-                            <StackPanel>
-                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
-                                    <TextBlock Text="M3 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
-                                            Command="{Binding TestMotor}" CommandParameter="2" IsEnabled="{Binding TestMotor_Enabled}" />
-                                </DockPanel>
-                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[2].SelectedPortIndex}"
-                                          Height="20" FontSize="10" Margin="0,0,0,2" />
-                                <ToggleButton Style="{StaticResource DirToggleStyle}"
-                                              IsChecked="{Binding Thrusters[2].IsReversed}"
-                                              Content="{Binding Thrusters[2].DirectionLabel}" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- M6: Upper Left (Vertical - Rear Left) -->
-                        <Border Canvas.Left="4" Canvas.Top="110" Style="{StaticResource ThrusterCardStyle}"
-                                ToolTip="{Binding Thrusters[5].Description}">
-                            <StackPanel>
-                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
-                                    <TextBlock Text="M6 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
-                                            Command="{Binding TestMotor}" CommandParameter="5" IsEnabled="{Binding TestMotor_Enabled}" />
-                                </DockPanel>
-                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[5].SelectedPortIndex}"
-                                          Height="20" FontSize="10" Margin="0,0,0,2" />
-                                <ToggleButton Style="{StaticResource DirToggleStyle}"
-                                              IsChecked="{Binding Thrusters[5].IsReversed}"
-                                              Content="{Binding Thrusters[5].DirectionLabel}" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- M4: Upper Right (Vertical - Rear Right) -->
-                        <Border Canvas.Left="304" Canvas.Top="110" Style="{StaticResource ThrusterCardStyle}"
-                                ToolTip="{Binding Thrusters[3].Description}">
-                            <StackPanel>
-                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
-                                    <TextBlock Text="M4 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
-                                            Command="{Binding TestMotor}" CommandParameter="3" IsEnabled="{Binding TestMotor_Enabled}" />
-                                </DockPanel>
-                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[3].SelectedPortIndex}"
-                                          Height="20" FontSize="10" Margin="0,0,0,2" />
-                                <ToggleButton Style="{StaticResource DirToggleStyle}"
-                                              IsChecked="{Binding Thrusters[3].IsReversed}"
-                                              Content="{Binding Thrusters[3].DirectionLabel}" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- M1: Lower Left (Horizontal - Forward Left) -->
-                        <Border Canvas.Left="4" Canvas.Top="260" Style="{StaticResource ThrusterCardStyle}"
                                 ToolTip="{Binding Thrusters[0].Description}">
                             <StackPanel>
                                 <DockPanel LastChildFill="False" Margin="0,0,0,2">
-                                    <TextBlock Text="M1 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <TextBlock Text="M1 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
                                     <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
                                             Command="{Binding TestMotor}" CommandParameter="0" IsEnabled="{Binding TestMotor_Enabled}" />
                                 </DockPanel>
@@ -139,8 +88,8 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- M2: Lower Right (Horizontal - Forward Right) -->
-                        <Border Canvas.Left="304" Canvas.Top="260" Style="{StaticResource ThrusterCardStyle}"
+                        <!-- M2: Upper Right (Horizontal - Front Right) -->
+                        <Border Canvas.Left="304" Canvas.Top="78" Style="{StaticResource ThrusterCardStyle}"
                                 ToolTip="{Binding Thrusters[1].Description}">
                             <StackPanel>
                                 <DockPanel LastChildFill="False" Margin="0,0,0,2">
@@ -156,8 +105,42 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- M5: Bottom Center (Vertical - Front Center) -->
+                        <!-- M3: Lower Right (Vertical - Rear Right) -->
+                        <Border Canvas.Left="304" Canvas.Top="228" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[2].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M3 (V)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="2" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[2].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[2].IsReversed}"
+                                              Content="{Binding Thrusters[2].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- M4: Bottom Center (Horizontal - Rear Center / Lateral) -->
                         <Border Canvas.Left="154" Canvas.Top="322" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[3].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M4 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="3" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[3].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[3].IsReversed}"
+                                              Content="{Binding Thrusters[3].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- M5: Lower Left (Vertical - Rear Left) -->
+                        <Border Canvas.Left="4" Canvas.Top="228" Style="{StaticResource ThrusterCardStyle}"
                                 ToolTip="{Binding Thrusters[4].Description}">
                             <StackPanel>
                                 <DockPanel LastChildFill="False" Margin="0,0,0,2">
@@ -172,12 +155,29 @@
                                               Content="{Binding Thrusters[4].DirectionLabel}" />
                             </StackPanel>
                         </Border>
+
+                        <!-- M6: Upper Left (Horizontal - Front Left) -->
+                        <Border Canvas.Left="4" Canvas.Top="78" Style="{StaticResource ThrusterCardStyle}"
+                                ToolTip="{Binding Thrusters[5].Description}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                    <TextBlock Text="M6 (H)" FontWeight="Bold" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <Button Content="Test" FontSize="10" Padding="4,0" Height="18" DockPanel.Dock="Right"
+                                            Command="{Binding TestMotor}" CommandParameter="5" IsEnabled="{Binding TestMotor_Enabled}" />
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding OutputPortOptions}" SelectedIndex="{Binding Thrusters[5].SelectedPortIndex}"
+                                          Height="20" FontSize="10" Margin="0,0,0,2" />
+                                <ToggleButton Style="{StaticResource DirToggleStyle}"
+                                              IsChecked="{Binding Thrusters[5].IsReversed}"
+                                              Content="{Binding Thrusters[5].DirectionLabel}" />
+                            </StackPanel>
+                        </Border>
                     </Canvas>
                 </Viewbox>
             </GroupBox>
 
             <!-- Per-Axis Gains (0..100%) -->
-            <GroupBox Header="Per-Axis Gains (0–100%, Applied with 'Apply to Pixhawk')">
+            <GroupBox Header="Per-Axis Gains (0-100%, Applied with 'Apply to Pixhawk')">
                 <Grid Margin="4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="68" />

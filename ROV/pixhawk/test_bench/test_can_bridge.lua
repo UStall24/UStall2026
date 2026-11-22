@@ -156,11 +156,11 @@ run_case("Auto-Surface on 2 Missed Health Pings & Recovery (ID 41/40 [2])", func
     assert_true(p2 ~= nil and p2:id_signed() == 41 and p2:data(0) == 2, "Ping #2 sent on ID 41 [2]")
     assert_eq(rc:get_channel(3).override_pwm, 1500, "Still neutral after 1 missed ping")
 
-    -- At 6000ms (2 missed) -> Auto-Surface in STABILIZE (0) at 1580 us
+    -- At 6000ms (2 missed) -> Auto-Surface in STABILIZE (0) at 1540 us
     mock.advance_time(2000)
     update()
     assert_eq(vehicle:get_mode(), 0, "Switched to STABILIZE")
-    assert_eq(rc:get_channel(3).override_pwm, 1580, "RC3 gentle upward thrust 1580 us")
+    assert_eq(rc:get_channel(3).override_pwm, 1540, "RC3 gentle upward thrust 1540 us")
 
     -- Topside replies ID 40 [2] -> cancels auto-surface without echoing ID 41
     CAN.dev1.tx_queue = {}
@@ -226,11 +226,27 @@ run_case("DroneCAN Extended 29-bit & Error Frame Filtering", function()
     assert_eq(#CAN.dev1.tx_queue, 0, "All filtered out")
 end)
 
-run_case("Arm in Requested Mode & Speed Limit (ID 60 [19], 120)", function()
+run_case("Arm in Requested Mode & Global Speed Limit (ID 60 [19], 120)", function()
     CAN.dev1:push_rx(120, {50})
     update()
     local f = table.remove(CAN.dev1.tx_queue, 1)
     assert_true(f ~= nil and f:id_signed() == 121 and f:data(0) == 50, "Speed limit echo 50%")
+    assert_eq(param:get("MOT_PWM_MIN"), 1300, "MOT_PWM_MIN saved to 1300")
+    assert_eq(param:get("MOT_PWM_MAX"), 1700, "MOT_PWM_MAX saved to 1700")
+
+    -- Empty Get returns persisted 50%
+    CAN.dev1:push_rx(120, {})
+    update()
+    local fg = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(fg ~= nil and fg:id_signed() == 121 and fg:data(0) == 50, "Speed limit Get returns 50%")
+
+    -- Bench motor test (ID 170) is scaled by 50% (1900 -> 1700)
+    CAN.dev1:push_rx(170, {255, 128, 128, 128, 128, 128, 50})
+    update()
+    assert_eq(SRV_Channels.outputs[0].pwm, 1700, "Bench motor test scaled to 50% (1700 us)")
+    mock.advance_time(550)
+    update()
+    CAN.dev1.tx_queue = {}
 
     CAN.dev1:push_rx(60, {19})
     update()
@@ -238,10 +254,20 @@ run_case("Arm in Requested Mode & Speed Limit (ID 60 [19], 120)", function()
     assert_eq(vehicle:get_mode(), 19, "Armed in MANUAL")
     CAN.dev1.tx_queue = {}
 
+    -- RC override is NOT double-scaled (MOT_PWM_MIN/MAX scales all ArduSub motor outputs globally)
     CAN.dev1:push_rx(90, {255, 0, 127, 127, 127, 127})
     update()
-    assert_eq(rc:get_channel(5).override_pwm, 1700, "RC5 scaled to 50%")
-    assert_eq(rc:get_channel(6).override_pwm, 1300, "RC6 scaled to 50%")
+    assert_eq(rc:get_channel(5).override_pwm, 1900, "RC5 full range (global cap via MOT_PWM_MAX)")
+    assert_eq(rc:get_channel(6).override_pwm, 1100, "RC6 full range (global cap via MOT_PWM_MIN)")
+
+    -- 0% speed limit saves valid MOT_PWM_MIN=1499 / MOT_PWM_MAX=1501 and neutralizes RC
+    CAN.dev1:push_rx(120, {0})
+    update()
+    assert_eq(param:get("MOT_PWM_MIN"), 1499, "MOT_PWM_MIN at 0% is 1499")
+    assert_eq(param:get("MOT_PWM_MAX"), 1501, "MOT_PWM_MAX at 0% is 1501")
+    CAN.dev1:push_rx(90, {255, 0, 127, 127, 127, 127})
+    update()
+    assert_eq(rc:get_channel(5).override_pwm, 1500, "RC5 at 0% is neutral 1500")
 
     -- Restore speed limit to 100% for subsequent tests (shared Lua state)
     CAN.dev1:push_rx(120, {100})
