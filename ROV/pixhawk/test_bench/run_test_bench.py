@@ -389,8 +389,9 @@ class TestBench:
 
         # Motor outputs forced to neutral 1500 us
         self.assert_equal(self.harness.get_srv_output(0), 1500, "Motor 1 must be returned to 1500 us")
-        # Vehicle was disarmed before test, so must be disarmed now
+        # Vehicle was disarmed in STABILIZE (0) before test, so must be disarmed and back in STABILIZE now
         self.assert_equal(self.harness.is_armed(), False, "Vehicle must return to disarmed state")
+        self.assert_equal(self.harness.get_mode(), 0, "Vehicle must restore prior flight mode (STABILIZE) after disarmed motor test")
         # Response 171 must be sent now
         resp = self.harness.pop_can_tx("dev1")
         self.assert_true(resp is not None, "Expected TX_TEST_MOTOR response")
@@ -481,10 +482,19 @@ class TestBench:
         self.assert_equal(self.harness.get_mode(), 2, "Vehicle MUST retry mode change and switch to ALT_HOLD (2)")
 
     def test_18_driving_frame_during_active_motor_test_ignored(self):
+        # Arm and apply non-neutral stick override before starting bench test
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        self.harness.push_can_rx("dev1", 100, [255, 127, 127, 127, 127, 127])
+        self.harness.step_update()
+        self.assert_equal(self.harness.get_rc_override(5), 1900, "RC5 Forward active before motor test")
+        self.harness.clear_tx_queues()
+
         # Start motor test on Motor 1 for 1000ms
         self.harness.push_can_rx("dev1", 170, [145, 128, 128, 128, 128, 128, 100])
         self.harness.step_update()
         self.assert_equal(self.harness.get_mode(), 19, "Must be in MANUAL mode during motor test")
+        self.assert_equal(self.harness.get_rc_override(5), 1500, "Active RC overrides must be neutralized when entering MANUAL for motor test")
 
         # An accidental controller frame arrives during the bench test
         self.harness.push_can_rx("dev1", 100, [255, 127, 127, 127, 127, 127])
@@ -574,7 +584,7 @@ class TestBench:
         self.harness.advance_time(2000)
         self.harness.step_update()
         self.assert_equal(self.harness.get_mode(), 0, "Must switch to STABILIZE (0) for level ascent")
-        self.assert_equal(self.harness.get_rc_override(3), 1540, "RC3 (Throttle) must command gentle ascent (1540 us)")
+        self.assert_equal(self.harness.get_rc_override(3), 1550, "RC3 (Throttle) must command gentle ascent (1550 us)")
         for ch in [1, 2, 4, 5, 6]:
             self.assert_equal(self.harness.get_rc_override(ch), 1500, f"RC{ch} must remain neutral (1500 us)")
 
@@ -607,7 +617,7 @@ class TestBench:
         for _ in range(3):
             self.harness.advance_time(2000)
             self.harness.step_update()
-        self.assert_equal(self.harness.get_rc_override(3), 1540, "Auto-surface active at 1540 us")
+        self.assert_equal(self.harness.get_rc_override(3), 1550, "Auto-surface active at 1550 us")
 
         # Advance 30,000 ms (MAX_SURFACE_DURATION_MS) -> must auto-disarm safely at surface
         self.harness.advance_time(30000)

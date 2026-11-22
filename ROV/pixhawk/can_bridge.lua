@@ -36,7 +36,7 @@
 -- ==============================================================================
 
 local SCRIPT_NAME    = "ROV CAN bridge"
-local SCRIPT_VERSION = "1.5"
+local SCRIPT_VERSION = "1.6"
 
 -- CAN Driver handles (lazy initialized in update loop to prevent boot race conditions)
 local can_dev1       = nil
@@ -91,7 +91,7 @@ local C = {
     WATCHDOG_TIMEOUT_MS    = 500,
     HEARTBEAT_INTERVAL_MS  = 2000,
     MAX_MISSED_HEARTBEATS  = 2,
-    SURFACE_THROTTLE_PWM   = 1540,
+    SURFACE_THROTTLE_PWM   = 1550,
     MAX_SURFACE_DURATION_MS= 30000,
     MAX_MOTOR_TEST_MS      = 2000,
     MIN_CYCLE_TIME_MS      = 5,
@@ -519,12 +519,13 @@ local function end_motor_test()
     last_ctrl_ms = now_ms()
     neutralize_motor_outputs()
 
-    -- Safety restoration: If vehicle was disarmed before test, disarm it now.
-    -- If it was armed, restore the previous flight mode.
+    -- Safety restoration: Always restore the prior flight mode, and disarm if
+    -- the vehicle was disarmed before the test.
+    last_requested_mode = -1
     if not was_armed_before_test then
         safe_disarm()
+        safe_set_mode(saved_mode_before_test)
     else
-        last_requested_mode = -1
         safe_set_mode(saved_mode_before_test)
         neutralize_controls()
     end
@@ -571,6 +572,10 @@ local function handle_motor_test(data)
     init_motor_channels()
     was_armed_before_test = arming:is_armed()
     saved_mode_before_test = vehicle:get_mode() or 0
+
+    -- Neutralize any active RC overrides before entering MANUAL mode (19) so
+    -- stale stick inputs cannot drive thrusters during the bench test
+    neutralize_controls()
 
     -- Always switch to MANUAL mode (19) during bench motor tests so IMU attitude controller
     -- does not fight the test or drive other thrusters
@@ -890,6 +895,7 @@ local function handle_frame(frame, dev)
 
     -- 11. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
+        on_topside_activity()
         if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
         else
@@ -897,7 +903,7 @@ local function handle_frame(frame, dev)
             send_u8(C.TX_TEST_MOTOR, 0)
         end
 
-    -- 11. Update Cycle Time
+    -- 12. Update Cycle Time
     elseif rx_id == C.RX_UPDATE_CYCLE then
         on_topside_activity()
         if dlc >= 1 then
@@ -983,6 +989,7 @@ local function update_body()
                         auto_surface_active = true
                         auto_surface_start_ms = now_ms()
                         last_requested_mode = -1
+                        last_mode_change_ms = now_ms()
                         safe_set_mode(0) -- STABILIZE to keep level while surfacing
                         gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
                     end

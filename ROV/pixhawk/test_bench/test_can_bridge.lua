@@ -156,11 +156,11 @@ run_case("Auto-Surface on 2 Missed Health Pings & Recovery (ID 41/40 [2])", func
     assert_true(p2 ~= nil and p2:id_signed() == 41 and p2:data(0) == 2, "Ping #2 sent on ID 41 [2]")
     assert_eq(rc:get_channel(3).override_pwm, 1500, "Still neutral after 1 missed ping")
 
-    -- At 6000ms (2 missed) -> Auto-Surface in STABILIZE (0) at 1540 us
+    -- At 6000ms (2 missed) -> Auto-Surface in STABILIZE (0) at 1550 us
     mock.advance_time(2000)
     update()
     assert_eq(vehicle:get_mode(), 0, "Switched to STABILIZE")
-    assert_eq(rc:get_channel(3).override_pwm, 1540, "RC3 gentle upward thrust 1540 us")
+    assert_eq(rc:get_channel(3).override_pwm, 1550, "RC3 gentle upward thrust 1550 us")
 
     -- Topside replies ID 40 [2] -> cancels auto-surface without echoing ID 41
     CAN.dev1.tx_queue = {}
@@ -203,6 +203,7 @@ run_case("Direct Motor Test Execution & Safety Restore (ID 170)", function()
 
     assert_eq(SRV_Channels.outputs[0].pwm, 1500, "M1 restored to 1500")
     assert_eq(arming:is_armed(), false, "Vehicle restored to disarmed")
+    assert_eq(vehicle:get_mode(), 0, "Prior flight mode (STABILIZE) restored")
     local f = table.remove(CAN.dev1.tx_queue, 1)
     assert_true(f ~= nil)
     assert_eq(f:id_signed(), 171)

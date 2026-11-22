@@ -22,7 +22,7 @@ This directory contains the translation layer, test bench, and configuration doc
 |   (CAN_P2_DRIVER=2, CAN_D2_PROTOCOL=12, CAN_P2_BITRATE=125k) |
 |   |                                                          |
 |   v                                                          |
-| Lua Script: /APM/scripts/can_bridge.lua (v1.5)               |
+| Lua Script: /APM/scripts/can_bridge.lua (v1.6)               |
 |   - Auto-detects active CAN port (CAN 1 or CAN 2)            |
 |   - Zero-allocation high-frequency CAN parsing (100 Hz)      |
 |   - Auto-detects ArduSub RCMAP parameters dynamically        |
@@ -156,7 +156,7 @@ Place `can_bridge.lua` on the Pixhawk's micro-SD card at:
 
 Reboot the Pixhawk. Monitor the GCS (QGroundControl / Mission Planner) message window for:
 ```
-ROV CAN bridge v1.5 loaded
+ROV CAN bridge v1.6 loaded
 CAN bridge: driver ready on CAN1 (buffer 25)
 ```
 
@@ -169,7 +169,7 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | Command | TX ID (GUI -> Pixhawk) | RX ID (Pixhawk -> GUI) | TX Payload | RX Payload | Description / ArduSub Action |
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1, armed, mode]` | Manual connection probe initiated by GUI; returns live armed state (`0`/`1`) and active ArduSub mode (`0`/`2`/`19`). |
-| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2, armed, mode]` | Sent by Pixhawk every `2 s` while armed with live armed/mode telemetry; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1540 µs` gentle heave in `STABILIZE`, capped by global speed limit). |
+| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2, armed, mode]` | Sent by Pixhawk every `2 s` while armed with live armed/mode telemetry; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1550 µs` gentle heave in `STABILIZE`, capped by global speed limit). |
 | **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
 | **Arm Thrusters** | `60` | `61` | Empty (`0 B`) or `1 B`: `[mode]` | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets requested mode (`0`/`2`/`19`, or `STABILIZE` if empty & in `MANUAL`), and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |
@@ -193,10 +193,10 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 1. **Connect CAN Adapter:**
    * Plug in the USB-CAN adapter (`USB-SERIAL CH340`) and power on the ROV.
    * In **Pixhawk Quick Setup** (bottom-right of Camera View) or the **Pixhawk Setup** tab, click **Connect CAN**.
-   * Verify the console logs `Connected to Pixhawk on COMx (Disarmed - click Arm Thrusters when ready).`
+   * Verify the console logs `Connected to Pixhawk on COMx (DISARMED).` (or `ARMED (<MODE>)` if already armed).
 2. **Connect Controller / Enable Input:**
    * Plug in the Xbox controller and click **Connect to Controller** (or enable **Keyboard** in the **Controller Settings** tab).
-   * Ensure **Control Input** is set to `Controller`.
+   * Ensure **Control Input** is set to `Active`.
 3. **Select Flight Mode & Speed Limit:**
    * Choose the desired **Flight Mode**:
      * `STABILIZE` *(Default)*: Active IMU roll/pitch leveling and heading hold.
@@ -205,7 +205,7 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
    * Adjust the **Speed Limit** slider (`0–100%`) to cap maximum thruster output for indoor tank testing or precision maneuvers.
 4. **Arm & Drive:**
    * Click **Arm Thrusters** when the water around the ROV is clear.
-   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1540 µs` upward throttle, capped by `MOT_PWM_MAX`) for up to `30 s` (or until communication returns).
+   * Drive using the controller sticks. If CAN packets stop for `> 500 ms`, the onboard watchdog neutralizes all thrusters to `1500 µs`. If 2 consecutive health pings (`ID 41 [2]` every `2 s`) go unanswered by the topside PC (`ID 40 [2]`), the ROV switches to `STABILIZE` and gently surfaces (`1550 µs` upward throttle, capped by `MOT_PWM_MAX`) for up to `30 s` (or until communication returns).
    * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
 5. **Thruster Config & Bench Testing (Optional):**
    * Open the **Thruster Config** tab to pull/apply per-thruster directions (`MOT_1..6_DIRECTION`), ESC port mappings (`OUT1–OUT6`), and per-axis gains (`Forward/Lateral/Heave/Yaw/Pitch/Roll`), or enter a target PWM (`1100–1900 µs`, default `1560 µs`) and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
@@ -230,7 +230,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 
 ### Test Bench Files:
 * `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 32 end-to-end unit and stress tests.
+* `test_bench/run_test_bench.py`: Automated Python runner executing 33 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -253,7 +253,7 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 17. **Dynamic RCMAP Auto-Detection:** Dynamically adapts to both ArduSub factory defaults (`RCMAP_PITCH=1`, `RCMAP_ROLL=2`) and custom maps.
 18. **Concurrent Motor Test Overlap Rejection:** Guards active bench test from accidental overlapping test pulses and mode corruption.
 19. **Pilot Drive Manual Mode (ID 90):** Mode transition to `MANUAL` (mode 19) for direct open-loop control without IMU/depth stabilization.
-20. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1580 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
+20. **Auto-Surface on 2 Missed Health Pings & Recovery (ID 41 [2] -> 40 [2]):** Switches to `STABILIZE` and applies `1550 µs` upward throttle after 2 unanswered pings, cancelling immediately on link recovery without echoing.
 21. **Health ACK Idle Keep-Alive & Max-Surface Disarm:** Verifies `ID 40 [2]` auto-replies prevent surfacing while idle, and verifies automatic disarm after `30 s` of surfacing.
 22. **Arm in Requested Mode & Pixhawk Speed Limit (ID 60 [mode], ID 120 -> 121):** Verifies arming directly into `MANUAL`/`STABILIZE`/`ALT_HOLD` and onboard speed-limit scaling (`0–100%`).
 23. **Emergency Disarm Cancels Active Motor Test (ID 70):** Verifies disarming mid-test immediately neutralizes motor outputs and suppresses stale `ID 171` completion frames.

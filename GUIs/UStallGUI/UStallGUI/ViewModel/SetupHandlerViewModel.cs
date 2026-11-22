@@ -78,6 +78,7 @@ namespace UStallGUI.ViewModel
         private byte _updateInterval = 10;
         private int _controlType = 1;
         private string _comPort = "Auto";
+        private readonly object _telemetryLock = new();
         private bool _isArmed = false;
         private string _activeArduSubModeText = string.Empty;
 
@@ -93,36 +94,63 @@ namespace UStallGUI.ViewModel
 
         public bool IsArmed
         {
-            get => _isArmed;
+            get { lock (_telemetryLock) return _isArmed; }
             private set
             {
-                if (Set(ref _isArmed, value))
+                bool changed;
+                lock (_telemetryLock)
                 {
+                    changed = _isArmed != value;
+                    _isArmed = value;
+                }
+                if (changed)
+                {
+                    RaisePropertyChanged(nameof(IsArmed));
                     RaisePropertyChanged(nameof(ArmedStatusText));
                     QuickSetupViewModel.Instance?.NotifyArmedStateChanged();
                 }
             }
         }
 
-        public string ArmedStatusText => IsArmed
-            ? (string.IsNullOrEmpty(_activeArduSubModeText) ? "ARMED" : $"ARMED ({_activeArduSubModeText})")
-            : "DISARMED";
+        public string ArmedStatusText
+        {
+            get
+            {
+                bool armed;
+                string modeText;
+                lock (_telemetryLock)
+                {
+                    armed = _isArmed;
+                    modeText = _activeArduSubModeText;
+                }
+                return armed
+                    ? (string.IsNullOrEmpty(modeText) ? "ARMED" : $"ARMED ({modeText})")
+                    : "DISARMED";
+            }
+        }
+
+        private static string FormatArduSubMode(byte arduSubMode) => arduSubMode switch
+        {
+            0 => "STABILIZE",
+            2 => "DEPTH_HOLD",
+            19 => "MANUAL",
+            _ => $"MODE {arduSubMode}",
+        };
 
         private void OnPixhawkTelemetryReceived(bool isArmed, byte arduSubMode)
         {
-            string modeText = arduSubMode switch
+            string modeText = FormatArduSubMode(arduSubMode);
+            bool modeChanged;
+            bool armedChanged;
+
+            lock (_telemetryLock)
             {
-                0 => "STABILIZE",
-                2 => "DEPTH_HOLD",
-                19 => "MANUAL",
-                _ => $"MODE {arduSubMode}",
-            };
+                modeChanged = _activeArduSubModeText != modeText;
+                _activeArduSubModeText = modeText;
 
-            bool modeChanged = _activeArduSubModeText != modeText;
-            _activeArduSubModeText = modeText;
-
-            bool armedChanged = _isArmed != isArmed;
-            _isArmed = isArmed;
+                armedChanged = _isArmed != isArmed;
+                _isArmed = isArmed;
+            }
 
             if (armedChanged || modeChanged)
             {
@@ -356,12 +384,17 @@ namespace UStallGUI.ViewModel
             ResetPidsToDefault_Command = new RelayCommand(ResetPidsToDefaults);
         }
 
-        private Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
+        private Task<byte[]> SendAndWaitForResponseAsync(
+            ushort sendId,
+            ushort recvId,
+            byte[]? payload = null,
+            int timeoutMs = 400,
+            Func<byte[], bool>? predicate = null)
         {
             if (can == null || !can.IsOpen)
                 return Task.FromResult(Array.Empty<byte>());
 
-            return can.SendAndWaitForResponseAsync(sendId, recvId, payload, timeoutMs);
+            return can.SendAndWaitForResponseAsync(sendId, recvId, payload, timeoutMs, predicate);
         }
 
         public async Task SendHealthMessageAsync()
@@ -447,8 +480,13 @@ namespace UStallGUI.ViewModel
                     // Probe health once so armed state & active ArduSub mode are synced immediately
                     await can.TestConnectionAsync(300);
                     MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} ({ArmedStatusText}).");
-                    await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
-                    SendFlightModeFrame(SelectedFlightMode);
+                    // Only apply the GUI's selected flight mode when disarmed so reconnecting
+                    // never interrupts an already-armed ROV's active mode.
+                    if (!IsArmed)
+                    {
+                        SendFlightModeFrame(SelectedFlightMode);
+                    }
+                    // Pull persisted motor config, axis gains, and global speed limit from Pixhawk
                     if (App.Instance?.ControlParamterHandlerViewModelGetter != null)
                     {
                         await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
@@ -546,7 +584,7 @@ namespace UStallGUI.ViewModel
 
                 if (response.Length > 0 && response[0] == 1)
                 {
-                    IsArmed = true;
+                    OnPixhawkTelemetryReceived(true, modePayload[0]);
                     MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
                     MainWindowViewModel.Instance.LogToControlBox("Thrusters ARMED successfully.");
                 }
@@ -741,7 +779,8 @@ namespace UStallGUI.ViewModel
                         (ushort)SendAddressesControlUnit.PidParam,
                         (ushort)RecieveAddressesControlUnit.PidParam,
                         new byte[] { item.ParamId },
-                        300);
+                        300,
+                        data => data.Length >= 6 && data[0] == item.ParamId);
 
                     if (resp.Length >= 6 && resp[0] == item.ParamId && resp[1] == 1)
                     {
@@ -806,7 +845,8 @@ namespace UStallGUI.ViewModel
                         (ushort)SendAddressesControlUnit.PidParam,
                         (ushort)RecieveAddressesControlUnit.PidParam,
                         payload,
-                        300);
+                        300,
+                        data => data.Length >= 6 && data[0] == item.ParamId);
 
                     if (resp.Length >= 6 && resp[0] == item.ParamId && resp[1] == 1)
                     {

@@ -119,7 +119,12 @@ namespace UStallGUI.Helpers
             sp = null;
         }
 
-        public async Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
+        public async Task<byte[]> SendAndWaitForResponseAsync(
+            ushort sendId,
+            ushort recvId,
+            byte[]? payload = null,
+            int timeoutMs = 400,
+            Func<byte[], bool>? predicate = null)
         {
             if (!IsOpen)
                 return Array.Empty<byte>();
@@ -127,8 +132,14 @@ namespace UStallGUI.Helpers
             var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             void Handler(ushort id, byte[] data)
             {
-                if (id == recvId)
-                    tcs.TrySetResult(data ?? Array.Empty<byte>());
+                if (id != recvId)
+                    return;
+
+                var safeData = data ?? Array.Empty<byte>();
+                if (predicate != null && !predicate(safeData))
+                    return;
+
+                tcs.TrySetResult(safeData);
             }
 
             RegisterCallback(recvId, Handler);
