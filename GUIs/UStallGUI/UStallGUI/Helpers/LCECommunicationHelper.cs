@@ -17,6 +17,7 @@ namespace UStallGUI.Helpers
         SetSpeedLimit = 120,
         MotorConfig = 130,
         AxisGains = 140,
+        PidParam = 150,
         UpdateCycleTime = 160,
         TestMotor = 170
     }
@@ -36,6 +37,7 @@ namespace UStallGUI.Helpers
         SetSpeedLimit = 121,
         MotorConfig = 131,
         AxisGains = 141,
+        PidParam = 151,
         UpdateCycleTime = 161,
         TestMotor = 171
     }

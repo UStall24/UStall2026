@@ -32,13 +32,32 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="PidBoxStyle" TargetType="TextBox">
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Padding" Value="2,1" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Background" Value="AliceBlue" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="PidColHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FF4A5568" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2,2,2,1" />
+        </Style>
+        <Style x:Key="PidRowLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2,0,4,0" />
+        </Style>
     </UserControl.Resources>
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <GroupBox Margin="5" Header="Pixhawk Setup">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="5">
+            <GroupBox Margin="0,0,0,5" Header="Pixhawk Setup">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -83,7 +102,7 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="1" Margin="5" Header="Flight Mode &amp; Speed Limit">
+        <GroupBox Margin="0,0,0,5" Header="Flight Mode &amp; Speed Limit">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -121,5 +140,120 @@
                 </Grid>
             </Grid>
         </GroupBox>
-    </Grid>
+
+        <GroupBox Header="PID Tuning (Attitude &amp; Depth Hold)">
+            <StackPanel Margin="4">
+                <!-- Sync Controls -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Margin="2" Height="24" Content="Pull from Pixhawk"
+                            Command="{Binding PullPids_Command}" IsEnabled="{Binding PidSync_Enabled}"
+                            ToolTip="Read current Attitude &amp; Depth Hold PID parameters from Pixhawk." />
+                    <Button Grid.Column="1" Margin="2" Height="24" Content="Apply to Pixhawk" FontWeight="SemiBold"
+                            Command="{Binding ApplyPids_Command}" IsEnabled="{Binding PidSync_Enabled}"
+                            ToolTip="Write and persist Attitude &amp; Depth Hold PID parameters to Pixhawk." />
+                    <Button Grid.Column="2" Margin="2" Padding="8,0" Height="24" Content="Reset"
+                            Command="{Binding ResetPidsToDefault_Command}"
+                            ToolTip="Reset PID fields to ArduSub default values (click 'Apply to Pixhawk' to send)." />
+                </Grid>
+
+                <!-- Attitude PIDs (Roll / Pitch / Yaw) -->
+                <TextBlock Text="Attitude PIDs (STABILIZE / ALT_HOLD)" FontWeight="SemiBold" FontSize="11"
+                           Foreground="#FF2D3748" Margin="2,4,2,2" />
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Ang P" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Rate P" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Rate I" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Rate D" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="5" Text="IMAX" Style="{StaticResource PidColHeaderStyle}" />
+
+                    <!-- Roll -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Roll:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding RollAngP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding RollAngP.ToolTipText}" />
+                    <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource PidBoxStyle}" Text="{Binding RollRateP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding RollRateP.ToolTipText}" />
+                    <TextBox Grid.Row="1" Grid.Column="3" Style="{StaticResource PidBoxStyle}" Text="{Binding RollRateI.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding RollRateI.ToolTipText}" />
+                    <TextBox Grid.Row="1" Grid.Column="4" Style="{StaticResource PidBoxStyle}" Text="{Binding RollRateD.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding RollRateD.ToolTipText}" />
+                    <TextBox Grid.Row="1" Grid.Column="5" Style="{StaticResource PidBoxStyle}" Text="{Binding RollRateIMax.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding RollRateIMax.ToolTipText}" />
+
+                    <!-- Pitch -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Pitch:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding PitchAngP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding PitchAngP.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource PidBoxStyle}" Text="{Binding PitchRateP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding PitchRateP.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="3" Style="{StaticResource PidBoxStyle}" Text="{Binding PitchRateI.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding PitchRateI.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="4" Style="{StaticResource PidBoxStyle}" Text="{Binding PitchRateD.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding PitchRateD.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="5" Style="{StaticResource PidBoxStyle}" Text="{Binding PitchRateIMax.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding PitchRateIMax.ToolTipText}" />
+
+                    <!-- Yaw -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Yaw:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding YawAngP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding YawAngP.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="2" Style="{StaticResource PidBoxStyle}" Text="{Binding YawRateP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding YawRateP.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="3" Style="{StaticResource PidBoxStyle}" Text="{Binding YawRateI.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding YawRateI.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="4" Style="{StaticResource PidBoxStyle}" Text="{Binding YawRateD.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding YawRateD.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="5" Style="{StaticResource PidBoxStyle}" Text="{Binding YawRateIMax.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding YawRateIMax.ToolTipText}" />
+                </Grid>
+
+                <Separator Margin="2,2,2,4" />
+
+                <!-- Depth Hold PIDs (ALT_HOLD Z-Axis) -->
+                <TextBlock Text="Depth Hold PIDs (ALT_HOLD)" FontWeight="SemiBold" FontSize="11"
+                           Foreground="#FF2D3748" Margin="2,0,2,2" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="P" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="I" Style="{StaticResource PidColHeaderStyle}" />
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="D" Style="{StaticResource PidColHeaderStyle}" />
+
+                    <!-- Pos Z -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Pos Z:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthPosP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthPosP.ToolTipText}" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="-" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray" />
+                    <TextBlock Grid.Row="1" Grid.Column="3" Text="-" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray" />
+
+                    <!-- Vel Z -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Vel Z:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthVelP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthVelP.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthVelI.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthVelI.ToolTipText}" />
+                    <TextBox Grid.Row="2" Grid.Column="3" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthVelD.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthVelD.ToolTipText}" />
+
+                    <!-- Accel Z -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Acc Z:" Style="{StaticResource PidRowLabelStyle}" />
+                    <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthAccP.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthAccP.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="2" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthAccI.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthAccI.ToolTipText}" />
+                    <TextBox Grid.Row="3" Grid.Column="3" Style="{StaticResource PidBoxStyle}" Text="{Binding DepthAccD.ValueText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding DepthAccD.ToolTipText}" />
+                </Grid>
+            </StackPanel>
+        </GroupBox>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

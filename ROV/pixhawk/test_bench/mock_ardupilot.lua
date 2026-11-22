@@ -279,6 +279,29 @@ param = {
         SCR_USER4       = 0,
         SCR_USER5       = 0,
         SCR_USER6       = 0,
+        -- Attitude & Depth Hold PID defaults (matching default.params)
+        ATC_ANG_RLL_P    = 6.0,
+        ATC_RAT_RLL_P    = 0.135,
+        ATC_RAT_RLL_I    = 0.09,
+        ATC_RAT_RLL_D    = 0.0036,
+        ATC_RAT_RLL_IMAX = 0.444,
+        ATC_ANG_PIT_P    = 6.0,
+        ATC_RAT_PIT_P    = 0.135,
+        ATC_RAT_PIT_I    = 0.09,
+        ATC_RAT_PIT_D    = 0.0036,
+        ATC_RAT_PIT_IMAX = 0.444,
+        ATC_ANG_YAW_P    = 6.0,
+        ATC_RAT_YAW_P    = 0.18,
+        ATC_RAT_YAW_I    = 0.018,
+        ATC_RAT_YAW_D    = 0.0,
+        ATC_RAT_YAW_IMAX = 0.222,
+        PSC_D_POS_P      = 3.0,
+        PSC_D_VEL_P      = 8.0,
+        PSC_D_VEL_I      = 0.0,
+        PSC_D_VEL_D      = 0.0,
+        PSC_D_ACC_P      = 0.05,
+        PSC_D_ACC_I      = 0.01,
+        PSC_D_ACC_D      = 0.0,
     },
     get = function(self, name)
         return self.params[name]
@@ -314,6 +337,28 @@ function M.reset_state()
         param.params["SERVO" .. m .. "_FUNCTION"] = 32 + m
         param.params["SCR_USER" .. m] = 0
     end
+    param.params["ATC_ANG_RLL_P"]    = 6.0
+    param.params["ATC_RAT_RLL_P"]    = 0.135
+    param.params["ATC_RAT_RLL_I"]    = 0.09
+    param.params["ATC_RAT_RLL_D"]    = 0.0036
+    param.params["ATC_RAT_RLL_IMAX"] = 0.444
+    param.params["ATC_ANG_PIT_P"]    = 6.0
+    param.params["ATC_RAT_PIT_P"]    = 0.135
+    param.params["ATC_RAT_PIT_I"]    = 0.09
+    param.params["ATC_RAT_PIT_D"]    = 0.0036
+    param.params["ATC_RAT_PIT_IMAX"] = 0.444
+    param.params["ATC_ANG_YAW_P"]    = 6.0
+    param.params["ATC_RAT_YAW_P"]    = 0.18
+    param.params["ATC_RAT_YAW_I"]    = 0.018
+    param.params["ATC_RAT_YAW_D"]    = 0.0
+    param.params["ATC_RAT_YAW_IMAX"] = 0.222
+    param.params["PSC_D_POS_P"]      = 3.0
+    param.params["PSC_D_VEL_P"]      = 8.0
+    param.params["PSC_D_VEL_I"]      = 0.0
+    param.params["PSC_D_VEL_D"]      = 0.0
+    param.params["PSC_D_ACC_P"]      = 0.05
+    param.params["PSC_D_ACC_I"]      = 0.01
+    param.params["PSC_D_ACC_D"]      = 0.0
     for _, ch in pairs(rc.channels) do
         ch.override_pwm = 0
     end

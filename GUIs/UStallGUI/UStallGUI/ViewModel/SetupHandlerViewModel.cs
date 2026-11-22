@@ -1,6 +1,8 @@
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using System;
+using System.Buffers.Binary;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using UStallGUI.Helpers;
@@ -8,6 +10,65 @@ using UStallGUI.Model;
 
 namespace UStallGUI.ViewModel
 {
+    public class PidParameterItem : ObservableObject
+    {
+        public byte ParamId { get; }
+        public string Name { get; }
+        public float DefaultValue { get; }
+        public float MinValue { get; }
+        public float MaxValue { get; }
+
+        private string _valueText;
+        public string ValueText
+        {
+            get => _valueText;
+            set => Set(ref _valueText, value);
+        }
+
+        public string ToolTipText =>
+            $"{Name} (Default: {FormatFloat(DefaultValue)}, Range: {FormatFloat(MinValue)}-{FormatFloat(MaxValue)})";
+
+        public PidParameterItem(byte paramId, string name, float defaultValue, float minValue, float maxValue)
+        {
+            ParamId = paramId;
+            Name = name;
+            DefaultValue = defaultValue;
+            MinValue = minValue;
+            MaxValue = maxValue;
+            _valueText = FormatFloat(defaultValue);
+        }
+
+        public static string FormatFloat(float value) =>
+            value.ToString("0.####", CultureInfo.InvariantCulture);
+
+        public void SetValue(float value)
+        {
+            ValueText = FormatFloat(value);
+        }
+
+        public void ResetToDefault()
+        {
+            SetValue(DefaultValue);
+        }
+
+        public bool TryGetParsedValue(out float value)
+        {
+            value = 0f;
+            if (string.IsNullOrWhiteSpace(ValueText))
+                return false;
+
+            string normalized = ValueText.Trim().Replace(',', '.');
+            if (!float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+                return false;
+
+            if (!float.IsFinite(parsed) || parsed < MinValue || parsed > MaxValue)
+                return false;
+
+            value = parsed;
+            return true;
+        }
+    }
+
     public class SetupHandlerViewModel : ObservableObject
     {
         public static SetupHandlerViewModel Instance { get; private set; }
@@ -113,6 +174,60 @@ namespace UStallGUI.ViewModel
         public RelayCommand HealthCommand { get; }
 
         #endregion Pixhawk Setup
+
+        #region PID Parameters (Attitude & Depth Hold)
+
+        private bool _pidSync_Enabled = true;
+        public bool PidSync_Enabled
+        {
+            get => _pidSync_Enabled;
+            private set
+            {
+                if (Set(ref _pidSync_Enabled, value))
+                {
+                    PullPids_Command?.RaiseCanExecuteChanged();
+                    ApplyPids_Command?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        // Attitude Roll PIDs
+        public PidParameterItem RollAngP { get; } = new(1, "ATC_ANG_RLL_P", 6.0f, 0f, 20f);
+        public PidParameterItem RollRateP { get; } = new(2, "ATC_RAT_RLL_P", 0.135f, 0f, 2f);
+        public PidParameterItem RollRateI { get; } = new(3, "ATC_RAT_RLL_I", 0.09f, 0f, 2f);
+        public PidParameterItem RollRateD { get; } = new(4, "ATC_RAT_RLL_D", 0.0036f, 0f, 0.5f);
+        public PidParameterItem RollRateIMax { get; } = new(5, "ATC_RAT_RLL_IMAX", 0.444f, 0f, 1f);
+
+        // Attitude Pitch PIDs
+        public PidParameterItem PitchAngP { get; } = new(6, "ATC_ANG_PIT_P", 6.0f, 0f, 20f);
+        public PidParameterItem PitchRateP { get; } = new(7, "ATC_RAT_PIT_P", 0.135f, 0f, 2f);
+        public PidParameterItem PitchRateI { get; } = new(8, "ATC_RAT_PIT_I", 0.09f, 0f, 2f);
+        public PidParameterItem PitchRateD { get; } = new(9, "ATC_RAT_PIT_D", 0.0036f, 0f, 0.5f);
+        public PidParameterItem PitchRateIMax { get; } = new(10, "ATC_RAT_PIT_IMAX", 0.444f, 0f, 1f);
+
+        // Attitude Yaw PIDs
+        public PidParameterItem YawAngP { get; } = new(11, "ATC_ANG_YAW_P", 6.0f, 0f, 20f);
+        public PidParameterItem YawRateP { get; } = new(12, "ATC_RAT_YAW_P", 0.18f, 0f, 2f);
+        public PidParameterItem YawRateI { get; } = new(13, "ATC_RAT_YAW_I", 0.018f, 0f, 2f);
+        public PidParameterItem YawRateD { get; } = new(14, "ATC_RAT_YAW_D", 0.0f, 0f, 0.5f);
+        public PidParameterItem YawRateIMax { get; } = new(15, "ATC_RAT_YAW_IMAX", 0.222f, 0f, 1f);
+
+        // Depth Hold (ALT_HOLD) Z-axis PIDs
+        public PidParameterItem DepthPosP { get; } = new(16, "PSC_D_POS_P", 3.0f, 0f, 15f);
+        public PidParameterItem DepthVelP { get; } = new(17, "PSC_D_VEL_P", 8.0f, 0f, 25f);
+        public PidParameterItem DepthVelI { get; } = new(18, "PSC_D_VEL_I", 0.0f, 0f, 10f);
+        public PidParameterItem DepthVelD { get; } = new(19, "PSC_D_VEL_D", 0.0f, 0f, 5f);
+        public PidParameterItem DepthAccP { get; } = new(20, "PSC_D_ACC_P", 0.05f, 0f, 2f);
+        public PidParameterItem DepthAccI { get; } = new(21, "PSC_D_ACC_I", 0.01f, 0f, 2f);
+        public PidParameterItem DepthAccD { get; } = new(22, "PSC_D_ACC_D", 0.0f, 0f, 0.5f);
+
+        private readonly PidParameterItem[] _allPidParams;
+
+        public RelayCommand PullPids_Command { get; }
+        public RelayCommand ApplyPids_Command { get; }
+        public RelayCommand ResetPidsToDefault_Command { get; }
+
+        #endregion PID Parameters (Attitude & Depth Hold)
 
         #region Flight Mode Options
 
@@ -227,6 +342,18 @@ namespace UStallGUI.ViewModel
 
             ConnectToPixhawk_Command = new RelayCommand(() => _ = ConnectToControlUnitAsync());
             HealthCommand = new RelayCommand(() => _ = SendHealthMessageAsync());
+
+            _allPidParams = new[]
+            {
+                RollAngP, RollRateP, RollRateI, RollRateD, RollRateIMax,
+                PitchAngP, PitchRateP, PitchRateI, PitchRateD, PitchRateIMax,
+                YawAngP, YawRateP, YawRateI, YawRateD, YawRateIMax,
+                DepthPosP, DepthVelP, DepthVelI, DepthVelD, DepthAccP, DepthAccI, DepthAccD
+            };
+
+            PullPids_Command = new RelayCommand(() => _ = PullPidsFromPixhawkAsync(), () => PidSync_Enabled);
+            ApplyPids_Command = new RelayCommand(() => _ = ApplyPidsToPixhawkAsync(), () => PidSync_Enabled);
+            ResetPidsToDefault_Command = new RelayCommand(ResetPidsToDefaults);
         }
 
         private Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
@@ -326,6 +453,7 @@ namespace UStallGUI.ViewModel
                     {
                         await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
                     }
+                    await PullPidsFromPixhawkAsync();
                 }
                 else
                 {
@@ -589,5 +717,128 @@ namespace UStallGUI.ViewModel
         }
 
         #endregion Flight Mode & Speed Limit Helpers
+
+        #region PID Sync Helpers
+
+        public async Task PullPidsFromPixhawkAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox("Cannot pull PIDs: USB-CAN adapter not connected.");
+                return;
+            }
+
+            if (!PidSync_Enabled)
+                return;
+
+            PidSync_Enabled = false;
+            try
+            {
+                int okCount = 0;
+                foreach (var item in _allPidParams)
+                {
+                    var resp = await SendAndWaitForResponseAsync(
+                        (ushort)SendAddressesControlUnit.PidParam,
+                        (ushort)RecieveAddressesControlUnit.PidParam,
+                        new byte[] { item.ParamId },
+                        300);
+
+                    if (resp.Length >= 6 && resp[0] == item.ParamId && resp[1] == 1)
+                    {
+                        float val = BinaryPrimitives.ReadSingleLittleEndian(resp.AsSpan(2, 4));
+                        item.SetValue(val);
+                        okCount++;
+                    }
+                }
+
+                if (okCount == _allPidParams.Length)
+                    MainWindowViewModel.Instance?.LogToControlBox($"Pulled {okCount}/{_allPidParams.Length} PID parameters from Pixhawk.");
+                else
+                    MainWindowViewModel.Instance?.LogToControlBox($"PID pull incomplete ({okCount}/{_allPidParams.Length} received - check CAN link).");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Pull PIDs error: {ex.Message}");
+            }
+            finally
+            {
+                PidSync_Enabled = true;
+            }
+        }
+
+        public async Task ApplyPidsToPixhawkAsync()
+        {
+            if (can == null || !can.IsOpen)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox("Cannot apply PIDs: USB-CAN adapter not connected.");
+                return;
+            }
+
+            if (!PidSync_Enabled)
+                return;
+
+            // Validate all fields first so we never write a partial/broken PID set
+            var parsedValues = new float[_allPidParams.Length];
+            for (int i = 0; i < _allPidParams.Length; i++)
+            {
+                var item = _allPidParams[i];
+                if (!item.TryGetParsedValue(out parsedValues[i]))
+                {
+                    MainWindowViewModel.Instance?.LogToControlBox(
+                        $"Invalid value for {item.Name}: '{item.ValueText}' (allowed range: {PidParameterItem.FormatFloat(item.MinValue)}-{PidParameterItem.FormatFloat(item.MaxValue)}).");
+                    return;
+                }
+            }
+
+            PidSync_Enabled = false;
+            try
+            {
+                int okCount = 0;
+                byte[] payload = new byte[6];
+                for (int i = 0; i < _allPidParams.Length; i++)
+                {
+                    var item = _allPidParams[i];
+                    payload[0] = item.ParamId;
+                    payload[1] = 1; // save_flag = 1 (param:set_and_save)
+                    BinaryPrimitives.WriteSingleLittleEndian(payload.AsSpan(2, 4), parsedValues[i]);
+
+                    var resp = await SendAndWaitForResponseAsync(
+                        (ushort)SendAddressesControlUnit.PidParam,
+                        (ushort)RecieveAddressesControlUnit.PidParam,
+                        payload,
+                        300);
+
+                    if (resp.Length >= 6 && resp[0] == item.ParamId && resp[1] == 1)
+                    {
+                        float confirmed = BinaryPrimitives.ReadSingleLittleEndian(resp.AsSpan(2, 4));
+                        item.SetValue(confirmed);
+                        okCount++;
+                    }
+                }
+
+                if (okCount == _allPidParams.Length)
+                    MainWindowViewModel.Instance?.LogToControlBox($"Applied & saved {okCount}/{_allPidParams.Length} PID parameters to Pixhawk.");
+                else
+                    MainWindowViewModel.Instance?.LogToControlBox($"PID apply incomplete ({okCount}/{_allPidParams.Length} confirmed - check CAN link).");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Apply PIDs error: {ex.Message}");
+            }
+            finally
+            {
+                PidSync_Enabled = true;
+            }
+        }
+
+        private void ResetPidsToDefaults()
+        {
+            foreach (var item in _allPidParams)
+                item.ResetToDefault();
+
+            MainWindowViewModel.Instance?.LogToControlBox("PID fields reset to ArduSub defaults (click 'Apply to Pixhawk' to save).");
+        }
+
+        #endregion PID Sync Helpers
     }
 }

@@ -918,6 +918,65 @@ class TestBench:
         done = self.harness.pop_can_tx("dev1")
         self.assert_true(done is not None and done["id"] == 171 and done["data"] == [1], "Motor test must still complete cleanly")
 
+    def test_37_pid_params_get_set_and_validation(self):
+        import struct
+
+        # 1. GET ATC_RAT_RLL_P (param_id=2, default 0.135)
+        self.harness.push_can_rx("dev1", 150, [2])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_true(resp is not None and resp["id"] == 151 and len(resp["data"]) == 6, "Expected 6-byte TX_PID_PARAM (151)")
+        self.assert_equal(resp["data"][0], 2, "param_id must echo 2")
+        self.assert_equal(resp["data"][1], 1, "GET status must be 1 (OK)")
+        val = struct.unpack("<f", bytes(resp["data"][2:6]))[0]
+        self.assert_true(abs(val - 0.135) < 1e-5, f"Expected ATC_RAT_RLL_P=0.135, got {val}")
+
+        # 2. SET PSC_D_VEL_P (param_id=17) to 10.25 with save_flag=1
+        payload = [17, 1] + list(struct.pack("<f", 10.25))
+        self.harness.push_can_rx("dev1", 150, payload)
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"][0], 17, "param_id must echo 17")
+        self.assert_equal(resp["data"][1], 1, "SET status must be 1 (OK)")
+        val = struct.unpack("<f", bytes(resp["data"][2:6]))[0]
+        self.assert_true(abs(val - 10.25) < 1e-5, f"Expected PSC_D_VEL_P=10.25, got {val}")
+        self.assert_true(abs(self.harness.eval_return_number("param:get('PSC_D_VEL_P')") - 10.25) < 1e-5)
+
+        # 3. Live tuning while armed: SET ATC_RAT_PIT_D (param_id=9) to 0.0045
+        self.harness.push_can_rx("dev1", 60, [0])
+        self.harness.step_update()
+        self.harness.clear_tx_queues()
+        payload = [9, 1] + list(struct.pack("<f", 0.0045))
+        self.harness.push_can_rx("dev1", 150, payload)
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"][1], 1, "Live PID tuning while armed must succeed")
+        val = struct.unpack("<f", bytes(resp["data"][2:6]))[0]
+        self.assert_true(abs(val - 0.0045) < 1e-5, f"Expected ATC_RAT_PIT_D=0.0045, got {val}")
+
+        # 4. Reject out-of-range value (ATC_RAT_RLL_P = 99.0 > max 2.0) -> status=0, unchanged
+        payload = [2, 1] + list(struct.pack("<f", 99.0))
+        self.harness.push_can_rx("dev1", 150, payload)
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"][1], 0, "Out-of-range PID write must return status=0")
+        val = struct.unpack("<f", bytes(resp["data"][2:6]))[0]
+        self.assert_true(abs(val - 0.135) < 1e-5, "Rejected PID must retain previous value 0.135")
+
+        # 5. Reject NaN float -> status=0, unchanged
+        payload = [2, 1] + list(struct.pack("<f", float("nan")))
+        self.harness.push_can_rx("dev1", 150, payload)
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"][1], 0, "NaN PID write must return status=0")
+
+        # 6. Reject unknown param_id (99) -> status=0
+        self.harness.push_can_rx("dev1", 150, [99])
+        self.harness.step_update()
+        resp = self.harness.pop_can_tx("dev1")
+        self.assert_equal(resp["data"][0], 99)
+        self.assert_equal(resp["data"][1], 0, "Unknown param_id must return status=0")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -955,6 +1014,7 @@ class TestBench:
             ("Test 34: Non-Bridge Traffic Does Not Hijack Active CAN Port", self.test_34_non_bridge_traffic_does_not_hijack_active_port),
             ("Test 35: Rapid Flight Mode Switching Without Throttle", self.test_35_rapid_flight_mode_switching_without_throttle),
             ("Test 36: Arm Rejected During Active Bench Motor Test", self.test_36_arm_rejected_during_active_motor_test),
+            ("Test 37: Attitude & Depth Hold PID Get/Set & Validation (ID 150 -> 151)", self.test_37_pid_params_get_set_and_validation),
         ]
 
         for name, fn in tests:

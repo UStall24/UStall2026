@@ -63,6 +63,7 @@ local C = {
     RX_SET_SPEED_LIMIT     = 120,
     RX_MOTOR_CONFIG        = 130,
     RX_AXIS_GAINS          = 140,
+    RX_PID_PARAM           = 150,
     RX_UPDATE_CYCLE        = 160,
     RX_TEST_MOTOR          = 170,
 
@@ -75,6 +76,7 @@ local C = {
     TX_SET_SPEED_LIMIT     = 121,
     TX_MOTOR_CONFIG        = 131,
     TX_AXIS_GAINS          = 141,
+    TX_PID_PARAM           = 151,
     TX_UPDATE_CYCLE        = 161,
     TX_TEST_MOTOR          = 171,
 
@@ -111,8 +113,40 @@ local BRIDGE_RX_IDS = {
     [C.RX_SET_SPEED_LIMIT] = true,
     [C.RX_MOTOR_CONFIG]    = true,
     [C.RX_AXIS_GAINS]      = true,
+    [C.RX_PID_PARAM]       = true,
     [C.RX_UPDATE_CYCLE]    = true,
     [C.RX_TEST_MOTOR]      = true,
+}
+
+-- Indexed ArduSub Attitude & Depth Hold PID allowlist (CAN ID 150 -> 151)
+-- Format: [param_id] = { arducopter_param_name, min_val, max_val }
+local PID_PARAMS = {
+    -- Attitude Roll
+    [1]  = { "ATC_ANG_RLL_P",    0.0, 20.0 },
+    [2]  = { "ATC_RAT_RLL_P",    0.0,  2.0 },
+    [3]  = { "ATC_RAT_RLL_I",    0.0,  2.0 },
+    [4]  = { "ATC_RAT_RLL_D",    0.0,  0.5 },
+    [5]  = { "ATC_RAT_RLL_IMAX", 0.0,  1.0 },
+    -- Attitude Pitch
+    [6]  = { "ATC_ANG_PIT_P",    0.0, 20.0 },
+    [7]  = { "ATC_RAT_PIT_P",    0.0,  2.0 },
+    [8]  = { "ATC_RAT_PIT_I",    0.0,  2.0 },
+    [9]  = { "ATC_RAT_PIT_D",    0.0,  0.5 },
+    [10] = { "ATC_RAT_PIT_IMAX", 0.0,  1.0 },
+    -- Attitude Yaw
+    [11] = { "ATC_ANG_YAW_P",    0.0, 20.0 },
+    [12] = { "ATC_RAT_YAW_P",    0.0,  2.0 },
+    [13] = { "ATC_RAT_YAW_I",    0.0,  2.0 },
+    [14] = { "ATC_RAT_YAW_D",    0.0,  0.5 },
+    [15] = { "ATC_RAT_YAW_IMAX", 0.0,  1.0 },
+    -- Depth Hold (ALT_HOLD) Z-axis
+    [16] = { "PSC_D_POS_P",      0.0, 15.0 },
+    [17] = { "PSC_D_VEL_P",      0.0, 25.0 },
+    [18] = { "PSC_D_VEL_I",      0.0, 10.0 },
+    [19] = { "PSC_D_VEL_D",      0.0,  5.0 },
+    [20] = { "PSC_D_ACC_P",      0.0,  2.0 },
+    [21] = { "PSC_D_ACC_I",      0.0,  2.0 },
+    [22] = { "PSC_D_ACC_D",      0.0,  0.5 },
 }
 
 -- ==============================================================================
@@ -213,6 +247,7 @@ local tx_ack_payload  = {}
 local tx_resp_single  = {0}
 local tx_health_status= {0, 0, 0} -- [marker (1=probe/2=ping), armed (0/1), mode]
 local tx_motor_cfg    = {0, 1, 2, 3, 4, 5, 6}
+local tx_pid_resp     = {0, 0, 0, 0, 0, 0} -- [param_id, status (1=OK/0=Err), float32_le (4 bytes)]
 local axis_gains      = {100, 100, 100, 100, 100, 100} -- [FB, LR, UD, Yaw, Pitch, Roll] in %
 
 -- Load persisted per-axis gains from SCR_USER1..SCR_USER6 (stored as gain + 1 in 1..101; 0 = factory unset -> 100%)
@@ -633,6 +668,68 @@ local function handle_motor_config(data, dlc)
     send_can(C.TX_MOTOR_CONFIG, tx_motor_cfg)
 end
 
+-- Get/Set indexed ArduSub PID parameter (CAN ID 150 -> 151)
+-- Get TX (1 B): [param_id]
+-- Set TX (6 B): [param_id, save_flag (1=set_and_save, 0=set), float32_le (4 B)]
+-- Reply  (6 B): [param_id, status (1=OK, 0=Err), float32_le (4 B)]
+local function handle_pid_param(data, dlc)
+    on_topside_activity()
+    if dlc < 1 then
+        tx_pid_resp[1], tx_pid_resp[2], tx_pid_resp[3], tx_pid_resp[4], tx_pid_resp[5], tx_pid_resp[6] = 0, 0, 0, 0, 0, 0
+        send_can(C.TX_PID_PARAM, tx_pid_resp)
+        return
+    end
+
+    local pid = math.floor(data[1] or 0)
+    local entry = PID_PARAMS[pid]
+    if not entry or not param or not param.get then
+        tx_pid_resp[1], tx_pid_resp[2], tx_pid_resp[3], tx_pid_resp[4], tx_pid_resp[5], tx_pid_resp[6] = pid, 0, 0, 0, 0, 0
+        send_can(C.TX_PID_PARAM, tx_pid_resp)
+        return
+    end
+
+    local status = 1
+    if dlc >= 6 then
+        local save_flag = data[2] or 1
+        local packed = string.char(data[3], data[4], data[5], data[6])
+        local ok_u, val = pcall(string.unpack, "<f", packed)
+        if not ok_u or type(val) ~= "number" or val ~= val or val == math.huge or val == -math.huge
+           or val < entry[2] or val > entry[3] then
+            status = 0
+            gcs:send_text(4, "CAN bridge: rejected PID " .. entry[1] .. " (invalid/out of range)")
+        else
+            local write_fn = (save_flag ~= 0 and param.set_and_save) or param.set
+            if write_fn then
+                local ok_w, res = pcall(write_fn, param, entry[1], val)
+                if not ok_w or res == false then
+                    status = 0
+                end
+            else
+                status = 0
+            end
+        end
+    elseif dlc >= 2 then
+        -- Malformed Set frame (expected 1 B for Get or 6 B for Set)
+        status = 0
+    end
+
+    local cur = param:get(entry[1])
+    if cur == nil then
+        cur = 0.0
+        status = 0
+    end
+
+    local ok_p, b = pcall(string.pack, "<f", cur)
+    tx_pid_resp[1] = pid
+    if ok_p and b and #b == 4 then
+        tx_pid_resp[2] = status
+        tx_pid_resp[3], tx_pid_resp[4], tx_pid_resp[5], tx_pid_resp[6] = string.byte(b, 1, 4)
+    else
+        tx_pid_resp[2], tx_pid_resp[3], tx_pid_resp[4], tx_pid_resp[5], tx_pid_resp[6] = 0, 0, 0, 0, 0
+    end
+    send_can(C.TX_PID_PARAM, tx_pid_resp)
+end
+
 -- ==============================================================================
 -- Frame Dispatcher
 -- ==============================================================================
@@ -787,7 +884,11 @@ local function handle_frame(frame, dev)
         end
         send_can(C.TX_AXIS_GAINS, axis_gains)
 
-    -- 10. Direct Motor Test (Bench Thruster Test)
+    -- 10. Get/Set Indexed Attitude & Depth Hold PID Parameter (ID 150 -> 151)
+    elseif rx_id == C.RX_PID_PARAM then
+        handle_pid_param(rx_data, dlc)
+
+    -- 11. Direct Motor Test (Bench Thruster Test)
     elseif rx_id == C.RX_TEST_MOTOR then
         if dlc == C.MOTOR_TEST_DLC then
             handle_motor_test(rx_data)
