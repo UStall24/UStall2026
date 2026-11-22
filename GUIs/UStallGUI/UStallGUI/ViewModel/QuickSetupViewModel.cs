@@ -13,6 +13,16 @@ namespace UStallGUI.ViewModel
         public RelayCommand CheckConnection_Command { get; }
         public RelayCommand ConnectToController_Command { get; }
 
+        public bool IsArmed => SetupHandlerViewModel.Instance?.IsArmed ?? false;
+
+        public string ArmedStatusText => SetupHandlerViewModel.Instance?.ArmedStatusText ?? "DISARMED";
+
+        public void NotifyArmedStateChanged()
+        {
+            RaisePropertyChanged(nameof(IsArmed));
+            RaisePropertyChanged(nameof(ArmedStatusText));
+        }
+
         public int SelectedFlightModeIndex
         {
             get => SetupHandlerViewModel.Instance != null ? SetupHandlerViewModel.Instance.SelectedFlightModeIndex : 1;
@@ -64,7 +74,7 @@ namespace UStallGUI.ViewModel
         {
             if (SetupHandlerViewModel.Instance != null)
             {
-                SetupHandlerViewModel.Instance.ConnectToControlUnit();
+                _ = SetupHandlerViewModel.Instance.ConnectToControlUnitAsync();
             }
             else
             {
@@ -100,7 +110,7 @@ namespace UStallGUI.ViewModel
         {
             if (SetupHandlerViewModel.Instance != null)
             {
-                SetupHandlerViewModel.Instance.SendHealthMessage();
+                _ = SetupHandlerViewModel.Instance.SendHealthMessageAsync();
             }
             else
             {

@@ -166,8 +166,8 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 
 | Command | TX ID (GUI -> Pixhawk) | RX ID (Pixhawk -> GUI) | TX Payload | RX Payload | Description / ArduSub Action |
 | :--- | :---: | :---: | :--- | :--- | :--- |
-| **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1]` | Manual connection probe initiated by GUI. |
-| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2]` | Sent by Pixhawk every `2 s` while armed; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1580 µs` heave in `STABILIZE`). |
+| **Health Ping (GUI Probe)** | `40` | `41` | Empty (`0 B`) or `[1]` | `[1, armed, mode]` | Manual connection probe initiated by GUI; returns live armed state (`0`/`1`) and active ArduSub mode (`0`/`2`/`19`). |
+| **Health Ping (ROV Heartbeat)** | `40` (ACK) | `41` (Ping) | `[2]` | `[2, armed, mode]` | Sent by Pixhawk every `2 s` while armed with live armed/mode telemetry; GUI auto-replies `40` with `[2]`. After 2 missed pings, ROV auto-surfaces (`1580 µs` heave in `STABILIZE`). |
 | **Init Connection** | `50` | `51` | Empty (`0 B`) | `[1]` | Initial topside handshake (leaves vehicle disarmed). |
 | **Arm Thrusters** | `60` | `61` | Empty (`0 B`) or `1 B`: `[mode]` | `[1]` = OK, `[0]` = Fail | Neutralizes RC channels, sets requested mode (`0`/`2`/`19`, or `STABILIZE` if empty & in `MANUAL`), and arms (`arm()` / `arm_force()`). |
 | **Disarm Thrusters** | `70` | `71` | Empty (`0 B`) | `[1]` = OK, `[0]` = Fail | Disarms vehicle and releases all RC overrides (`0 µs`). |

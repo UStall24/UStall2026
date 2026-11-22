@@ -21,6 +21,33 @@ namespace UStallGUI
             InitializeComponent();
             DataContext = new MainWindowViewModel();
 
+            this.Closing += (s, e) =>
+            {
+                var setupVm = App.Instance.SetupHandlerViewModelGetter;
+                if (setupVm != null && setupVm.IsArmed)
+                {
+                    var result = MessageBox.Show(
+                        "Thrusters are currently ARMED.\n\n" +
+                        "Yes: Disarm thrusters safely and close.\n" +
+                        "No: Close without disarming (Pixhawk auto-surface failsafe will engage after 4–6 s).\n" +
+                        "Cancel: Keep the control station open.",
+                        "Thrusters Armed",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Warning);
+
+                    if (result == MessageBoxResult.Cancel)
+                    {
+                        e.Cancel = true;
+                        return;
+                    }
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        setupVm.DisarmBeforeClose();
+                    }
+                }
+            };
+
             this.Closed += (s, e) =>
             {
                 App.Instance.CameraStreamViewModelGetter?.Cleanup(); // Stop current running capturing tasks of the camera feed

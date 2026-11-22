@@ -113,8 +113,8 @@ namespace UStallGUI.ViewModel
                 {
                     CurrentControllerModel.UpdateControllerValues();
 
-                    // Allow sending if CAN is open and either Controller or Keyboard is active
-                    if (can != null && can.IsOpen && (sendControllerValues || EnableKeyboardInput))
+                    // Respect Control Input toggle (Off mutes both Controller and Keyboard drive frames)
+                    if (can != null && can.IsOpen && sendControllerValues)
                     {
                         var command = CurrentFlightMode switch
                         {

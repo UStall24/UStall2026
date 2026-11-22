@@ -215,14 +215,14 @@ class TestBench:
         self.assert_equal(self.harness.is_armed(), False, "Vehicle must start disarmed")
 
     def test_02_health_ping(self):
-        # Topside sends Health ping (ID 40)
+        # Topside sends Health ping (ID 40) while disarmed in MANUAL (19)
         self.harness.push_can_rx("dev1", 40, [])
         delay = self.harness.step_update()
         self.assert_equal(delay, 10, "Cycle delay should be 10ms")
         resp = self.harness.pop_can_tx("dev1")
         self.assert_true(resp is not None, "Expected TX_HEALTH response")
         self.assert_equal(resp["id"], 41, "Response ID must be TX_HEALTH (41)")
-        self.assert_equal(resp["data"], [1], "Response payload must be [1]")
+        self.assert_equal(resp["data"], [1, 0, self.harness.get_mode()], "Response payload must be [1, armed=0, mode]")
 
     def test_03_init_conn(self):
         # Topside sends Init Conn (ID 50)
@@ -556,18 +556,18 @@ class TestBench:
         self.assert_equal(self.harness.get_mode(), 19, "Should be in MANUAL mode (19)")
         self.harness.clear_tx_queues()
 
-        # 1. Advance 2000ms -> Ping #1 (ID 41, payload [2]) sent, watchdog tripped (neutral 1500 us)
+        # 1. Advance 2000ms -> Ping #1 (ID 41, payload [2, 1, 19]) sent, watchdog tripped (neutral 1500 us)
         self.harness.advance_time(2000)
         self.harness.step_update()
         ping1 = self.harness.pop_can_tx("dev1")
-        self.assert_true(ping1 is not None and ping1["id"] == 41 and ping1["data"] == [2], "Expected Health Ping #1 (ID 41, data [2])")
+        self.assert_true(ping1 is not None and ping1["id"] == 41 and ping1["data"] == [2, 1, 19], "Expected Health Ping #1 (ID 41, data [2, 1, 19])")
         self.assert_equal(self.harness.get_rc_override(3), 1500, "Throttle still neutral after Ping #1")
 
-        # 2. Advance another 2000ms without reply -> Ping #1 missed (missed=1), Ping #2 (ID 41, payload [2]) sent
+        # 2. Advance another 2000ms without reply -> Ping #1 missed (missed=1), Ping #2 (ID 41, payload [2, 1, 19]) sent
         self.harness.advance_time(2000)
         self.harness.step_update()
         ping2 = self.harness.pop_can_tx("dev1")
-        self.assert_true(ping2 is not None and ping2["id"] == 41 and ping2["data"] == [2], "Expected Health Ping #2 (ID 41, data [2])")
+        self.assert_true(ping2 is not None and ping2["id"] == 41 and ping2["data"] == [2, 1, 19], "Expected Health Ping #2 (ID 41, data [2, 1, 19])")
         self.assert_equal(self.harness.get_rc_override(3), 1500, "Throttle still neutral before Ping #2 times out")
 
         # 3. Advance another 2000ms without reply -> Ping #2 missed (missed=2) -> Auto-Surface triggers!
@@ -596,7 +596,7 @@ class TestBench:
             self.harness.advance_time(2000)
             self.harness.step_update()
             ping = self.harness.pop_can_tx("dev1")
-            self.assert_true(ping is not None and ping["id"] == 41 and ping["data"] == [2], "Expected ID 41 [2] ping")
+            self.assert_true(ping is not None and ping["id"] == 41 and ping["data"] == [2, 1, 0], "Expected ID 41 [2, 1, 0] ping")
             # Topside GUI auto-replies ID 40 [2]
             self.harness.push_can_rx("dev1", 40, [2])
             self.harness.step_update()
@@ -838,7 +838,7 @@ class TestBench:
         self.harness.step_update()
         hb1 = self.harness.pop_can_tx("dev1")
         hb2 = self.harness.pop_can_tx("dev2")
-        self.assert_true(hb1 is not None and hb1["id"] == 41 and hb1["data"] == [2], "Heartbeat must remain on CAN1")
+        self.assert_true(hb1 is not None and hb1["id"] == 41 and hb1["data"] == [2, 1, 0], "Heartbeat must remain on CAN1")
         self.assert_true(hb2 is None, "Non-bridge traffic on CAN2 must not hijack active_can_dev")
 
     def test_35_rapid_flight_mode_switching_without_throttle(self):

@@ -17,6 +17,8 @@ namespace UStallGUI.ViewModel
         private byte _updateInterval = 10;
         private int _controlType = 1;
         private string _comPort = "Auto";
+        private bool _isArmed = false;
+        private string _activeArduSubModeText = string.Empty;
 
         private ConfigGUI currentConfig;
 
@@ -26,6 +28,47 @@ namespace UStallGUI.ViewModel
         {
             get => _comPort;
             set => Set(ref _comPort, value);
+        }
+
+        public bool IsArmed
+        {
+            get => _isArmed;
+            private set
+            {
+                if (Set(ref _isArmed, value))
+                {
+                    RaisePropertyChanged(nameof(ArmedStatusText));
+                    QuickSetupViewModel.Instance?.NotifyArmedStateChanged();
+                }
+            }
+        }
+
+        public string ArmedStatusText => IsArmed
+            ? (string.IsNullOrEmpty(_activeArduSubModeText) ? "ARMED" : $"ARMED ({_activeArduSubModeText})")
+            : "DISARMED";
+
+        private void OnPixhawkTelemetryReceived(bool isArmed, byte arduSubMode)
+        {
+            string modeText = arduSubMode switch
+            {
+                0 => "STABILIZE",
+                2 => "DEPTH_HOLD",
+                19 => "MANUAL",
+                _ => $"MODE {arduSubMode}",
+            };
+
+            bool modeChanged = _activeArduSubModeText != modeText;
+            _activeArduSubModeText = modeText;
+
+            bool armedChanged = _isArmed != isArmed;
+            _isArmed = isArmed;
+
+            if (armedChanged || modeChanged)
+            {
+                RaisePropertyChanged(nameof(IsArmed));
+                RaisePropertyChanged(nameof(ArmedStatusText));
+                QuickSetupViewModel.Instance?.NotifyArmedStateChanged();
+            }
         }
 
         public byte UpdateInterval // in ms
@@ -154,6 +197,7 @@ namespace UStallGUI.ViewModel
         {
             Instance = this;
             can = new UsbCANWrapper();
+            can.TelemetryReceived += OnPixhawkTelemetryReceived;
             ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
 
             currentConfig = ConfigLoader.LoadConfigGUI();
@@ -167,8 +211,8 @@ namespace UStallGUI.ViewModel
             ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
             ResetWatchdog_Command = new RelayCommand(() => _ = ResetWatchdogAsync());
 
-            ConnectToPixhawk_Command = new RelayCommand(ConnectToControlUnit);
-            HealthCommand = new RelayCommand(SendHealthMessage);
+            ConnectToPixhawk_Command = new RelayCommand(() => _ = ConnectToControlUnitAsync());
+            HealthCommand = new RelayCommand(() => _ = SendHealthMessageAsync());
         }
 
         private Task<byte[]> SendAndWaitForResponseAsync(ushort sendId, ushort recvId, byte[] payload = null, int timeoutMs = 400)
@@ -179,66 +223,123 @@ namespace UStallGUI.ViewModel
             return can.SendAndWaitForResponseAsync(sendId, recvId, payload, timeoutMs);
         }
 
-        public async void SendHealthMessage()
+        public async Task SendHealthMessageAsync()
         {
-            MainWindowViewModel.Instance.LogToControlBox("Checking Pixhawk CAN link...");
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("CAN adapter is not open.");
-                return;
-            }
+                MainWindowViewModel.Instance.LogToControlBox("Checking Pixhawk CAN link...");
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("CAN adapter is not open.");
+                    return;
+                }
 
-            bool ok = await can.TestConnectionAsync(300);
-            if (ok)
-                MainWindowViewModel.Instance.LogToControlBox("Health Ping OK (Pixhawk responded)");
-            else
-                MainWindowViewModel.Instance.LogToControlBox("Health Ping failed (no response from Pixhawk)");
+                bool ok = await can.TestConnectionAsync(300);
+                if (ok)
+                    MainWindowViewModel.Instance.LogToControlBox($"Health Ping OK (Pixhawk responded — {ArmedStatusText})");
+                else
+                    MainWindowViewModel.Instance.LogToControlBox("Health Ping failed (no response from Pixhawk)");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Health Ping error: {ex.Message}");
+            }
         }
 
         #region Config helpers
 
         private void UpdateConfig() => ConfigLoader.UpdateConfigGUI(currentConfig);
 
-        public async void ConnectToControlUnit()
+        public async Task ConnectToControlUnitAsync()
         {
-            if (can == null)
-                can = new UsbCANWrapper();
-            else
-                can.ConnectToCanAdapter();
-
-            ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
-
-            // Check if the adapter is connected before proceeding
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("USB serial CAN adapter not connected.");
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                return;
-            }
-
-            MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
-            var initResp = await SendAndWaitForResponseAsync(
-                (ushort)SendAddressesControlUnit.InitConnection,
-                (ushort)RecieveAddressesControlUnit.InitConnection,
-                null,
-                500);
-
-            bool ok = (initResp.Length > 0 && initResp[0] == 1) || await can.TestConnectionAsync(500);
-            if (ok)
-            {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-                MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} (Disarmed - click Arm Thrusters when ready).");
-                await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
-                SendFlightModeFrame(SelectedFlightMode);
-                if (App.Instance?.ControlParamterHandlerViewModelGetter != null)
+                bool wasAlreadyOpen = can != null && can.IsOpen;
+                if (can == null)
                 {
-                    await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
+                    can = new UsbCANWrapper();
+                    can.TelemetryReceived += OnPixhawkTelemetryReceived;
+                }
+                else
+                {
+                    can.ConnectToCanAdapter();
+                }
+
+                ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
+
+                // Check if the adapter is connected before proceeding
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("USB serial CAN adapter not connected.");
+                    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                    return;
+                }
+
+                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connecting);
+                var initResp = await SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.InitConnection,
+                    (ushort)RecieveAddressesControlUnit.InitConnection,
+                    null,
+                    500);
+
+                bool ok = (initResp.Length > 0 && initResp[0] == 1) || await can.TestConnectionAsync(500);
+
+                // If the port was already open (e.g. wedged CH340 USB-serial adapter) and didn't reply, force-reopen once
+                if (!ok && wasAlreadyOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("No reply on open port — reopening USB-CAN adapter...");
+                    if (can.ConnectToCanAdapter(force: true) && can.IsOpen)
+                    {
+                        ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
+                        initResp = await SendAndWaitForResponseAsync(
+                            (ushort)SendAddressesControlUnit.InitConnection,
+                            (ushort)RecieveAddressesControlUnit.InitConnection,
+                            null,
+                            500);
+                        ok = (initResp.Length > 0 && initResp[0] == 1) || await can.TestConnectionAsync(500);
+                    }
+                }
+
+                if (ok)
+                {
+                    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+                    // Probe health once so armed state & active ArduSub mode are synced immediately
+                    await can.TestConnectionAsync(300);
+                    MainWindowViewModel.Instance.LogToControlBox($"Connected to Pixhawk on {ComPort} ({ArmedStatusText}).");
+                    await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
+                    SendFlightModeFrame(SelectedFlightMode);
+                    if (App.Instance?.ControlParamterHandlerViewModelGetter != null)
+                    {
+                        await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
+                    }
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                    MainWindowViewModel.Instance.LogToControlBox("CAN adapter open, but no reply from Pixhawk.");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
-                MainWindowViewModel.Instance.LogToControlBox("CAN adapter open, but no reply from Pixhawk.");
+                MainWindowViewModel.Instance?.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
+                MainWindowViewModel.Instance?.LogToControlBox($"CAN connect error: {ex.Message}");
+            }
+        }
+
+        public void DisarmBeforeClose()
+        {
+            if (can == null || !can.IsOpen)
+                return;
+
+            try
+            {
+                can.SendFrame((ushort)SendAddressesControlUnit.DisarmThrusters);
+                Thread.Sleep(50); // Allow USB-serial TX buffer to flush before port closes
+                IsArmed = false;
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Disarm before close error: {ex.Message}");
             }
         }
 
@@ -257,6 +358,7 @@ namespace UStallGUI.ViewModel
             }
 
             // Keep the shared UsbCANWrapper instance intact so other ViewModels don't hold stale references
+            IsArmed = false;
             ComPort = "Disconnected";
         }
 
@@ -271,64 +373,86 @@ namespace UStallGUI.ViewModel
 
         public async Task ArmThrustersAsync()
         {
-            if (can == null)
-                can = new UsbCANWrapper();
-            else if (!can.IsOpen)
-                can.ConnectToCanAdapter();
-
-            ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
-
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("Cannot arm thrusters: USB-CAN adapter not connected.");
-                return;
+                if (can == null)
+                {
+                    can = new UsbCANWrapper();
+                    can.TelemetryReceived += OnPixhawkTelemetryReceived;
+                }
+                else if (!can.IsOpen)
+                {
+                    can.ConnectToCanAdapter();
+                }
+
+                ComPort = !string.IsNullOrEmpty(can.ComPort) ? can.ComPort : "Not Connected";
+
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Cannot arm thrusters: USB-CAN adapter not connected.");
+                    return;
+                }
+
+                await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
+
+                var modePayload = new byte[] { GetArduSubModeByte(SelectedFlightMode) };
+                var response = await SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.ArmThrusters,
+                    (ushort)RecieveAddressesControlUnit.ArmThrusters,
+                    modePayload,
+                    500);
+
+                if (response.Length > 0 && response[0] == 1)
+                {
+                    IsArmed = true;
+                    MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
+                    MainWindowViewModel.Instance.LogToControlBox("Thrusters ARMED successfully.");
+                }
+                else if (response.Length > 0 && response[0] == 0)
+                {
+                    IsArmed = false;
+                    MainWindowViewModel.Instance.LogToControlBox("Thrusters arming REJECTED by Pixhawk (check pre-arm checks / safety switch).");
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Arming failed (no CAN response from Pixhawk).");
+                }
             }
-
-            await SendSpeedLimitAsync(MaxThrusterSpeedPercent);
-
-            var modePayload = new byte[] { GetArduSubModeByte(SelectedFlightMode) };
-            var response = await SendAndWaitForResponseAsync(
-                (ushort)SendAddressesControlUnit.ArmThrusters,
-                (ushort)RecieveAddressesControlUnit.ArmThrusters,
-                modePayload,
-                500);
-
-            if (response.Length > 0 && response[0] == 1)
+            catch (Exception ex)
             {
-                MainWindowViewModel.Instance.UpdateConnectionStatusLCE(LceConnectionStatus.Connected);
-                MainWindowViewModel.Instance.LogToControlBox("Thrusters ARMED successfully.");
-            }
-            else if (response.Length > 0 && response[0] == 0)
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Thrusters arming REJECTED by Pixhawk (check pre-arm checks / safety switch).");
-            }
-            else
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Arming failed (no CAN response from Pixhawk).");
+                MainWindowViewModel.Instance?.LogToControlBox($"Arm thrusters error: {ex.Message}");
             }
         }
 
         public async Task DisarmThrustersAsync()
         {
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("Cannot disarm thrusters: USB-CAN adapter not connected.");
-                return;
-            }
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Cannot disarm thrusters: USB-CAN adapter not connected.");
+                    return;
+                }
 
-            var response = await SendAndWaitForResponseAsync(
-                (ushort)SendAddressesControlUnit.DisarmThrusters,
-                (ushort)RecieveAddressesControlUnit.DisarmThrusters,
-                null,
-                500);
+                var response = await SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.DisarmThrusters,
+                    (ushort)RecieveAddressesControlUnit.DisarmThrusters,
+                    null,
+                    500);
 
-            if (response.Length > 0 && response[0] == 1)
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Thrusters DISARMED safely.");
+                if (response.Length > 0 && response[0] == 1)
+                {
+                    IsArmed = false;
+                    MainWindowViewModel.Instance.LogToControlBox("Thrusters DISARMED safely.");
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Thrusters disarm failed or timed out.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MainWindowViewModel.Instance.LogToControlBox("Thrusters disarm failed or timed out.");
+                MainWindowViewModel.Instance?.LogToControlBox($"Disarm thrusters error: {ex.Message}");
             }
         }
 
@@ -338,29 +462,36 @@ namespace UStallGUI.ViewModel
 
         private async Task ApplyUpdateIntervalAsync()
         {
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("Cannot update cycle time: CAN not open.");
-                return;
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Cannot update cycle time: CAN not open.");
+                    return;
+                }
+
+                byte targetInterval = Math.Clamp(UpdateInterval, (byte)5, (byte)100);
+                UpdateInterval = targetInterval;
+
+                byte[] resp = await SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.UpdateCycleTime,
+                    (ushort)RecieveAddressesControlUnit.UpdateCycleTime,
+                    new byte[] { targetInterval },
+                    300);
+
+                if (resp.Length > 0)
+                {
+                    UpdateInterval = resp[0];
+                    MainWindowViewModel.Instance.LogToControlBox($"Pixhawk CAN bridge cycle time updated to {resp[0]} ms.");
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Updating cycle time failed (no response).");
+                }
             }
-
-            byte targetInterval = Math.Clamp(UpdateInterval, (byte)5, (byte)100);
-            UpdateInterval = targetInterval;
-
-            byte[] resp = await SendAndWaitForResponseAsync(
-                (ushort)SendAddressesControlUnit.UpdateCycleTime,
-                (ushort)RecieveAddressesControlUnit.UpdateCycleTime,
-                new byte[] { targetInterval },
-                300);
-
-            if (resp.Length > 0)
+            catch (Exception ex)
             {
-                UpdateInterval = resp[0];
-                MainWindowViewModel.Instance.LogToControlBox($"Pixhawk CAN bridge cycle time updated to {resp[0]} ms.");
-            }
-            else
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Updating cycle time failed (no response).");
+                MainWindowViewModel.Instance?.LogToControlBox($"Update cycle time error: {ex.Message}");
             }
         }
 
@@ -370,25 +501,32 @@ namespace UStallGUI.ViewModel
 
         private async Task ResetWatchdogAsync()
         {
-            if (can == null || !can.IsOpen)
+            try
             {
-                MainWindowViewModel.Instance.LogToControlBox("Cannot reset watchdog: CAN not open.");
-                return;
-            }
+                if (can == null || !can.IsOpen)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Cannot reset watchdog: CAN not open.");
+                    return;
+                }
 
-            byte[] response = await SendAndWaitForResponseAsync(
-                (ushort)SendAddressesControlUnit.ResetWatchdog,
-                (ushort)RecieveAddressesControlUnit.ResetWatchdog,
-                null,
-                300);
+                byte[] response = await SendAndWaitForResponseAsync(
+                    (ushort)SendAddressesControlUnit.ResetWatchdog,
+                    (ushort)RecieveAddressesControlUnit.ResetWatchdog,
+                    null,
+                    300);
 
-            if (response.Length != 0 && response[0] == 0x01)
-            {
-                MainWindowViewModel.Instance.LogToControlBox("Pixhawk Watchdog reset successful.");
+                if (response.Length != 0 && response[0] == 0x01)
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Pixhawk Watchdog reset successful.");
+                }
+                else
+                {
+                    MainWindowViewModel.Instance.LogToControlBox("Watchdog reset failed.");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MainWindowViewModel.Instance.LogToControlBox("Watchdog reset failed.");
+                MainWindowViewModel.Instance?.LogToControlBox($"Reset watchdog error: {ex.Message}");
             }
         }
 

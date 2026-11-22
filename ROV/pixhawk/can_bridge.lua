@@ -211,6 +211,7 @@ local rx_data = {0, 0, 0, 0, 0, 0, 0, 0}
 -- Pre-allocated static response buffers (zero heap allocations during TX)
 local tx_ack_payload  = {}
 local tx_resp_single  = {0}
+local tx_health_status= {0, 0, 0} -- [marker (1=probe/2=ping), armed (0/1), mode]
 local tx_motor_cfg    = {0, 1, 2, 3, 4, 5, 6}
 local axis_gains      = {100, 100, 100, 100, 100, 100} -- [FB, LR, UD, Yaw, Pitch, Roll] in %
 
@@ -313,6 +314,14 @@ end
 local function send_u8(id, val)
     tx_resp_single[1] = val
     return send_can(id, tx_resp_single)
+end
+
+-- Transmit 3-byte health/telemetry frame on TX_HEALTH (41): [marker, armed (0/1), mode]
+local function send_health_status(marker)
+    tx_health_status[1] = marker
+    tx_health_status[2] = arming:is_armed() and 1 or 0
+    tx_health_status[3] = math.floor(vehicle:get_mode() or 0)
+    return send_can(C.TX_HEALTH, tx_health_status)
 end
 
 -- Zero-allocation protected wrappers for ArduSub API calls
@@ -617,7 +626,7 @@ local function handle_frame(frame, dev)
         -- Only reply with TX_HEALTH (41) if this is a GUI-initiated probe (empty or payload ~= 2).
         -- Payload [2] is the GUI's ACK to a Pixhawk-initiated heartbeat ping and must not echo back.
         if dlc == 0 or rx_data[1] ~= C.HEALTH_ROV_PING then
-            send_u8(C.TX_HEALTH, C.HEALTH_GUI_PROBE)
+            send_health_status(C.HEALTH_GUI_PROBE)
         end
 
     -- 2. Init Connection to Frontend
@@ -841,7 +850,7 @@ local function update_body()
                         gcs:send_text(4, "CAN failsafe: link lost (" .. tostring(missed_heartbeats) .. " missed pings), auto-surfacing")
                     end
                 end
-                send_u8(C.TX_HEALTH, C.HEALTH_ROV_PING)
+                send_health_status(C.HEALTH_ROV_PING)
                 heartbeat_awaiting = true
                 last_heartbeat_tx_ms = now_ms()
             end

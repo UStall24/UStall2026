@@ -23,6 +23,11 @@ namespace UStallGUI.Helpers
         public bool DebugMode { get; set; } = true;
         public bool IsOpen => sp != null && sp.IsOpen;
 
+        /// <summary>
+        /// Fired when Pixhawk sends a 3-byte health/telemetry frame on ID 41: (isArmed, arduSubMode).
+        /// </summary>
+        public event Action<bool, byte>? TelemetryReceived;
+
         public UsbCANWrapper()
         {
             RegisterCallback((ushort)RecieveAddressesControlUnit.Health, OnHealthFrameReceived);
@@ -37,8 +42,17 @@ namespace UStallGUI.Helpers
 
         private void OnHealthFrameReceived(ushort rxId, byte[] data)
         {
-            // Payload [2] indicates a Pixhawk-initiated periodic health ping -> reply with [2] on ID 40
-            if (data != null && data.Length > 0 && data[0] == 2 && IsOpen)
+            if (data == null || data.Length == 0)
+                return;
+
+            // Bytes [1]=armed (0/1), [2]=ArduSub mode when 3-byte telemetry payload is present
+            if (data.Length >= 3)
+            {
+                TelemetryReceived?.Invoke(data[1] == 1, data[2]);
+            }
+
+            // Payload [2, ...] indicates a Pixhawk-initiated periodic health ping -> reply with [2] on ID 40
+            if (data[0] == 2 && IsOpen)
             {
                 SendFrame((ushort)SendAddressesControlUnit.Health, HeartbeatAckPayload);
             }

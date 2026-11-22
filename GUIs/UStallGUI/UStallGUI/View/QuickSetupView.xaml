@@ -8,6 +8,33 @@
              mc:Ignorable="d"
              d:DesignHeight="650" d:DesignWidth="400" Background="Transparent"
              d:DataContext="{d:DesignInstance Type=viewmodel:QuickSetupViewModel}">
+    <UserControl.Resources>
+        <Style x:Key="QuickArmedBadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Margin" Value="5,4,5,4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="#FFD4EDDA" />
+            <Setter Property="BorderBrush" Value="#FF28A745" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsArmed}" Value="True">
+                    <Setter Property="Background" Value="#FFF8D7DA" />
+                    <Setter Property="BorderBrush" Value="#FFDC3545" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="QuickArmedTextStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="#FF155724" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsArmed}" Value="True">
+                    <Setter Property="Foreground" Value="#FF721C24" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
     <StackPanel Margin="0" VerticalAlignment="Top">
 
         <!-- Pixhawk Quick Setup -->
@@ -18,18 +45,22 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition />
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button Content="Connect CAN" Command="{Binding ConnectToPixhawk_Command}" Margin="5" Grid.Row="0" Grid.Column="0" />
-                <Button Content="Health Ping" Command="{Binding CheckConnection_Command}" Margin="5" Grid.Row="0" Grid.Column="1" />
-                <Button Content="Arm Thrusters" Command="{Binding ArmThrusters_Command}" Margin="5" Grid.Row="1" Grid.Column="0" />
-                <Button Content="Disarm Thrusters" Command="{Binding DisarmThrusters_Command}" Margin="5" Grid.Row="1" Grid.Column="1" />
-                <Label Content="Flight Mode:" Grid.Row="2" Grid.Column="0" Margin="5,6,5,4" VerticalAlignment="Center"
+                <Border Grid.Row="0" Grid.ColumnSpan="2" Style="{StaticResource QuickArmedBadgeStyle}">
+                    <TextBlock Text="{Binding ArmedStatusText}" Style="{StaticResource QuickArmedTextStyle}" />
+                </Border>
+                <Button Content="Connect CAN" Command="{Binding ConnectToPixhawk_Command}" Margin="5" Grid.Row="1" Grid.Column="0" />
+                <Button Content="Health Ping" Command="{Binding CheckConnection_Command}" Margin="5" Grid.Row="1" Grid.Column="1" />
+                <Button Content="Arm Thrusters" Command="{Binding ArmThrusters_Command}" Margin="5" Grid.Row="2" Grid.Column="0" />
+                <Button Content="Disarm Thrusters" Command="{Binding DisarmThrusters_Command}" Margin="5" Grid.Row="2" Grid.Column="1" />
+                <Label Content="Flight Mode:" Grid.Row="3" Grid.Column="0" Margin="5,6,5,4" VerticalAlignment="Center"
                        ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold." />
-                <ComboBox Grid.Row="2" Grid.Column="1" Margin="5,6,5,4"
+                <ComboBox Grid.Row="3" Grid.Column="1" Margin="5,6,5,4"
                           SelectedIndex="{Binding SelectedFlightModeIndex, Mode=TwoWay}"
                           ToolTip="MANUAL: Direct open-loop control (no attitude/depth hold). STABILIZE: Attitude hold. DEPTH_HOLD: Automatic depth + attitude hold.">
                     <ComboBoxItem Content="MANUAL" />
@@ -37,9 +68,9 @@
                     <ComboBoxItem Content="DEPTH_HOLD" />
                 </ComboBox>
                 <Label Content="Speed Limit:"
-                       Grid.Row="3" Grid.Column="0" Margin="5,4,5,4" VerticalAlignment="Center"
+                       Grid.Row="4" Grid.Column="0" Margin="5,4,5,4" VerticalAlignment="Center"
                        ToolTip="Global max thruster speed limit (0-100%) applied to all thruster outputs." />
-                <Grid Grid.Row="3" Grid.Column="1" Margin="5,4,5,4" VerticalAlignment="Center">
+                <Grid Grid.Row="4" Grid.Column="1" Margin="5,4,5,4" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />

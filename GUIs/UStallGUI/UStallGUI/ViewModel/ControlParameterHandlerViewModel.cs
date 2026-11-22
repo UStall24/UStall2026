@@ -122,7 +122,7 @@ namespace UStallGUI.ViewModel
         {
             this.can = can;
 
-            TestMotor = new RelayCommand<object>(TestMotorCommand, _ => TestMotor_Enabled);
+            TestMotor = new RelayCommand<object>(p => _ = TestMotorCommandAsync(p), _ => TestMotor_Enabled);
             PullFromPixhawk_Command = new RelayCommand(() => _ = PullFromPixhawkAsync(), () => ConfigSync_Enabled);
             ApplyToPixhawk_Command = new RelayCommand(() => _ = ApplyToPixhawkAsync(), () => ConfigSync_Enabled);
             ResetDefaults_Command = new RelayCommand(ResetDefaults);
@@ -139,7 +139,7 @@ namespace UStallGUI.ViewModel
             return result;
         }
 
-        public async void TestMotorCommand(object motorIndexStr)
+        public async Task TestMotorCommandAsync(object motorIndexStr)
         {
             if (motorIndexStr == null || !int.TryParse(motorIndexStr.ToString(), out int motorIndex))
                 return;
@@ -152,20 +152,30 @@ namespace UStallGUI.ViewModel
                 return;
             }
 
+            int speedLimit = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100);
+            double factor = speedLimit / 100.0;
+            int effectivePwm = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
+
+            int[] values = { 1500, 1500, 1500, 1500, 1500, 1500 };
+            values[motorIndex] = effectivePwm;
+
+            byte[] motorBytes = PwmArrayToByteArray(values);
+            if (TestThrust != 1500 && motorBytes[motorIndex] >= 126 && motorBytes[motorIndex] <= 129)
+            {
+                MainWindowViewModel.Instance.LogToControlBox(
+                    $"Motor M{motorIndex + 1} test skipped: scaled PWM ({effectivePwm} µs at {speedLimit}% speed limit) falls inside neutral deadband (1500 µs). Increase Speed Limit or Bench Test PWM.");
+                return;
+            }
+
             TestMotor_Enabled = false;
             try
             {
                 byte duration = 150; // 1500 ms
-                int[] values = { 1500, 1500, 1500, 1500, 1500, 1500 };
-
-                double factor = Math.Clamp(ControllerHandlerViewModel.MaxThrusterSpeedPercent, 0, 100) / 100.0;
-                values[motorIndex] = 1500 + (int)Math.Round((TestThrust - 1500) * factor);
-
-                byte[] motorBytes = PwmArrayToByteArray(values);
                 byte[] payload = new byte[motorBytes.Length + 1];
                 Array.Copy(motorBytes, payload, motorBytes.Length);
                 payload[^1] = duration;
 
+                MainWindowViewModel.Instance.LogToControlBox($"Testing Motor M{motorIndex + 1} at {effectivePwm} µs (Speed Limit: {speedLimit}%)...");
                 var resp = await can.SendAndWaitForResponseAsync(
                     (ushort)SendAddressesControlUnit.TestMotor,
                     (ushort)RecieveAddressesControlUnit.TestMotor,
@@ -176,6 +186,10 @@ namespace UStallGUI.ViewModel
                     MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test completed.");
                 else
                     MainWindowViewModel.Instance.LogToControlBox($"Motor M{motorIndex + 1} test rejected or timed out (check Pixhawk status).");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Motor M{motorIndex + 1} test error: {ex.Message}");
             }
             finally
             {
@@ -234,6 +248,10 @@ namespace UStallGUI.ViewModel
                     MainWindowViewModel.Instance.LogToControlBox("Pulled thruster directions, ESC ports, and axis gains from Pixhawk.");
                 else
                     MainWindowViewModel.Instance.LogToControlBox("Pull from Pixhawk incomplete or timed out.");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Pull thruster config error: {ex.Message}");
             }
             finally
             {
@@ -328,6 +346,10 @@ namespace UStallGUI.ViewModel
                     MainWindowViewModel.Instance.LogToControlBox("Axis gains saved, but Pixhawk rejected motor direction/port changes (disarm thrusters first).");
                 else
                     MainWindowViewModel.Instance.LogToControlBox("Apply to Pixhawk incomplete or timed out.");
+            }
+            catch (Exception ex)
+            {
+                MainWindowViewModel.Instance?.LogToControlBox($"Apply thruster config error: {ex.Message}");
             }
             finally
             {
