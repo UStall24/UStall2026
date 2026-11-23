@@ -26,7 +26,7 @@
 --   FS_THR_ENABLE    = 0       (Disable throttle/radio failsafe when no physical RC receiver)
 --   RC_OPTIONS       = 0       (Ensure bit 5 is 0 so RC overrides are NOT ignored)
 --   RC_OVERRIDE_TIME = 3.0     (Timeout in seconds before ArduSub releases RC override)
---   MOT_SAFE_DISARM  = 1       (Keep PWM disabled while disarmed)
+--   MOT_SAFE_DISARM  = 0       (Output neutral 1500 us while disarmed so Blue Robotics Basic ESCs initialize at boot)
 --
 -- FLIGHT MODES (ArduSub):
 --   0  = STABILIZE (Attitude stabilization via IMU: eliminates roll/pitch tipping and tether twist)

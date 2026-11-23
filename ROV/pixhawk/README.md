@@ -63,7 +63,7 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 ### Safety & Arming Configuration (Bench Testing without RC/Sensors)
 * `ARMING_SKIPCHK` = `1048062` (Skip pre-arm checks in ArduSub during bench test, or `-1` to skip all)
 * `BRD_SAFETY_DEFLT` = `0` (Disables physical safety switch button on Pixhawk 4)
-* `MOT_SAFE_DISARM` = `1` (Keeps PWM disabled while disarmed; `0` outputs neutral 1500 µs while disarmed)
+* `MOT_SAFE_DISARM` = `0` (Outputs neutral 1500 µs while disarmed so bidirectional ESCs such as Blue Robotics Basic ESC initialize at boot and respond immediately to arming/bench motor tests; `1` disables PWM while disarmed)
 * `FLTMODE_CH` = `0` (Disables flight mode RC channel so overrides cannot accidentally change modes)
 * `FS_THR_ENABLE` = `0` (Disables throttle/RC failsafe since no physical RC receiver is plugged in)
 * `FS_GCS_ENABLE` = `0` and `FS_PILOT_INPUT` = `0` (Disabled in `default.params` for CAN-only operation without MAVLink GCS, since `can_bridge.lua` provides the 500 ms pilot watchdog and 2-missed-ping auto-surface failsafe)
