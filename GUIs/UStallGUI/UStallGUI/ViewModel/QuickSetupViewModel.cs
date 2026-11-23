@@ -59,13 +59,20 @@ namespace UStallGUI.ViewModel
             RaisePropertyChanged(nameof(MaxThrusterSpeedPercent));
         }
 
+        public void NotifyActionBusyChanged()
+        {
+            ConnectToPixhawk_Command?.RaiseCanExecuteChanged();
+            ArmThrusters_Command?.RaiseCanExecuteChanged();
+            DisarmThrusters_Command?.RaiseCanExecuteChanged();
+        }
+
         public QuickSetupViewModel()
         {
             Instance = this;
 
-            ConnectToPixhawk_Command = new RelayCommand(ConnectToControlUnit);
-            ArmThrusters_Command = new RelayCommand(ArmThrusters);
-            DisarmThrusters_Command = new RelayCommand(DisarmThrusters);
+            ConnectToPixhawk_Command = new RelayCommand(ConnectToControlUnit, () => SetupHandlerViewModel.Instance?.CanConnect ?? true);
+            ArmThrusters_Command = new RelayCommand(ArmThrusters, () => SetupHandlerViewModel.Instance?.CanArm ?? true);
+            DisarmThrusters_Command = new RelayCommand(DisarmThrusters, () => SetupHandlerViewModel.Instance?.CanDisarm ?? true);
             CheckConnection_Command = new RelayCommand(SendHealthMessage);
             ConnectToController_Command = new RelayCommand(ConnectToController);
         }

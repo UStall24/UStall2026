@@ -81,6 +81,24 @@ namespace UStallGUI.ViewModel
         private readonly object _telemetryLock = new();
         private bool _isArmed = false;
         private string _activeArduSubModeText = string.Empty;
+        private bool _isConnecting = false;
+        private bool _isArming = false;
+        private bool _isDisarming = false;
+
+        public bool CanConnect => !_isConnecting && !_isArming;
+        public bool CanArm => !_isConnecting && !_isArming && !_isDisarming;
+        public bool CanDisarm => !_isDisarming;
+
+        private void NotifyActionBusyChanged()
+        {
+            RaisePropertyChanged(nameof(CanConnect));
+            RaisePropertyChanged(nameof(CanArm));
+            RaisePropertyChanged(nameof(CanDisarm));
+            ConnectToPixhawk_Command?.RaiseCanExecuteChanged();
+            ArmThrusters_Command?.RaiseCanExecuteChanged();
+            DisarmThrusters_Command?.RaiseCanExecuteChanged();
+            QuickSetupViewModel.Instance?.NotifyActionBusyChanged();
+        }
 
         private ConfigGUI currentConfig;
 
@@ -363,12 +381,12 @@ namespace UStallGUI.ViewModel
             _maxThrusterSpeedPercent = Math.Clamp(currentConfig.MaxThrusterSpeedPercent, 0, 100);
             ControllerHandlerViewModel.MaxThrusterSpeedPercent = _maxThrusterSpeedPercent;
 
-            ArmThrusters_Command = new RelayCommand(() => _ = ArmThrustersAsync());
-            DisarmThrusters_Command = new RelayCommand(() => _ = DisarmThrustersAsync());
+            ArmThrusters_Command = new RelayCommand(() => _ = ArmThrustersAsync(), () => CanArm);
+            DisarmThrusters_Command = new RelayCommand(() => _ = DisarmThrustersAsync(), () => CanDisarm);
             ApplyUpdateInterval_Command = new RelayCommand(() => _ = ApplyUpdateIntervalAsync());
             ResetWatchdog_Command = new RelayCommand(() => _ = ResetWatchdogAsync());
 
-            ConnectToPixhawk_Command = new RelayCommand(() => _ = ConnectToControlUnitAsync());
+            ConnectToPixhawk_Command = new RelayCommand(() => _ = ConnectToControlUnitAsync(), () => CanConnect);
             HealthCommand = new RelayCommand(() => _ = SendHealthMessageAsync());
 
             _allPidParams = new[]
@@ -426,6 +444,11 @@ namespace UStallGUI.ViewModel
 
         public async Task ConnectToControlUnitAsync()
         {
+            if (_isConnecting || _isArming)
+                return;
+
+            _isConnecting = true;
+            NotifyActionBusyChanged();
             try
             {
                 bool wasAlreadyOpen = can != null && can.IsOpen;
@@ -504,6 +527,11 @@ namespace UStallGUI.ViewModel
                 MainWindowViewModel.Instance?.UpdateConnectionStatusLCE(LceConnectionStatus.ErrorConnecting);
                 MainWindowViewModel.Instance?.LogToControlBox($"CAN connect error: {ex.Message}");
             }
+            finally
+            {
+                _isConnecting = false;
+                NotifyActionBusyChanged();
+            }
         }
 
         public void DisarmBeforeClose()
@@ -553,6 +581,11 @@ namespace UStallGUI.ViewModel
 
         public async Task ArmThrustersAsync()
         {
+            if (_isConnecting || _isArming || _isDisarming)
+                return;
+
+            _isArming = true;
+            NotifyActionBusyChanged();
             try
             {
                 if (can == null)
@@ -602,10 +635,20 @@ namespace UStallGUI.ViewModel
             {
                 MainWindowViewModel.Instance?.LogToControlBox($"Arm thrusters error: {ex.Message}");
             }
+            finally
+            {
+                _isArming = false;
+                NotifyActionBusyChanged();
+            }
         }
 
         public async Task DisarmThrustersAsync()
         {
+            if (_isDisarming)
+                return;
+
+            _isDisarming = true;
+            NotifyActionBusyChanged();
             try
             {
                 if (can == null || !can.IsOpen)
@@ -633,6 +676,11 @@ namespace UStallGUI.ViewModel
             catch (Exception ex)
             {
                 MainWindowViewModel.Instance?.LogToControlBox($"Disarm thrusters error: {ex.Message}");
+            }
+            finally
+            {
+                _isDisarming = false;
+                NotifyActionBusyChanged();
             }
         }
 
