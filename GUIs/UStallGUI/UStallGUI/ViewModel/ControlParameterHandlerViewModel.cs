@@ -51,12 +51,12 @@ namespace UStallGUI.ViewModel
 
         public ObservableCollection<ThrusterConfigItem> Thrusters { get; } = new()
         {
-            new ThrusterConfigItem(0, "M1", "Vertical - Front Center (Pitch +1.0, Heave +)"),
-            new ThrusterConfigItem(1, "M2", "Horizontal - Front Right (Fwd +, Yaw -)"),
-            new ThrusterConfigItem(2, "M3", "Vertical - Rear Right (Roll -, Pitch -0.5, Heave +)"),
-            new ThrusterConfigItem(3, "M4", "Horizontal - Rear Center / Lateral Strafe (Lat +)"),
-            new ThrusterConfigItem(4, "M5", "Vertical - Rear Left (Roll +, Pitch -0.5, Heave +)"),
-            new ThrusterConfigItem(5, "M6", "Horizontal - Front Left (Fwd +, Yaw +)"),
+            new ThrusterConfigItem(0, "M1", "Vertical - Front Left (Roll +0.866, Pitch +0.5, Heave +)"),
+            new ThrusterConfigItem(1, "M2", "Horizontal - Rear Left (Fwd +, Yaw +, Lat -0.5)"),
+            new ThrusterConfigItem(2, "M3", "Vertical - Rear Center (Pitch -1.0, Heave +)"),
+            new ThrusterConfigItem(3, "M4", "Horizontal - Rear Right (Fwd +, Yaw -, Lat +0.5)"),
+            new ThrusterConfigItem(4, "M5", "Vertical - Front Right (Roll -0.866, Pitch +0.5, Heave +)"),
+            new ThrusterConfigItem(5, "M6", "Horizontal - Front Center (Lat +, Yaw +)"),
         };
 
         // --- Per-Axis Gains (0..100%) ---

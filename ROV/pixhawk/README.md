@@ -80,7 +80,8 @@ Set the following parameters using **QGroundControl** or **Mission Planner**:
 * `RCMAP_THROTTLE` = `3` (Heave input)
 * `RCMAP_YAW` = `4` (Yaw input)
 
-### External Depth Sensor (Bar30 / MS5837 on I2C Port)
+### Board Orientation & External Depth Sensor (Bar30 / MS5837 on I2C Port)
+* `AHRS_ORIENTATION` = `4` (`ROTATION_YAW_180` — Pixhawk 4 mounting arrow points to the rear of the ROV)
 * `BARO_PROBE_EXT` = `768` (Bitmask `256 | 512` enabling MS5837 + MS5803 external I2C pressure sensors for Bar30)
 * `BARO_EXT_BUS` = `1` (I2C bus number corresponding to external I2C port on Pixhawk 4)
 
@@ -92,36 +93,36 @@ ArduSub supports custom thruster geometries by configuring `SUB_FRAME_CUSTOM` (f
 
 
 
-### 3-Vertical Thruster Delta Formation (120°) + 3-Horizontal (Clockwise 1–6)
+### 3-Vertical Thruster Delta Formation (120°) + 3-Horizontal (Counter-Clockwise 1–6)
 *(Described in the Control Strategy Paper, Section 1.5)*
 
-Numbered **clockwise 1–6** looking from above with Front at 12 o'clock:
+Numbered **counter-clockwise 1–6** starting from Front-Left looking from above, with **Front (main camera)** at `M6`:
 * **Vertical Thrusters (M1, M3, M5):** Arranged symmetrically at 120°:
-  - **M1 (Front Center):** Pitch nose UP/DOWN (`+1.0` pitch), heave UP (`+1.0` throttle)
-  - **M3 (Rear Right):** Pitch nose (`-0.5` pitch), Roll LEFT (`-0.866` roll), heave UP (`+1.0` throttle)
-  - **M5 (Rear Left):** Pitch nose (`-0.5` pitch), Roll RIGHT (`+0.866` roll), heave UP (`+1.0` throttle)
-* **Horizontal Thrusters (M2, M4, M6):**
-  - **M2 (Front Right):** Forward/Backward (`+1.0` forward, `-1.0` yaw)
-  - **M4 (Rear Center):** Lateral Strafe (`+1.0` lateral)
-  - **M6 (Front Left):** Forward/Backward (`+1.0` forward, `+1.0` yaw)
+  - **M1 (Front Left):** Roll RIGHT (`+0.866` roll), Pitch UP (`+0.5` pitch), heave UP (`+1.0` throttle)
+  - **M3 (Rear Center):** Pitch DOWN (`-1.0` pitch), heave UP (`+1.0` throttle)
+  - **M5 (Front Right):** Roll LEFT (`-0.866` roll), Pitch UP (`+0.5` pitch), heave UP (`+1.0` throttle)
+* **Horizontal Thrusters (M2, M4, M6):** Arranged tangentially at 120° (decoupled Surge / Sway / Yaw):
+  - **M2 (Rear Left):** Forward (`+1.0` forward), Yaw RIGHT (`+1.0` yaw), Lateral (`-0.5` lateral)
+  - **M4 (Rear Right):** Forward (`+1.0` forward), Yaw LEFT (`-1.0` yaw), Lateral (`+0.5` lateral)
+  - **M6 (Front Center):** Lateral RIGHT (`+1.0` lateral), Yaw RIGHT (`+1.0` yaw)
 
-In `libraries/AP_Motors/AP_Motors6DOF.cpp`:
+In `libraries/AP_Motors/AP_Motors6DOF.cpp` (forked repo: `https://github.com/UStall24/ardusub`):
 ```cpp
 case SUB_FRAME_CUSTOM:
     // Format: add_motor_raw_6dof(motor_num, roll, pitch, yaw, throttle, forward, lateral, test_order);
-    // Clockwise 1..6 (1, 3, 5 = Vertical 120 deg Delta; 2, 4, 6 = Horizontal)
-    // Motor 1: Front-Center (Roll 0, Pitch +1.0, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_1,  0.0f,    1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 1);
-    // Motor 2: Forward Right (Forward +, Yaw -)
-    add_motor_raw_6dof(AP_MOTORS_MOT_2,  0.0f,    0.0f, -1.0f,  0.0f,  1.0f,  0.0f, 2);
-    // Motor 3: Rear-Right (Roll -, Pitch -0.5, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_3, -0.866f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 3);
-    // Motor 4: Lateral Strafe (Lateral +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_4,  0.0f,    0.0f,  0.0f,  0.0f,  0.0f,  1.0f, 4);
-    // Motor 5: Rear-Left (Roll +, Pitch -0.5, Heave +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_5,  0.866f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 5);
-    // Motor 6: Forward Left (Forward +, Yaw +)
-    add_motor_raw_6dof(AP_MOTORS_MOT_6,  0.0f,    0.0f,  1.0f,  0.0f,  1.0f,  0.0f, 6);
+    // Counter-clockwise 1..6 (1, 3, 5 = Vertical 120 deg Delta; 2, 4, 6 = Horizontal 120 deg)
+    // Motor 1: Front-Left (Roll +, Pitch +0.5, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_1,  0.866f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1);
+    // Motor 2: Rear-Left (Forward +, Yaw +, Lateral -0.5)
+    add_motor_raw_6dof(AP_MOTORS_MOT_2,  0.0f,    0.0f,  1.0f,  0.0f,  1.0f, -0.5f, 2);
+    // Motor 3: Rear-Center (Roll 0, Pitch -1.0, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_3,  0.0f,   -1.0f,  0.0f,  1.0f,  0.0f,  0.0f, 3);
+    // Motor 4: Rear-Right (Forward +, Yaw -, Lateral +0.5)
+    add_motor_raw_6dof(AP_MOTORS_MOT_4,  0.0f,    0.0f, -1.0f,  0.0f,  1.0f,  0.5f, 4);
+    // Motor 5: Front-Right (Roll -, Pitch +0.5, Heave +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_5, -0.866f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 5);
+    // Motor 6: Front-Center / Lateral Strafe (Lateral +, Yaw +)
+    add_motor_raw_6dof(AP_MOTORS_MOT_6,  0.0f,    0.0f,  1.0f,  0.0f,  0.0f,  1.0f, 6);
     break;
 ```
 
