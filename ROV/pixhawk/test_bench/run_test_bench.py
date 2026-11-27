@@ -987,6 +987,85 @@ class TestBench:
         self.assert_equal(resp["data"][0], 99)
         self.assert_equal(resp["data"][1], 0, "Unknown param_id must return status=0")
 
+    def test_38_ahrs_imu_telemetry_streaming(self):
+        import math, struct
+
+        # Configure mock AHRS with known positive/negative attitude, gyro (rad/s), accel (m/s^2)
+        roll_rad = math.radians(-12.34)
+        pitch_rad = math.radians(5.67)
+        yaw_rad = math.radians(179.50)
+        gx_rad = math.radians(15.5)
+        gy_rad = math.radians(-22.3)
+        gz_rad = math.radians(0.8)
+        self.harness.eval(
+            f"ahrs:set_state({roll_rad}, {pitch_rad}, {yaw_rad}, {gx_rad}, {gy_rad}, {gz_rad}, 0.25, -1.50, -9.81, true)"
+        )
+
+        # 1. GET default config (ID 180 empty) -> ID 181 [0, 7] (disabled by default)
+        self.harness.push_can_rx("dev1", 180, [])
+        self.harness.step_update()
+        cfg = self.harness.pop_can_tx("dev1")
+        self.assert_true(cfg is not None and cfg["id"] == 181, "Expected TX_IMU_CONFIG (181)")
+        self.assert_equal(cfg["data"], [0, 7], "IMU stream must default to disabled (0 Hz, mask 7)")
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "No IMU frames should be sent while disabled")
+
+        # 2. Enable 10 Hz streaming for Attitude + Gyro + Accel (mask 7)
+        self.harness.push_can_rx("dev1", 180, [10, 7])
+        self.harness.step_update()
+        cfg = self.harness.pop_can_tx("dev1")
+        self.assert_true(cfg is not None and cfg["id"] == 181 and cfg["data"] == [10, 7], "Expected config ACK [10, 7]")
+
+        f_att = self.harness.pop_can_tx("dev1")
+        f_gyro = self.harness.pop_can_tx("dev1")
+        f_acc = self.harness.pop_can_tx("dev1")
+        self.assert_true(f_att is not None and f_att["id"] == 182 and len(f_att["data"]) == 7, "Expected 7-byte TX_IMU_ATT (182)")
+        self.assert_true(f_gyro is not None and f_gyro["id"] == 183 and len(f_gyro["data"]) == 6, "Expected 6-byte TX_IMU_GYRO (183)")
+        self.assert_true(f_acc is not None and f_acc["id"] == 184 and len(f_acc["data"]) == 6, "Expected 6-byte TX_IMU_ACCEL (184)")
+
+        r_cdeg, p_cdeg, y_cdeg = struct.unpack("<hhh", bytes(f_att["data"][0:6]))
+        self.assert_true(abs(r_cdeg / 100.0 - (-12.34)) <= 0.02, f"Roll mismatch: {r_cdeg / 100.0}")
+        self.assert_true(abs(p_cdeg / 100.0 - 5.67) <= 0.02, f"Pitch mismatch: {p_cdeg / 100.0}")
+        self.assert_true(abs(y_cdeg / 100.0 - 179.50) <= 0.02, f"Yaw mismatch: {y_cdeg / 100.0}")
+        self.assert_equal(f_att["data"][6], 1, "AHRS healthy bit must be 1")
+
+        gx_c, gy_c, gz_c = struct.unpack("<hhh", bytes(f_gyro["data"][0:6]))
+        self.assert_true(abs(gx_c / 100.0 - 15.5) <= 0.02, f"Gyro X mismatch: {gx_c / 100.0}")
+        self.assert_true(abs(gy_c / 100.0 - (-22.3)) <= 0.02, f"Gyro Y mismatch: {gy_c / 100.0}")
+        self.assert_true(abs(gz_c / 100.0 - 0.8) <= 0.02, f"Gyro Z mismatch: {gz_c / 100.0}")
+
+        ax_c, ay_c, az_c = struct.unpack("<hhh", bytes(f_acc["data"][0:6]))
+        self.assert_true(abs(ax_c / 100.0 - 0.25) <= 0.02, f"Accel X mismatch: {ax_c / 100.0}")
+        self.assert_true(abs(ay_c / 100.0 - (-1.50)) <= 0.02, f"Accel Y mismatch: {ay_c / 100.0}")
+        self.assert_true(abs(az_c / 100.0 - (-9.81)) <= 0.02, f"Accel Z mismatch: {az_c / 100.0}")
+
+        # 3. Rate throttling: 50ms -> no frames; another 50ms (100ms total) -> 3 frames
+        self.harness.advance_time(50)
+        self.harness.step_update()
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Must not emit before 100ms interval")
+
+        self.harness.advance_time(50)
+        self.harness.step_update()
+        self.assert_equal(self.harness.pop_can_tx("dev1")["id"], 182)
+        self.assert_equal(self.harness.pop_can_tx("dev1")["id"], 183)
+        self.assert_equal(self.harness.pop_can_tx("dev1")["id"], 184)
+
+        # 4. Mask filtering (attitude only = 1) & rate clamping (>25 -> 25)
+        self.harness.push_can_rx("dev1", 180, [50, 1])
+        self.harness.step_update()
+        cfg2 = self.harness.pop_can_tx("dev1")
+        self.assert_equal(cfg2["data"], [25, 1], "Rate must clamp to 25 Hz and mask to 1")
+        self.assert_equal(self.harness.pop_can_tx("dev1")["id"], 182)
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "Only attitude frame must be sent when mask=1")
+
+        # 5. Disable streaming (rate=0)
+        self.harness.push_can_rx("dev1", 180, [0, 7])
+        self.harness.step_update()
+        cfg3 = self.harness.pop_can_tx("dev1")
+        self.assert_equal(cfg3["data"], [0, 7])
+        self.harness.advance_time(500)
+        self.harness.step_update()
+        self.assert_equal(self.harness.pop_can_tx("dev1"), None, "No IMU frames after disabling")
+
     def run_all(self):
         print("=" * 70)
         print("  UStall ROV 2026 - Pixhawk 4 / ArduSub CAN Bridge Test Bench")
@@ -1025,6 +1104,7 @@ class TestBench:
             ("Test 35: Rapid Flight Mode Switching Without Throttle", self.test_35_rapid_flight_mode_switching_without_throttle),
             ("Test 36: Arm Rejected During Active Bench Motor Test", self.test_36_arm_rejected_during_active_motor_test),
             ("Test 37: Attitude & Depth Hold PID Get/Set & Validation (ID 150 -> 151)", self.test_37_pid_params_get_set_and_validation),
+            ("Test 38: AHRS IMU Telemetry Streaming (ID 180 -> 181..184)", self.test_38_ahrs_imu_telemetry_streaming),
         ]
 
         for name, fn in tests:

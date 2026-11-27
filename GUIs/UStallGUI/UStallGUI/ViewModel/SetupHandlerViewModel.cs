@@ -515,6 +515,10 @@ namespace UStallGUI.ViewModel
                         await App.Instance.ControlParamterHandlerViewModelGetter.PullFromPixhawkAsync();
                     }
                     await PullPidsFromPixhawkAsync();
+                    if (TelemetryViewModel.Instance != null)
+                    {
+                        await TelemetryViewModel.Instance.SyncStreamIfOpenAsync();
+                    }
                 }
                 else
                 {

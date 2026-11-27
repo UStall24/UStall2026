@@ -250,6 +250,42 @@ vehicle = {
     end
 }
 
+-- Vector3f Mock (used by ahrs:get_gyro / ahrs:get_accel)
+local function MockVector3f(x, y, z)
+    return {
+        _x = x or 0.0,
+        _y = y or 0.0,
+        _z = z or 0.0,
+        x = function(self) return self._x end,
+        y = function(self) return self._y end,
+        z = function(self) return self._z end,
+    }
+end
+
+-- AHRS Mock (Attitude, Gyro, Accel, Health)
+ahrs = {
+    _roll_rad  = 0.0,
+    _pitch_rad = 0.0,
+    _yaw_rad   = 0.0,
+    _gyro      = MockVector3f(0.0, 0.0, 0.0),
+    _accel     = MockVector3f(0.0, 0.0, -9.81),
+    _healthy   = true,
+    get_roll_rad  = function(self) return self._roll_rad end,
+    get_pitch_rad = function(self) return self._pitch_rad end,
+    get_yaw_rad   = function(self) return self._yaw_rad end,
+    get_gyro      = function(self) return self._gyro end,
+    get_accel     = function(self) return self._accel end,
+    healthy       = function(self) return self._healthy end,
+    set_state     = function(self, roll_rad, pitch_rad, yaw_rad, gx, gy, gz, ax, ay, az, healthy)
+        self._roll_rad  = roll_rad or 0.0
+        self._pitch_rad = pitch_rad or 0.0
+        self._yaw_rad   = yaw_rad or 0.0
+        self._gyro._x, self._gyro._y, self._gyro._z = gx or 0.0, gy or 0.0, gz or 0.0
+        self._accel._x, self._accel._y, self._accel._z = ax or 0.0, ay or 0.0, az or -9.81
+        if healthy ~= nil then self._healthy = healthy end
+    end
+}
+
 -- Parameter Mock
 param = {
     params = {
@@ -330,6 +366,7 @@ function M.reset_state()
     arming.arm_force_allowed = true
     vehicle._mode = 0
     vehicle.mode_change_allowed = true
+    ahrs:set_state(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -9.81, true)
     param.params["MOT_PWM_MIN"] = 1100
     param.params["MOT_PWM_MAX"] = 1900
     for m = 1, 6 do

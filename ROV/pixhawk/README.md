@@ -184,6 +184,10 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
 | **PID Parameter (Get/Set)** | `150` | `151` | `1 B`: `[param_id]` = Get; `6 B`: `[param_id, save_flag, float32_le]` = Set | `6 B`: `[param_id, status, float32_le]` | Reads or saves indexed Attitude (`ATC_ANG_*`, `ATC_RAT_*`) and Depth Hold (`PSC_D_*`) PID parameters (`param_id` `1..22`) via `param:set_and_save` / `param:set` with range validation. |
 | **Update Cycle Time** | `160` | `161` | `1 B`: `[ms]` (`5..100`) | `[ms]` | Updates the Lua bridge loop interval in milliseconds (default `10 ms`). |
 | **Bench Motor Test** | `170` | `171` | `7 B`: `[M1..M6, dur_10ms]` | `[1]` = Done, `[0]` = Busy/Err | Temporarily switches to `MANUAL` (`19`), pulses selected motor PWM (respecting `SERVO1..6_FUNCTION` port mapping and `MOT_1..6_DIRECTION`) for `dur_10ms * 10 ms` (max `2000 ms`), then restores neutral (`1500 µs`) and prior arm/mode state. |
+| **IMU Stream Config (Get/Set)** | `180` | `181` | Empty (`0 B`) = Get; `2 B`: `[rate_hz, mask]` (`0..25 Hz`, `mask` bits: `0`=Att, `1`=Gyro, `2`=Accel) | `2 B`: `[rate_hz, mask]` | Configures periodic AHRS IMU telemetry streaming (`0 Hz` disables streaming; paused automatically during bench motor tests). |
+| **IMU Attitude Stream** | — | `182` | *None* | `7 B`: `[roll_i16, pitch_i16, yaw_i16, status_u8]` (LE) | Periodic AHRS Euler angles in `deg * 100` (`0.01°` resolution); `status_u8` bit `0` = `ahrs:healthy()`. |
+| **IMU Gyro Stream** | — | `183` | *None* | `6 B`: `[gx_i16, gy_i16, gz_i16]` (LE) | Periodic AHRS angular rates in `deg/s * 100` (`0.01 °/s` resolution). |
+| **IMU Accel Stream** | — | `184` | *None* | `6 B`: `[ax_i16, ay_i16, az_i16]` (LE) | Periodic AHRS linear acceleration in `m/s² * 100` (`0.01 m/s²` resolution). |
 
 * **Stick & Motor Byte Encoding:** `0` -> `1100 µs` (full reverse), `127`/`128` -> `1500 µs` (neutral with deadband), `255` -> `1900 µs` (full forward).
 
@@ -210,6 +214,8 @@ All communication uses **11-bit standard CAN frames** at **125 kbps** between th
    * Click **Disarm Thrusters** immediately after surfacing or before handling the ROV.
 5. **Thruster Config & Bench Testing (Optional):**
    * Open the **Thruster Config** tab to pull/apply per-thruster directions (`MOT_1..6_DIRECTION`), ESC port mappings (`OUT1–OUT6`), and per-axis gains (`Forward/Lateral/Heave/Yaw/Pitch/Roll`), or enter a target PWM (`1100–1900 µs`, default `1560 µs`) and click **Test** on `M1`–`M6` to pulse individual thrusters for `1.5 s`.
+6. **Live AHRS IMU Telemetry (Optional):**
+   * Open the **Telemetry** tab to stream live Pixhawk AHRS **Attitude** (Roll/Pitch/Yaw), **Gyroscope** (X/Y/Z in `°/s`), **Accelerometer** (X/Y/Z + magnitude `|a|` in `m/s²` and `g`), and AHRS health status at `5–25 Hz` (default `10 Hz`). Streaming starts automatically when the tab is opened and pauses when switching away to conserve CAN bandwidth.
 
 ---
 
@@ -230,8 +236,8 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 ```
 
 ### Test Bench Files:
-* `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `gcs`, `millis`, `param`).
-* `test_bench/run_test_bench.py`: Automated Python runner executing 33 end-to-end unit and stress tests.
+* `test_bench/mock_ardupilot.lua`: Comprehensive mock of all ArduSub Lua runtime globals (`CAN`, `CANFrame`, `rc`, `SRV_Channels`, `arming`, `vehicle`, `ahrs`, `gcs`, `millis`, `param`).
+* `test_bench/run_test_bench.py`: Automated Python runner executing 34 end-to-end unit and stress tests.
 * `test_bench/test_can_bridge.lua`: Standalone pure-Lua test runner (for SITL or local Lua CLI).
 
 ### Verified Test Cases:
@@ -268,3 +274,4 @@ lua ROV/pixhawk/test_bench/test_can_bridge.lua
 31. **Rapid Flight Mode Switching:** Verifies switching between `MANUAL`, `STABILIZE`, and `ALT_HOLD` takes effect immediately without being throttled by the 1 s retry timer.
 32. **Arm Guard During Bench Motor Test:** Verifies `ID 60` (Arm) is cleanly rejected while a direct bench motor test is active so test isolation and post-test disarm restoration remain intact.
 33. **Attitude & Depth Hold PID Get/Set & Validation (ID 150 -> 151):** Verifies IEEE 754 float32 Get/Set round-trips for indexed `ATC_*` / `PSC_D_*` PID parameters, live tuning while armed, and rejection of out-of-range, `NaN`, or unknown parameter IDs.
+34. **AHRS IMU Telemetry Streaming (ID 180 -> 181..184):** Verifies default-off config Get/Set, rate clamping (`0..25 Hz`), channel mask filtering, `int16` little-endian encoding of signed AHRS Attitude/Gyro/Accel values + health bit, rate throttling, and clean disable.

@@ -66,6 +66,7 @@ local C = {
     RX_PID_PARAM           = 150,
     RX_UPDATE_CYCLE        = 160,
     RX_TEST_MOTOR          = 170,
+    RX_IMU_CONFIG          = 180,
 
     -- IDs sent to PC Topside GUI (Pixhawk -> GUI)
     TX_HEALTH              = 41,
@@ -79,10 +80,22 @@ local C = {
     TX_PID_PARAM           = 151,
     TX_UPDATE_CYCLE        = 161,
     TX_TEST_MOTOR          = 171,
+    TX_IMU_CONFIG          = 181,
+    TX_IMU_ATT             = 182,
+    TX_IMU_GYRO            = 183,
+    TX_IMU_ACCEL           = 184,
 
     -- Health payload markers (avoids ping-pong loops on IDs 40/41)
     HEALTH_GUI_PROBE       = 1,
     HEALTH_ROV_PING        = 2,
+
+    -- AHRS IMU Telemetry constants
+    IMU_MASK_ATT           = 1,
+    IMU_MASK_GYRO          = 2,
+    IMU_MASK_ACCEL         = 4,
+    IMU_MASK_ALL           = 7,
+    IMU_MAX_RATE_HZ        = 25,
+    RAD_TO_DEG             = 57.29577951308232,
 
     -- Timing & Safety Limits
     CONTROL_DLC            = 6,
@@ -116,6 +129,7 @@ local BRIDGE_RX_IDS = {
     [C.RX_PID_PARAM]       = true,
     [C.RX_UPDATE_CYCLE]    = true,
     [C.RX_TEST_MOTOR]      = true,
+    [C.RX_IMU_CONFIG]      = true,
 }
 
 -- Indexed ArduSub Attitude & Depth Hold PID allowlist (CAN ID 150 -> 151)
@@ -249,6 +263,18 @@ local tx_health_status= {0, 0, 0} -- [marker (1=probe/2=ping), armed (0/1), mode
 local tx_motor_cfg    = {0, 1, 2, 3, 4, 5, 6}
 local tx_pid_resp     = {0, 0, 0, 0, 0, 0} -- [param_id, status (1=OK/0=Err), float32_le (4 bytes)]
 local axis_gains      = {100, 100, 100, 100, 100, 100} -- [FB, LR, UD, Yaw, Pitch, Roll] in %
+
+-- AHRS IMU telemetry streaming state & pre-allocated zero-GC TX buffers
+local imu = {
+    rate_hz     = 0,  -- 0 = disabled until enabled by topside via RX_IMU_CONFIG (180)
+    interval_ms = 0,
+    mask        = C.IMU_MASK_ALL,
+    last_tx_ms  = 0,
+    buf_cfg     = {0, C.IMU_MASK_ALL},
+    buf_att     = {0, 0, 0, 0, 0, 0, 0}, -- [roll_i16, pitch_i16, yaw_i16, status_u8]
+    buf_gyro    = {0, 0, 0, 0, 0, 0},    -- [gx_i16, gy_i16, gz_i16]
+    buf_accel   = {0, 0, 0, 0, 0, 0},    -- [ax_i16, ay_i16, az_i16]
+}
 
 -- Load persisted per-axis gains from SCR_USER1..SCR_USER6 (stored as gain + 1 in 1..101; 0 = factory unset -> 100%)
 local function init_axis_gains()
@@ -736,6 +762,94 @@ local function handle_pid_param(data, dlc)
 end
 
 -- ==============================================================================
+-- AHRS IMU Telemetry Streaming (Attitude, Gyro, Accel)
+-- ==============================================================================
+-- Pack signed 16-bit little-endian integer into static buffer (zero heap alloc)
+function imu.write_i16_le(buf, idx, val)
+    if type(val) ~= "number" or val ~= val then
+        val = 0
+    end
+    local v = math.floor(val + (val >= 0 and 0.5 or -0.5))
+    if v > 32767 then v = 32767 elseif v < -32768 then v = -32768 end
+    if v < 0 then v = v + 65536 end
+    buf[idx]     = v % 256
+    buf[idx + 1] = math.floor(v / 256)
+end
+
+function imu.read_angle_deg(rad_fn, legacy_fn)
+    local fn = rad_fn or legacy_fn
+    if not fn then return 0 end
+    local ok, v = pcall(fn, ahrs)
+    if not ok or type(v) ~= "number" or v ~= v then return 0 end
+    return v * C.RAD_TO_DEG
+end
+
+function imu.send_telemetry()
+    if not ahrs then return end
+    local mask = imu.mask
+
+    -- Attitude (ID 182): [roll_i16, pitch_i16, yaw_i16, status_u8] (deg * 100)
+    if (mask % 2) == 1 then
+        local roll_deg  = imu.read_angle_deg(ahrs.get_roll_rad, ahrs.get_roll)
+        local pitch_deg = imu.read_angle_deg(ahrs.get_pitch_rad, ahrs.get_pitch)
+        local yaw_deg   = imu.read_angle_deg(ahrs.get_yaw_rad, ahrs.get_yaw)
+        local ok_h, healthy = false, false
+        if ahrs.healthy then
+            ok_h, healthy = pcall(ahrs.healthy, ahrs)
+        end
+        imu.write_i16_le(imu.buf_att, 1, roll_deg * 100.0)
+        imu.write_i16_le(imu.buf_att, 3, pitch_deg * 100.0)
+        imu.write_i16_le(imu.buf_att, 5, yaw_deg * 100.0)
+        imu.buf_att[7] = (ok_h and healthy) and 1 or 0
+        send_can(C.TX_IMU_ATT, imu.buf_att)
+    end
+
+    -- Gyroscope (ID 183): [gx_i16, gy_i16, gz_i16] (deg/s * 100)
+    if (math.floor(mask / 2) % 2) == 1 and ahrs.get_gyro then
+        local ok_g, g = pcall(ahrs.get_gyro, ahrs)
+        if ok_g and g then
+            imu.write_i16_le(imu.buf_gyro, 1, g:x() * C.RAD_TO_DEG * 100.0)
+            imu.write_i16_le(imu.buf_gyro, 3, g:y() * C.RAD_TO_DEG * 100.0)
+            imu.write_i16_le(imu.buf_gyro, 5, g:z() * C.RAD_TO_DEG * 100.0)
+            send_can(C.TX_IMU_GYRO, imu.buf_gyro)
+        end
+    end
+
+    -- Accelerometer (ID 184): [ax_i16, ay_i16, az_i16] (m/s^2 * 100)
+    if (math.floor(mask / 4) % 2) == 1 and ahrs.get_accel then
+        local ok_a, a = pcall(ahrs.get_accel, ahrs)
+        if ok_a and a then
+            imu.write_i16_le(imu.buf_accel, 1, a:x() * 100.0)
+            imu.write_i16_le(imu.buf_accel, 3, a:y() * 100.0)
+            imu.write_i16_le(imu.buf_accel, 5, a:z() * 100.0)
+            send_can(C.TX_IMU_ACCEL, imu.buf_accel)
+        end
+    end
+end
+
+-- Get/Set AHRS IMU telemetry stream config (ID 180 -> 181)
+-- Empty (0 B) = Get; [rate_hz (0..25), mask (0..7)] = Set
+function imu.handle_config(data, dlc)
+    on_topside_activity()
+    if dlc >= 1 then
+        local rate = math.max(0, math.min(C.IMU_MAX_RATE_HZ, math.floor(data[1] or 0)))
+        imu.rate_hz = rate
+        imu.interval_ms = (rate > 0) and math.floor(1000 / rate) or 0
+        if dlc >= 2 then
+            imu.mask = math.floor(data[2] or C.IMU_MASK_ALL) % 8
+        end
+        -- Trigger immediate first sample on next periodic check when enabled
+        if imu.interval_ms > 0 then
+            local now = now_ms()
+            imu.last_tx_ms = (now >= imu.interval_ms) and (now - imu.interval_ms) or 0
+        end
+    end
+    imu.buf_cfg[1] = imu.rate_hz
+    imu.buf_cfg[2] = imu.mask
+    send_can(C.TX_IMU_CONFIG, imu.buf_cfg)
+end
+
+-- ==============================================================================
 -- Frame Dispatcher
 -- ==============================================================================
 local function handle_frame(frame, dev)
@@ -913,6 +1027,10 @@ local function handle_frame(frame, dev)
             end
         end
         send_u8(C.TX_UPDATE_CYCLE, cycle_time_ms)
+
+    -- 13. Get/Set AHRS IMU Telemetry Stream Config (ID 180 -> 181)
+    elseif rx_id == C.RX_IMU_CONFIG then
+        imu.handle_config(rx_data, dlc)
     end
 end
 
@@ -962,6 +1080,15 @@ local function update_body()
     -- Process pending incoming CAN frames from both drivers up to device limit
     drain_device(can_dev1)
     drain_device(can_dev2)
+
+    -- Periodic AHRS IMU Telemetry Stream (Attitude, Gyro, Accel)
+    -- Only active when enabled by topside via RX_IMU_CONFIG (180), and paused during bench motor tests
+    if imu.interval_ms > 0 and imu.mask > 0 and active_can_dev and not motor_test_active then
+        if elapsed_ms(imu.last_tx_ms) >= imu.interval_ms then
+            imu.last_tx_ms = now_ms()
+            imu.send_telemetry()
+        end
+    end
 
     -- Safety Watchdog, Periodic Topside Heartbeat & Auto-Surface Failsafe
     -- (Suppressed during direct motor tests to prevent override conflicts)

@@ -1,10 +1,14 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO.Ports;
 using System.Threading.Tasks;
 
 namespace UStallGUI.Helpers
 {
+    public readonly record struct ImuAttitudeSample(double RollDeg, double PitchDeg, double YawDeg, bool AhrsHealthy);
+    public readonly record struct ImuVectorSample(double X, double Y, double Z);
+
     public class UsbCANWrapper
     {
         private const CanusbSpeed Speed = CanusbSpeed.CANUSB_SPEED_125000;
@@ -28,9 +32,19 @@ namespace UStallGUI.Helpers
         /// </summary>
         public event Action<bool, byte>? TelemetryReceived;
 
+        /// <summary>
+        /// Fired when Pixhawk sends AHRS Attitude (ID 182), Gyro (ID 183), or Accel (ID 184) frames.
+        /// </summary>
+        public event Action<ImuAttitudeSample>? ImuAttitudeReceived;
+        public event Action<ImuVectorSample>? ImuGyroReceived;
+        public event Action<ImuVectorSample>? ImuAccelReceived;
+
         public UsbCANWrapper()
         {
             RegisterCallback((ushort)RecieveAddressesControlUnit.Health, OnHealthFrameReceived);
+            RegisterCallback((ushort)RecieveAddressesControlUnit.ImuAttitude, OnImuAttitudeFrameReceived);
+            RegisterCallback((ushort)RecieveAddressesControlUnit.ImuGyro, OnImuGyroFrameReceived);
+            RegisterCallback((ushort)RecieveAddressesControlUnit.ImuAccel, OnImuAccelFrameReceived);
             ConnectToCanAdapter();
         }
 
@@ -56,6 +70,40 @@ namespace UStallGUI.Helpers
             {
                 SendFrame((ushort)SendAddressesControlUnit.Health, HeartbeatAckPayload);
             }
+        }
+
+        private void OnImuAttitudeFrameReceived(ushort rxId, byte[] data)
+        {
+            if (data == null || data.Length < 6)
+                return;
+
+            double rollDeg = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2)) / 100.0;
+            double pitchDeg = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(2, 2)) / 100.0;
+            double yawDeg = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(4, 2)) / 100.0;
+            bool healthy = data.Length >= 7 && (data[6] & 1) != 0;
+            ImuAttitudeReceived?.Invoke(new ImuAttitudeSample(rollDeg, pitchDeg, yawDeg, healthy));
+        }
+
+        private void OnImuGyroFrameReceived(ushort rxId, byte[] data)
+        {
+            if (data == null || data.Length < 6)
+                return;
+
+            double gx = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2)) / 100.0;
+            double gy = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(2, 2)) / 100.0;
+            double gz = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(4, 2)) / 100.0;
+            ImuGyroReceived?.Invoke(new ImuVectorSample(gx, gy, gz));
+        }
+
+        private void OnImuAccelFrameReceived(ushort rxId, byte[] data)
+        {
+            if (data == null || data.Length < 6)
+                return;
+
+            double ax = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2)) / 100.0;
+            double ay = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(2, 2)) / 100.0;
+            double az = BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(4, 2)) / 100.0;
+            ImuAccelReceived?.Invoke(new ImuVectorSample(ax, ay, az));
         }
 
         public bool FindCanAdapter()
@@ -203,7 +251,12 @@ namespace UStallGUI.Helpers
                 {
                     foreach (var (rxId, data) in frames)
                     {
-                        Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
+                        if (rxId != (ushort)RecieveAddressesControlUnit.ImuAttitude &&
+                            rxId != (ushort)RecieveAddressesControlUnit.ImuGyro &&
+                            rxId != (ushort)RecieveAddressesControlUnit.ImuAccel)
+                        {
+                            Log($"[{DateTime.Now:HH:mm:ss}] RX ID {rxId} Data: {BitConverter.ToString(data)}");
+                        }
                         TriggerCallback(rxId, data);
                     }
                 }

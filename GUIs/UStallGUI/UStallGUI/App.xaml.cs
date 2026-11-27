@@ -12,6 +12,7 @@ namespace UStallGUI
         public ControlParameterHandlerViewModel ControlParamterHandlerViewModelGetter { get; }
         public CameraStreamViewModel CameraStreamViewModelGetter { get; }
         public QuickSetupViewModel QuickSetupViewModelGetter { get; }
+        public TelemetryViewModel TelemetryViewModelGetter { get; }
 
         public static App Instance { get; private set; }
 
@@ -25,6 +26,7 @@ namespace UStallGUI
             ControlParamterHandlerViewModelGetter = new ControlParameterHandlerViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
             CameraStreamViewModelGetter = new CameraStreamViewModel();
             QuickSetupViewModelGetter = new QuickSetupViewModel();
+            TelemetryViewModelGetter = new TelemetryViewModel(SetupHandlerViewModelGetter.GetCANWrapper());
         }
     }
 }

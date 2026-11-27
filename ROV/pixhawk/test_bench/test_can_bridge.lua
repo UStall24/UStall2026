@@ -435,6 +435,46 @@ run_case("Attitude & Depth Hold PID Get/Set & Validation (ID 150 -> 151)", funct
     assert_true(f4 ~= nil and f4:data(0) == 99 and f4:data(1) == 0, "Unknown param_id rejected")
 end)
 
+run_case("AHRS IMU Telemetry Streaming (ID 180 -> 181..184)", function()
+    ahrs:set_state(math.rad(-12.34), math.rad(5.67), math.rad(179.50),
+                   math.rad(15.5), math.rad(-22.3), math.rad(0.8),
+                   0.25, -1.50, -9.81, true)
+
+    -- Enable 10 Hz streaming (Att + Gyro + Accel)
+    CAN.dev1:push_rx(180, {10, 7})
+    update()
+    local f_cfg = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f_cfg ~= nil and f_cfg:id_signed() == 181 and f_cfg:data(0) == 10 and f_cfg:data(1) == 7, "Config ACK [10, 7]")
+
+    local f_att = table.remove(CAN.dev1.tx_queue, 1)
+    local f_gyro = table.remove(CAN.dev1.tx_queue, 1)
+    local f_acc = table.remove(CAN.dev1.tx_queue, 1)
+    assert_true(f_att ~= nil and f_att:id_signed() == 182 and f_att:dlc() == 7, "7-byte Attitude frame")
+    assert_true(f_gyro ~= nil and f_gyro:id_signed() == 183 and f_gyro:dlc() == 6, "6-byte Gyro frame")
+    assert_true(f_acc ~= nil and f_acc:id_signed() == 184 and f_acc:dlc() == 6, "6-byte Accel frame")
+
+    local r, p, y = string.unpack("<hhh", string.char(f_att:data(0), f_att:data(1), f_att:data(2), f_att:data(3), f_att:data(4), f_att:data(5)))
+    assert_true(math.abs(r / 100.0 - (-12.34)) <= 0.02, "Roll decoded")
+    assert_true(math.abs(p / 100.0 - 5.67) <= 0.02, "Pitch decoded")
+    assert_true(math.abs(y / 100.0 - 179.50) <= 0.02, "Yaw decoded")
+    assert_eq(f_att:data(6), 1, "AHRS healthy")
+
+    local gx, gy, gz = string.unpack("<hhh", string.char(f_gyro:data(0), f_gyro:data(1), f_gyro:data(2), f_gyro:data(3), f_gyro:data(4), f_gyro:data(5)))
+    assert_true(math.abs(gx / 100.0 - 15.5) <= 0.02, "Gyro X decoded")
+    assert_true(math.abs(gy / 100.0 - (-22.3)) <= 0.02, "Gyro Y decoded")
+
+    local ax, ay, az = string.unpack("<hhh", string.char(f_acc:data(0), f_acc:data(1), f_acc:data(2), f_acc:data(3), f_acc:data(4), f_acc:data(5)))
+    assert_true(math.abs(az / 100.0 - (-9.81)) <= 0.02, "Accel Z decoded")
+
+    -- Disable streaming
+    CAN.dev1:push_rx(180, {0, 7})
+    update()
+    CAN.dev1.tx_queue = {}
+    mock.advance_time(500)
+    update()
+    assert_eq(#CAN.dev1.tx_queue, 0, "No IMU frames after disable")
+end)
+
 print(string.rep("=", 72))
 print(string.format("Pure Lua Test Results: %d PASSED, %d FAILED", passed, failed))
 print(string.rep("=", 72))

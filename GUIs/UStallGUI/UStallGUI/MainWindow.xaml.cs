@@ -50,6 +50,7 @@ namespace UStallGUI
 
             this.Closed += (s, e) =>
             {
+                App.Instance.TelemetryViewModelGetter?.StopStreamImmediate();
                 App.Instance.CameraStreamViewModelGetter?.Cleanup(); // Stop current running capturing tasks of the camera feed
                 App.Instance.SetupHandlerViewModelGetter?.DisconnectFromLCE();
             };

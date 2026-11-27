@@ -19,7 +19,8 @@ namespace UStallGUI.Helpers
         AxisGains = 140,
         PidParam = 150,
         UpdateCycleTime = 160,
-        TestMotor = 170
+        TestMotor = 170,
+        ImuConfig = 180
     }
 
     /// <summary>
@@ -39,6 +40,10 @@ namespace UStallGUI.Helpers
         AxisGains = 141,
         PidParam = 151,
         UpdateCycleTime = 161,
-        TestMotor = 171
+        TestMotor = 171,
+        ImuConfig = 181,
+        ImuAttitude = 182,
+        ImuGyro = 183,
+        ImuAccel = 184
     }
 }
